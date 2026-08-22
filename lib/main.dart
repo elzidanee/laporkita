@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'core/theme/app_theme.dart';
 import 'presentation/citizen/home/splash_screen.dart';
 import 'presentation/citizen/home/get_started_screen.dart';
@@ -16,6 +17,12 @@ import 'presentation/citizen/camera/new_report_form_screen.dart';
 import 'presentation/command_center/dashboard/dashboard_screen.dart';
 import 'presentation/citizen/tracking/tracking_progress_screen.dart';
 import 'presentation/citizen/tracking/foto_progress_screen.dart';
+import 'presentation/auth/bloc/auth_bloc.dart';
+import 'presentation/reports/bloc/report_bloc.dart';
+import 'data/repositories/auth_repository.dart';
+import 'data/repositories/report_repository.dart';
+import 'data/repositories/category_repository.dart';
+
 void main() {
   runApp(const MyApp());
 }
@@ -25,18 +32,40 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'LaporKita',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-
-      // Initial route starts with Splash Screen
-      initialRoute: '/',
-
-      // Use onGenerateRoute for custom smooth transitions on every named route
-      onGenerateRoute: (settings) {
-        return _buildSmoothRoute(settings);
-      },
+    return MultiRepositoryProvider(
+      providers: [
+        RepositoryProvider(create: (_) => AuthRepository()),
+        RepositoryProvider(create: (_) => ReportRepository()),
+        RepositoryProvider(create: (_) => CategoryRepository()),
+      ],
+      child: MultiBlocProvider(
+        providers: [
+          BlocProvider(
+            create: (ctx) => AuthBloc(
+              authRepository: ctx.read<AuthRepository>(),
+            )..add(const AuthCheckRequested()),
+          ),
+          BlocProvider(
+            create: (ctx) => ReportBloc(
+              reportRepository: ctx.read<ReportRepository>(),
+            ),
+          ),
+          BlocProvider(
+            create: (ctx) => CategoryBloc(
+              categoryRepository: ctx.read<CategoryRepository>(),
+            )..add(const CategoryLoadRequested()),
+          ),
+        ],
+        child: MaterialApp(
+          title: 'LaporKita',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          initialRoute: '/',
+          onGenerateRoute: (settings) {
+            return _buildSmoothRoute(settings);
+          },
+        ),
+      ),
     );
   }
 }
@@ -57,7 +86,9 @@ Widget? _resolveScreen(RouteSettings settings) {
     case '/citizen':
       return const CitizenHomeScreen();
     case '/report-detail':
-      return const ReportDetailScreen();
+      return ReportDetailScreen(
+        reportData: settings.arguments as Map<String, dynamic>?,
+      );
     case '/camera':
       return const CameraCaptureScreen();
     case '/similar-reports':
@@ -67,15 +98,21 @@ Widget? _resolveScreen(RouteSettings settings) {
     case '/ai-verification':
       return const AiVerificationScreen();
     case '/report-success':
-      return const ReportSuccessScreen();
+      return ReportSuccessScreen(
+        reportData: settings.arguments as Map<String, dynamic>?,
+      );
     case '/new-report-form':
       return const NewReportFormScreen();
     case '/command-center':
       return const CommandCenterDashboard();
     case '/tracking-progress':
-      return const TrackingProgressScreen();
+      return TrackingProgressScreen(
+        reportData: settings.arguments as Map<String, dynamic>?,
+      );
     case '/foto-progress':
-      return const FotoProgressScreen();
+      return FotoProgressScreen(
+        reportData: settings.arguments as Map<String, dynamic>?,
+      );
     default:
       return null;
   }
@@ -96,7 +133,6 @@ PageRouteBuilder _buildSmoothRoute(RouteSettings settings) {
     transitionDuration: const Duration(milliseconds: 420),
     reverseTransitionDuration: const Duration(milliseconds: 320),
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      // Slide direction: auth screens slide up, others slide from right
       final beginOffset =
           isAuthScreen ? const Offset(0.0, 0.08) : const Offset(0.06, 0.0);
 
@@ -115,7 +151,6 @@ PageRouteBuilder _buildSmoothRoute(RouteSettings settings) {
         ),
       );
 
-      // Outgoing page fades out slightly
       final outFadeAnimation = Tween<double>(begin: 1.0, end: 0.92).animate(
         CurvedAnimation(
           parent: secondaryAnimation,

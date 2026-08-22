@@ -1,10 +1,76 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../data/repositories/report_repository.dart';
 
-class AiVerificationScreen extends StatelessWidget {
+class AiVerificationScreen extends StatefulWidget {
   const AiVerificationScreen({super.key});
+
+  @override
+  State<AiVerificationScreen> createState() => _AiVerificationScreenState();
+}
+
+class _AiVerificationScreenState extends State<AiVerificationScreen> {
+  bool _isChecking = false;
+
+  Future<void> _handleLanjut(Map<String, dynamic>? args) async {
+    if (_isChecking) return;
+    setState(() => _isChecking = true);
+
+    double lat = -7.9827;
+    double lng = 112.6304;
+    final String? coordinates = args?['coordinates'];
+
+    if (coordinates != null && coordinates.contains(',')) {
+      try {
+        final parts = coordinates.split(',');
+        if (parts.length == 2) {
+          lat = double.parse(parts[0].trim());
+          lng = double.parse(parts[1].trim());
+        }
+      } catch (_) {}
+    }
+
+    try {
+      final repository = context.read<ReportRepository>();
+      final similarReports = await repository.checkSimilarReports(
+        latitude: lat,
+        longitude: lng,
+      );
+
+      if (!mounted) return;
+
+      if (similarReports.isNotEmpty) {
+        // Ada laporan serupa! Buka halaman Deteksi Laporan Serupa
+        Navigator.pushNamed(
+          context,
+          '/similar-reports',
+          arguments: {
+            if (args != null) ...args,
+            'similarReports': similarReports,
+          },
+        );
+      } else {
+        // Tidak ada laporan serupa! Langsung buka halaman Laporan Baru
+        Navigator.pushNamed(
+          context,
+          '/new-report-form',
+          arguments: args,
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      Navigator.pushNamed(
+        context,
+        '/new-report-form',
+        arguments: args,
+      );
+    } finally {
+      if (mounted) setState(() => _isChecking = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,7 +118,7 @@ class AiVerificationScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 1. Photo Container with Stamp Overlay (Figma Node 85:1612 & Node 190:54)
+                    // 1. Photo Container with Stamp Overlay
                     _buildPhotoPreviewWithStamp(
                       imagePath: imagePath,
                       location: location,
@@ -61,7 +127,7 @@ class AiVerificationScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 20),
 
-                    // 2. 4 Verification Status Cards List (Figma Node 85:1694)
+                    // 2. 4 Verification Status Cards List
                     _buildVerificationCard(
                       title: 'Foto Asli',
                       subtitle: 'Foto diambil langsung dari camera',
@@ -83,7 +149,7 @@ class AiVerificationScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 20),
 
-                    // 3. AI Detection & Confidence Card (Figma Node 85:1682)
+                    // 3. AI Detection & Confidence Card
                     _buildAiDetectionCard(),
                     const SizedBox(height: 16),
                   ],
@@ -91,17 +157,11 @@ class AiVerificationScreen extends StatelessWidget {
               ),
             ),
 
-            // 4. Bottom Action Button: "Lanjut" (Figma Node 88:1974)
+            // 4. Bottom Action Button: "Lanjut"
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
               child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pushNamed(
-                    context,
-                    '/similar-reports',
-                    arguments: args,
-                  );
-                },
+                onPressed: _isChecking ? null : () => _handleLanjut(args),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.greenPrimary,
                   foregroundColor: AppColors.white,
@@ -111,13 +171,22 @@ class AiVerificationScreen extends StatelessWidget {
                   ),
                   elevation: 0,
                 ),
-                child: const Text(
-                  'Lanjut',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                child: _isChecking
+                    ? const SizedBox(
+                        height: 22,
+                        width: 22,
+                        child: CircularProgressIndicator(
+                          color: AppColors.white,
+                          strokeWidth: 2.5,
+                        ),
+                      )
+                    : const Text(
+                        'Lanjut',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
               ),
             ),
           ],
@@ -126,7 +195,7 @@ class AiVerificationScreen extends StatelessWidget {
     );
   }
 
-  /// Photo preview with camera metadata overlay stamp (Figma Node 85:1612 & Node 190:54)
+  /// Photo preview with camera metadata overlay stamp
   Widget _buildPhotoPreviewWithStamp({
     required String? imagePath,
     required String location,
@@ -150,7 +219,6 @@ class AiVerificationScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         child: Stack(
           children: [
-            // Captured Image / High-res fallback
             Positioned.fill(
               child: imagePath != null &&
                       imagePath.isNotEmpty &&
@@ -160,21 +228,28 @@ class AiVerificationScreen extends StatelessWidget {
                       File(imagePath),
                       fit: BoxFit.cover,
                     )
-                  : Image.network(
-                      'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?q=80&w=800&auto=format&fit=crop',
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        color: Colors.grey.shade300,
-                        child: const Icon(
-                          Icons.broken_image_rounded,
-                          size: 48,
-                          color: AppColors.neutral500,
-                        ),
-                      ),
-                    ),
+                  : (imagePath != null && imagePath.startsWith('http')
+                      ? Image.network(
+                          imagePath,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            color: const Color(0xFFF0F4F8),
+                            child: const Icon(
+                              Icons.image_not_supported_rounded,
+                              size: 48,
+                              color: AppColors.greenPrimary,
+                            ),
+                          ),
+                        )
+                      : Container(
+                          color: const Color(0xFFF0F4F8),
+                          child: const Icon(
+                            Icons.image_not_supported_rounded,
+                            size: 48,
+                            color: AppColors.greenPrimary,
+                          ),
+                        )),
             ),
-
-            // Subtle dark overlay gradient
             Positioned.fill(
               child: Container(
                 decoration: BoxDecoration(
@@ -190,8 +265,6 @@ class AiVerificationScreen extends StatelessWidget {
                 ),
               ),
             ),
-
-            // Camera Metadata Overlay Stamp Box (Node 190:54)
             Positioned(
               left: 12,
               bottom: 12,
@@ -206,7 +279,6 @@ class AiVerificationScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // LaporKita Green Pill Badge
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 2),
@@ -224,8 +296,6 @@ class AiVerificationScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-
-                    // Report ID
                     const Text(
                       '#LP_2026_002487',
                       style: TextStyle(
@@ -235,29 +305,21 @@ class AiVerificationScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-
-                    // Location Row
                     _buildStampItem(
                       icon: Icons.location_on_outlined,
                       text: location,
                     ),
                     const SizedBox(height: 3),
-
-                    // Timestamp Row
                     _buildStampItem(
                       icon: Icons.access_time_outlined,
                       text: timestamp,
                     ),
                     const SizedBox(height: 3),
-
-                    // Category Row
                     _buildStampItem(
                       icon: Icons.warning_amber_rounded,
                       text: 'Jalan Rusak',
                     ),
                     const SizedBox(height: 3),
-
-                    // Coordinates Row
                     _buildStampItem(
                       icon: Icons.memory_outlined,
                       text: coordinates,
@@ -294,7 +356,6 @@ class AiVerificationScreen extends StatelessWidget {
     );
   }
 
-  /// Verification status check card item (Figma Node 85:1694)
   Widget _buildVerificationCard({
     required String title,
     required String subtitle,
@@ -315,7 +376,6 @@ class AiVerificationScreen extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Green Checkmark Icon Circle
           Container(
             width: 28,
             height: 28,
@@ -330,8 +390,6 @@ class AiVerificationScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 16),
-
-          // Title & Description
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -360,7 +418,6 @@ class AiVerificationScreen extends StatelessWidget {
     );
   }
 
-  /// AI Detection & Confidence card (Figma Node 85:1682 & Node 85:1715)
   Widget _buildAiDetectionCard() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -380,7 +437,6 @@ class AiVerificationScreen extends StatelessWidget {
         children: [
           Row(
             children: [
-              // AI Badge Icon
               Container(
                 width: 52,
                 height: 52,
@@ -395,8 +451,6 @@ class AiVerificationScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 14),
-
-              // Title & Subtitle
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -431,8 +485,6 @@ class AiVerificationScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-
-          // Confidence Header Row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: const [
@@ -455,11 +507,9 @@ class AiVerificationScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-
-          // Green Confidence Bar
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
+            child: const LinearProgressIndicator(
               value: 0.98,
               minHeight: 8,
               backgroundColor: AppColors.neutral100,

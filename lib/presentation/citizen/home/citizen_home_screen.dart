@@ -1,6 +1,12 @@
+import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import '../../../core/theme/app_colors.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:laporkita/core/theme/app_colors.dart';
+import 'package:laporkita/data/models/report_model.dart';
+import 'package:laporkita/data/repositories/report_repository.dart';
+import 'package:laporkita/presentation/auth/bloc/auth_bloc.dart';
+import 'package:laporkita/presentation/reports/bloc/report_bloc.dart';
 import '../report_detail/report_detail_screen.dart';
 import '../map/map_tab_screen.dart';
 
@@ -195,6 +201,14 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
   final TextEditingController _searchController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ReportBloc>().add(const ReportLoadRequested());
+    });
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
@@ -210,67 +224,84 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
           child: Container(
             color: AppColors.greenPrimary,
             padding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Welcome Text Column
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Hallo!, selamat datang',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.white.withValues(alpha: 0.9),
-                          fontSize: 16,
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Kalandra !',
-                        style: Theme.of(context).textTheme.headlineMedium
-                            ?.copyWith(
-                              color: AppColors.white,
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                            ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Ayo jaga kota kita bersama!',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.white.withValues(alpha: 0.85),
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+            child: BlocBuilder<AuthBloc, AuthState>(
+              builder: (context, authState) {
+                String userName = 'Warga';
+                if (authState is AuthAuthenticated) {
+                  userName = authState.user.fullName;
+                }
 
-                // Logo LK Top Right
-                Image.asset(
-                  'assets/images/logoLK.png',
-                  height: 38,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.white.withValues(alpha: 0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Text(
-                      'LK',
-                      style: TextStyle(
-                        color: AppColors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Welcome Text Column
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Hallo!, selamat datang',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: AppColors.white.withValues(alpha: 0.9),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '$userName !',
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineMedium
+                                ?.copyWith(
+                                  color: AppColors.white,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Ayo jaga kota kita bersama!',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(
+                                  color: AppColors.white.withValues(alpha: 0.85),
+                                  fontSize: 12,
+                                ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                ),
-              ],
+
+                    // Logo LK Top Right
+                    Image.asset(
+                      'assets/images/logoLK.png',
+                      height: 38,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.white.withValues(alpha: 0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Text(
+                          'LK',
+                          style: TextStyle(
+                            color: AppColors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ),
@@ -480,39 +511,69 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
     );
   }
 
-  /// 3 Stat Cards Row: 12 Laporan Saya, 8 Sedang diproses, 5 Laporan selesai
+  /// 3 Stat Cards Row (Laporan Saya, Sedang Diproses, Laporan Selesai)
   Widget _buildStatCardsRow() {
-    return Row(
-      children: [
-        // Card 1: 12 Laporan Saya (Blue)
-        Expanded(
-          child: _buildStatItem(
-            value: '12',
-            label: 'Laporan Saya',
-            color: const Color(0xFF2B82C4),
-          ),
-        ),
-        const SizedBox(width: 8),
+    return BlocBuilder<ReportBloc, ReportState>(
+      builder: (context, state) {
+        int totalReports = 0;
+        int inProgressCount = 0;
+        int completedCount = 0;
 
-        // Card 2: 8 Sedang diproses (Orange/Amber)
-        Expanded(
-          child: _buildStatItem(
-            value: '8',
-            label: 'Sedang diproses',
-            color: const Color(0xFFE68A00),
-          ),
-        ),
-        const SizedBox(width: 8),
+        List<ReportModel> reportList = [];
+        if (state is ReportListLoaded) {
+          reportList = state.reports;
+        } else {
+          final repo = context.read<ReportRepository>();
+          reportList = repo.localSubmittedReports;
+        }
 
-        // Card 3: 5 Laporan selesai (Green)
-        Expanded(
-          child: _buildStatItem(
-            value: '5',
-            label: 'Laporan selesai',
-            color: AppColors.greenPrimary,
-          ),
-        ),
-      ],
+        totalReports = reportList.length;
+        inProgressCount = reportList
+            .where((r) =>
+                r.status == ReportStatus.inProgress ||
+                r.status == ReportStatus.assigned ||
+                r.status == ReportStatus.verified ||
+                r.status == ReportStatus.pendingVerification)
+            .length;
+        completedCount = reportList
+            .where((r) =>
+                r.status == ReportStatus.completed ||
+                r.status == ReportStatus.resolved)
+            .length;
+
+        return Row(
+          children: [
+            // Card 1: Laporan Saya (Blue)
+            Expanded(
+              child: _buildStatItem(
+                value: '$totalReports',
+                label: 'Laporan Saya',
+                color: const Color(0xFF2B82C4),
+              ),
+            ),
+            const SizedBox(width: 8),
+
+            // Card 2: Sedang diproses (Orange/Amber)
+            Expanded(
+              child: _buildStatItem(
+                value: '$inProgressCount',
+                label: 'Sedang diproses',
+                color: const Color(0xFFE68A00),
+              ),
+            ),
+            const SizedBox(width: 8),
+
+            // Card 3: Laporan selesai (Green)
+            Expanded(
+              child: _buildStatItem(
+                value: '$completedCount',
+                label: 'Laporan selesai',
+                color: AppColors.greenPrimary,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -555,7 +616,7 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
     );
   }
 
-  /// Kategori Section Header + 4 Category Items Row
+  /// Kategori Section Header + 4 Original Category Illustration Cards
   Widget _buildKategoriSection() {
     return Column(
       children: [
@@ -586,7 +647,7 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
         ),
         const SizedBox(height: 12),
 
-        // 4 Category Cards Row
+        // 4 Category Cards Row with original illustrations
         Row(
           children: [
             Expanded(
@@ -662,7 +723,7 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
     );
   }
 
-  /// Laporan Terdekat Section Header & List Cards
+  /// Laporan Terdekat Section Header & List Cards from ReportBloc
   Widget _buildLaporanTerdekatSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -677,62 +738,274 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
         ),
         const SizedBox(height: 12),
 
-        // Report 1: Jembatan rusak
-        _buildReportListItem(
-          title: 'Jembatan rusak',
-          date: '18 juli 2026',
-          address: 'Jl. toyiban no.13 f5',
-          supports: '1.208 Dukungan',
-          statusText: 'Menunggu verifikasi',
-          statusBgColor: const Color(0xFFE6F2FF),
-          statusTextColor: const Color(0xFF2B82C4),
-          iconData: Icons.water_rounded,
-          placeholderColor: Colors.blue.shade100,
-        ),
-        const SizedBox(height: 12),
+        BlocBuilder<ReportBloc, ReportState>(
+          builder: (context, state) {
+            if (state is ReportLoading) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(
+                  child:
+                      CircularProgressIndicator(color: AppColors.greenPrimary),
+                ),
+              );
+            }
 
-        // Report 2: Jalan Rusak
-        _buildReportListItem(
-          title: 'Jalan Rusak',
-          date: '12 Mei 2026',
-          address: 'Jl. Ahmad Yani no. 15',
-          supports: '360 Dukungan',
-          statusText: 'Sedang Diproses',
-          statusBgColor: const Color(0xFFFFF8E6),
-          statusTextColor: const Color(0xFFE68A00),
-          iconData: Icons.alt_route_rounded,
-          placeholderColor: Colors.amber.shade100,
-        ),
-        const SizedBox(height: 12),
+            List<ReportModel> reports = [];
+            if (state is ReportListLoaded) {
+              reports = state.reports;
+            }
 
-        // Report 3: Halte rusak
-        _buildReportListItem(
-          title: 'Halte rusak',
-          date: '4 april 2026',
-          address: 'Jl. soekarno hatta no.20 A',
-          supports: '268 Dukungan',
-          statusText: 'Sedang Diproses',
-          statusBgColor: const Color(0xFFFFF8E6),
-          statusTextColor: const Color(0xFFE68A00),
-          iconData: Icons.directions_bus_rounded,
-          placeholderColor: Colors.orange.shade100,
-        ),
-        const SizedBox(height: 12),
+            if (reports.isEmpty) {
+              final repo = context.read<ReportRepository>();
+              reports = repo.localSubmittedReports;
+            }
 
-        // Report 4: Kursi tidak layak
-        _buildReportListItem(
-          title: 'Kursi tidak layak',
-          date: '31 Maret 2026',
-          address: 'Jl. simpang ibrahim',
-          supports: '129 Dukungan',
-          statusText: 'Selesai',
-          statusBgColor: const Color(0xFFE6F7ED),
-          statusTextColor: AppColors.greenPrimary,
-          iconData: Icons.chair_alt_rounded,
-          placeholderColor: Colors.green.shade100,
+            if (reports.isNotEmpty) {
+              return Column(
+                children: reports.map((report) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _buildReportListItemFromModel(report),
+                  );
+                }).toList(),
+              );
+            }
+
+            // Fallback if no reports anywhere yet
+            return Column(
+              children: [
+                _buildReportListItem(
+                  title: 'Jembatan rusak',
+                  date: '18 juli 2026',
+                  address: 'Jl. toyiban no.13 f5',
+                  supports: '1.208 Dukungan',
+                  statusText: 'Menunggu verifikasi',
+                  statusBgColor: const Color(0xFFE6F2FF),
+                  statusTextColor: const Color(0xFF2B82C4),
+                  iconData: Icons.water_rounded,
+                  placeholderColor: Colors.blue.shade100,
+                ),
+                const SizedBox(height: 12),
+                _buildReportListItem(
+                  title: 'Jalan Rusak',
+                  date: '12 Mei 2026',
+                  address: 'Jl. Ahmad Yani no. 15',
+                  supports: '360 Dukungan',
+                  statusText: 'Sedang Diproses',
+                  statusBgColor: const Color(0xFFFFF8E6),
+                  statusTextColor: const Color(0xFFE68A00),
+                  iconData: Icons.alt_route_rounded,
+                  placeholderColor: Colors.amber.shade100,
+                ),
+              ],
+            );
+          },
         ),
       ],
     );
+  }
+
+  Widget _buildReportListItemFromModel(ReportModel report) {
+    try {
+      Color statusBgColor = const Color(0xFFFFF8E6);
+      Color statusTextColor = const Color(0xFFE68A00);
+
+      if (report.status == ReportStatus.resolved ||
+          report.status == ReportStatus.completed) {
+        statusBgColor = const Color(0xFFE6F7ED);
+        statusTextColor = AppColors.greenPrimary;
+      } else if (report.status == ReportStatus.pendingVerification) {
+        statusBgColor = const Color(0xFFE6F2FF);
+        statusTextColor = const Color(0xFF2B82C4);
+      } else if (report.status == ReportStatus.rejected) {
+        statusBgColor = const Color(0xFFFFEFEB);
+        statusTextColor = const Color(0xFFFF3D00);
+      }
+
+      final dateStr =
+          '${report.createdAt.day} ${_monthName(report.createdAt.month)} ${report.createdAt.year}';
+
+      final imgUrl = report.formattedPhotoUrl ?? report.photoUrl;
+      final String? localPath = report.directPhotoUrl ?? report.photoUrl;
+
+      bool isLocalFileValid = false;
+      if (localPath != null &&
+          localPath.isNotEmpty &&
+          !localPath.startsWith('http')) {
+        try {
+          isLocalFileValid = File(localPath).existsSync();
+        } catch (_) {
+          isLocalFileValid = false;
+        }
+      }
+
+      Widget cardImageWidget;
+      if (isLocalFileValid && localPath != null) {
+        cardImageWidget = Image.file(
+          File(localPath),
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => Image.network(
+            ReportModel.getCategoryFallbackImage(report.categoryName),
+            fit: BoxFit.cover,
+          ),
+        );
+      } else if (imgUrl != null && imgUrl.isNotEmpty) {
+        cardImageWidget = Image.network(
+          imgUrl,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => Image.network(
+            ReportModel.getCategoryFallbackImage(report.categoryName),
+            fit: BoxFit.cover,
+          ),
+        );
+      } else {
+        cardImageWidget = Image.network(
+          ReportModel.getCategoryFallbackImage(report.categoryName),
+          fit: BoxFit.cover,
+        );
+      }
+
+      return GestureDetector(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ReportDetailScreen(
+                reportData: {
+                  'id': report.id,
+                  'reportCode': report.reportCode,
+                  'title': report.categoryName,
+                  'date': 'Dibuat : $dateStr',
+                  'address': report.addressText ?? 'Malang',
+                  'fullAddress': report.addressText ?? 'Kota Malang',
+                  'status': report.status.displayName,
+                  'description': report.description ?? 'Laporan fasilitas umum.',
+                  'photoUrl': imgUrl,
+                  'imagePath': localPath,
+                  'supports': report.supportCount,
+                  'reportModel': report,
+                },
+              ),
+            ),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: SizedBox(
+                  width: 80,
+                  height: 72,
+                  child: cardImageWidget,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            report.categoryName,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.neutral900,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Text(
+                          dateStr,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: AppColors.neutral500,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      report.addressText ?? 'Malang',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.neutral500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '${report.supportCount} Dukungan',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.greenPrimary,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: statusBgColor,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            report.status.displayName,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: statusTextColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    } catch (_) {
+      return const SizedBox.shrink();
+    }
+  }
+
+  String _monthName(int month) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des'
+    ];
+    return months[(month - 1) % 12];
   }
 
   Widget _buildReportListItem({
@@ -1242,181 +1515,243 @@ class CitizenProfileTab extends StatelessWidget {
         centerTitle: true,
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          child: Column(
-            children: [
-              // Avatar & Profile Header
-              Center(
-                child: Column(
-                  children: [
-                    Container(
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: AppColors.greenPrimary.withValues(alpha: 0.3),
-                          width: 3,
+        child: BlocBuilder<AuthBloc, AuthState>(
+          builder: (context, authState) {
+            String fullName = 'Warga LaporKita';
+            String emailOrPhone = '-';
+            int points = 0;
+            String? avatarUrl;
+
+            if (authState is AuthAuthenticated) {
+              fullName = authState.user.fullName;
+              emailOrPhone = authState.user.email ??
+                  authState.user.phoneNumber ??
+                  '-';
+              points = authState.user.contributionPoints;
+              avatarUrl = authState.user.avatarUrl;
+            }
+
+            return SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              child: Column(
+                children: [
+                  // Avatar & Profile Header
+                  Center(
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: AppColors.greenPrimary
+                                  .withValues(alpha: 0.3),
+                              width: 3,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.08),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: ClipOval(
+                            child: avatarUrl != null && avatarUrl.isNotEmpty
+                                ? Image.network(
+                                    avatarUrl,
+                                    fit: BoxFit.cover,
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            Container(
+                                      color: AppColors.greenLight,
+                                      child: const Icon(
+                                        Icons.person_rounded,
+                                        size: 54,
+                                        color: AppColors.greenPrimary,
+                                      ),
+                                    ),
+                                  )
+                                : Container(
+                                    color: AppColors.greenLight,
+                                    child: const Icon(
+                                      Icons.person_rounded,
+                                      size: 54,
+                                      color: AppColors.greenPrimary,
+                                    ),
+                                  ),
+                          ),
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.08),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
+                        const SizedBox(height: 12),
+                        Text(
+                          fullName,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.neutral900,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          emailOrPhone,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF565657),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: AppColors.greenLight.withValues(alpha: 0.4),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.stars_rounded,
+                                size: 16,
+                                color: AppColors.greenPrimary,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '$points Poin Kontribusi',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.greenPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Menu Item 1: Riwayat Laporan
+                  _buildProfileMenuItem(
+                    icon: Icons.assignment_turned_in_outlined,
+                    title: 'Riwayat Laporan',
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Membuka Riwayat Laporan...'),
+                          backgroundColor: AppColors.greenPrimary,
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Menu Item 2: Dukungan Saya
+                  _buildProfileMenuItem(
+                    icon: Icons.thumb_up_alt_outlined,
+                    title: 'Dukungan Saya',
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Membuka Dukungan Saya...'),
+                          backgroundColor: AppColors.greenPrimary,
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Menu Item 3: Pengaturan
+                  _buildProfileMenuItem(
+                    icon: Icons.settings_outlined,
+                    title: 'Pengaturan',
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Membuka Pengaturan...'),
+                          backgroundColor: AppColors.greenPrimary,
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Menu Item 4: Pusat Bantuan
+                  _buildProfileMenuItem(
+                    icon: Icons.help_outline_rounded,
+                    title: 'Pusat Bantuan',
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Membuka Pusat Bantuan...'),
+                          backgroundColor: AppColors.greenPrimary,
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Menu Item 5: Tentang LaporKita
+                  _buildProfileMenuItem(
+                    icon: Icons.info_outline_rounded,
+                    title: 'Tentang LaporKita',
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('LaporKita v1.0.0'),
+                          backgroundColor: AppColors.greenPrimary,
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Logout Button (Red Outlined Container)
+                  GestureDetector(
+                    onTap: () {
+                      context
+                          .read<AuthBloc>()
+                          .add(const AuthLogoutRequested());
+                      Navigator.pushNamedAndRemoveUntil(
+                          context, '/login', (route) => false);
+                    },
+                    child: Container(
+                      height: 52,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFEFEB),
+                        borderRadius: BorderRadius.circular(15),
+                        border: Border.all(color: const Color(0xFFFF3D00)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(
+                            Icons.logout_rounded,
+                            color: Color(0xFFFF3D00),
+                            size: 22,
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'Keluar',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFFFF3D00),
+                            ),
                           ),
                         ],
                       ),
-                      child: ClipOval(
-                        child: Image.network(
-                          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=300&auto=format&fit=crop',
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Container(
-                            color: AppColors.greenLight,
-                            child: const Icon(
-                              Icons.person_rounded,
-                              size: 54,
-                              color: AppColors.greenPrimary,
-                            ),
-                          ),
-                        ),
-                      ),
                     ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Kalandra Garendra',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.neutral900,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'kalandra.garendra@gmail.com',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF565657),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Menu Item 1: Riwayat Laporan
-              _buildProfileMenuItem(
-                icon: Icons.assignment_turned_in_outlined,
-                title: 'Riwayat Laporan',
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Membuka Riwayat Laporan...'),
-                      backgroundColor: AppColors.greenPrimary,
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 10),
-
-              // Menu Item 2: Dukungan Saya
-              _buildProfileMenuItem(
-                icon: Icons.thumb_up_alt_outlined,
-                title: 'Dukungan Saya',
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Membuka Dukungan Saya...'),
-                      backgroundColor: AppColors.greenPrimary,
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 10),
-
-              // Menu Item 3: Pengaturan
-              _buildProfileMenuItem(
-                icon: Icons.settings_outlined,
-                title: 'Pengaturan',
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Membuka Pengaturan...'),
-                      backgroundColor: AppColors.greenPrimary,
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 10),
-
-              // Menu Item 4: Pusat Bantuan
-              _buildProfileMenuItem(
-                icon: Icons.help_outline_rounded,
-                title: 'Pusat Bantuan',
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Membuka Pusat Bantuan...'),
-                      backgroundColor: AppColors.greenPrimary,
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 10),
-
-              // Menu Item 5: Tentang LaporKita
-              _buildProfileMenuItem(
-                icon: Icons.info_outline_rounded,
-                title: 'Tentang LaporanKita',
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('LaporKita v1.0.0'),
-                      backgroundColor: AppColors.greenPrimary,
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 24),
-
-              // Logout Button (Red Outlined Container)
-              GestureDetector(
-                onTap: () {
-                  Navigator.pushReplacementNamed(context, '/login');
-                },
-                child: Container(
-                  height: 52,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFEFEB),
-                    borderRadius: BorderRadius.circular(15),
-                    border: Border.all(color: const Color(0xFFFF3D00)),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      Icon(
-                        Icons.logout_rounded,
-                        color: Color(0xFFFF3D00),
-                        size: 22,
-                      ),
-                      SizedBox(width: 8),
-                      Text(
-                        'Keluar',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFFFF3D00),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                  const SizedBox(height: 80),
+                ],
               ),
-              const SizedBox(height: 80), // Padding for floating navbar
-            ],
-          ),
+            );
+          },
         ),
       ),
     );

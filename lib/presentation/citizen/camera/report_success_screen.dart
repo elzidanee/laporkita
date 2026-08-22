@@ -1,15 +1,38 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../data/models/report_model.dart';
 
 class ReportSuccessScreen extends StatelessWidget {
-  const ReportSuccessScreen({super.key});
+  final Map<String, dynamic>? reportData;
+
+  const ReportSuccessScreen({super.key, this.reportData});
 
   @override
   Widget build(BuildContext context) {
-    // Extract passed arguments if any (e.g. {'isSupportOnly': true})
-    final args =
+    // --- Extract data from arguments ---
+    final args = reportData ??
         ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+
     final isSupportOnly = args?['isSupportOnly'] as bool? ?? true;
+    final ReportModel? report = args?['report'] as ReportModel?;
+
+    final String? imagePath = args?['imagePath'] as String? ??
+        args?['photoPath'] as String? ??
+        report?.directPhotoUrl;
+
+    // Derived values from report model
+    final reportCode = report?.reportCode.isNotEmpty == true
+        ? report!.reportCode
+        : (args?['reportId'] as String? ?? '#LP-2026-002487');
+    final title = report?.categoryName ?? (args?['title'] as String? ?? 'Laporan');
+    final address = report?.addressText ?? (args?['address'] as String? ?? '-');
+    final statusText =
+        report?.status.displayName ?? (args?['status'] as String? ?? 'Menunggu Verifikasi');
+    final supportCount = report?.supportCount ?? 0;
+
+    final photoUrl = report?.formattedPhotoUrl ?? report?.photoUrl;
 
     return Scaffold(
       backgroundColor: AppColors.white,
@@ -54,7 +77,7 @@ class ReportSuccessScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
 
-                    // Title: Terimakasih!
+                    // Title
                     const Text(
                       'Terimakasih!',
                       style: TextStyle(
@@ -98,8 +121,8 @@ class ReportSuccessScreen extends StatelessWidget {
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
-                              children: const [
-                                Text(
+                              children: [
+                                const Text(
                                   'ID Laporan',
                                   style: TextStyle(
                                     fontSize: 14,
@@ -107,10 +130,10 @@ class ReportSuccessScreen extends StatelessWidget {
                                     color: AppColors.neutral900,
                                   ),
                                 ),
-                                SizedBox(height: 2),
+                                const SizedBox(height: 2),
                                 Text(
-                                  '#LP_2026_002487',
-                                  style: TextStyle(
+                                  reportCode,
+                                  style: const TextStyle(
                                     fontSize: 12,
                                     color: AppColors.neutral500,
                                   ),
@@ -125,9 +148,12 @@ class ReportSuccessScreen extends StatelessWidget {
                               color: AppColors.neutral900,
                             ),
                             onPressed: () {
+                              Clipboard.setData(
+                                  ClipboardData(text: reportCode));
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('ID Laporan berhasil disalin!'),
+                                  content:
+                                      Text('ID Laporan berhasil disalin!'),
                                   backgroundColor: AppColors.greenPrimary,
                                 ),
                               );
@@ -138,7 +164,7 @@ class ReportSuccessScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 14),
 
-                    // Report Summary Card
+                    // Report Summary Card (real data)
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -148,17 +174,42 @@ class ReportSuccessScreen extends StatelessWidget {
                       ),
                       child: Row(
                         children: [
+                          // Foto mini
                           ClipRRect(
                             borderRadius: BorderRadius.circular(10),
-                            child: Container(
+                            child: SizedBox(
                               width: 80,
                               height: 64,
-                              color: Colors.amber.shade100,
-                              child: const Icon(
-                                Icons.alt_route_rounded,
-                                color: Color(0xFFE68A00),
-                                size: 32,
-                              ),
+                              child: imagePath != null &&
+                                      imagePath.isNotEmpty &&
+                                      File(imagePath).existsSync()
+                                  ? Image.file(
+                                      File(imagePath),
+                                      fit: BoxFit.cover,
+                                    )
+                                  : (photoUrl != null && photoUrl.isNotEmpty
+                                      ? Image.network(
+                                          photoUrl,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (context, error,
+                                                  stackTrace) =>
+                                              Container(
+                                            color: const Color(0xFFF0F4F8),
+                                            child: const Icon(
+                                              Icons.image_not_supported_rounded,
+                                              color: AppColors.greenPrimary,
+                                              size: 28,
+                                            ),
+                                          ),
+                                        )
+                                      : Container(
+                                          color: const Color(0xFFF0F4F8),
+                                          child: const Icon(
+                                            Icons.image_not_supported_rounded,
+                                            color: AppColors.greenPrimary,
+                                            size: 28,
+                                          ),
+                                        )),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -169,40 +220,39 @@ class ReportSuccessScreen extends StatelessWidget {
                                 Row(
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
-                                  children: const [
-                                    Text(
-                                      'Jalan Rusak',
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.neutral900,
-                                      ),
-                                    ),
-                                    Text(
-                                      '12 Mei 2026',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        color: AppColors.neutral500,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        title,
+                                        style: const TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.neutral900,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
                                   ],
                                 ),
                                 const SizedBox(height: 2),
-                                const Text(
-                                  'Jl. Ahmad Yani no. 15',
-                                  style: TextStyle(
+                                Text(
+                                  address,
+                                  style: const TextStyle(
                                     fontSize: 12,
                                     color: AppColors.neutral500,
                                   ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                                 const SizedBox(height: 8),
                                 Row(
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
                                   children: [
-                                    const Text(
-                                      '360 Dukungan',
-                                      style: TextStyle(
+                                    Text(
+                                      '$supportCount Dukungan',
+                                      style: const TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.w600,
                                         color: AppColors.greenPrimary,
@@ -218,9 +268,9 @@ class ReportSuccessScreen extends StatelessWidget {
                                             borderRadius:
                                                 BorderRadius.circular(8),
                                           ),
-                                          child: const Text(
-                                            'Sedang Diproses',
-                                            style: TextStyle(
+                                          child: Text(
+                                            statusText,
+                                            style: const TextStyle(
                                               fontSize: 10,
                                               fontWeight: FontWeight.w600,
                                               color: Color(0xFFE68A00),
@@ -253,7 +303,16 @@ class ReportSuccessScreen extends StatelessWidget {
                   // Button 1: Lihat Tracking
                   ElevatedButton(
                     onPressed: () {
-                      Navigator.pushNamed(context, '/tracking-progress');
+                      Navigator.pushNamed(
+                        context,
+                        '/tracking-progress',
+                        arguments: {
+                          'reportId': report?.id,
+                          'reportCode': report?.reportCode,
+                          'reportModel': report,
+                          'imagePath': imagePath,
+                        },
+                      );
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.greenPrimary,

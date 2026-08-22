@@ -1,11 +1,36 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../data/models/report_model.dart';
 
 class SimilarReportScreen extends StatelessWidget {
   const SimilarReportScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final args =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+
+    final List<ReportModel>? similarReports =
+        args?['similarReports'] as List<ReportModel>?;
+
+    String reportTitle = 'Jalan Rusak';
+    String reportAddress = 'Jl. Ahmad Yani no. 15';
+    String reportDate = '12 Mei 2026';
+    String supportsText = '360 Dukungan';
+    String statusText = 'Sedang Diproses';
+    String? photoUrl;
+
+    if (similarReports != null && similarReports.isNotEmpty) {
+      final report = similarReports.first;
+      reportTitle = report.categoryName;
+      reportAddress = report.addressText ?? 'Malang';
+      reportDate =
+          '${report.createdAt.day}/${report.createdAt.month}/${report.createdAt.year}';
+      supportsText = '${report.supportCount} Dukungan';
+      statusText = report.status.displayName;
+      photoUrl = report.photoUrl;
+    }
+
     return Scaffold(
       backgroundColor: AppColors.white,
       appBar: AppBar(
@@ -116,15 +141,32 @@ class SimilarReportScreen extends StatelessWidget {
                         children: [
                           ClipRRect(
                             borderRadius: BorderRadius.circular(10),
-                            child: Container(
+                            child: SizedBox(
                               width: 80,
                               height: 64,
-                              color: Colors.amber.shade100,
-                              child: const Icon(
-                                Icons.alt_route_rounded,
-                                color: Color(0xFFE68A00),
-                                size: 32,
-                              ),
+                              child: photoUrl != null && photoUrl.isNotEmpty
+                                  ? Image.network(
+                                      photoUrl,
+                                      fit: BoxFit.cover,
+                                      errorBuilder:
+                                          (context, error, stackTrace) =>
+                                              Container(
+                                        color: Colors.amber.shade100,
+                                        child: const Icon(
+                                          Icons.alt_route_rounded,
+                                          color: Color(0xFFE68A00),
+                                          size: 32,
+                                        ),
+                                      ),
+                                    )
+                                  : Container(
+                                      color: Colors.amber.shade100,
+                                      child: const Icon(
+                                        Icons.alt_route_rounded,
+                                        color: Color(0xFFE68A00),
+                                        size: 32,
+                                      ),
+                                    ),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -135,18 +177,22 @@ class SimilarReportScreen extends StatelessWidget {
                                 Row(
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
-                                  children: const [
-                                    Text(
-                                      'Jalan Rusak',
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.neutral900,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        reportTitle,
+                                        style: const TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.neutral900,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
                                     Text(
-                                      '12 Mei 2026',
-                                      style: TextStyle(
+                                      reportDate,
+                                      style: const TextStyle(
                                         fontSize: 10,
                                         color: AppColors.neutral500,
                                       ),
@@ -154,21 +200,23 @@ class SimilarReportScreen extends StatelessWidget {
                                   ],
                                 ),
                                 const SizedBox(height: 2),
-                                const Text(
-                                  'Jl. Ahmad Yani no. 15',
-                                  style: TextStyle(
+                                Text(
+                                  reportAddress,
+                                  style: const TextStyle(
                                     fontSize: 12,
                                     color: AppColors.neutral500,
                                   ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                                 const SizedBox(height: 8),
                                 Row(
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
                                   children: [
-                                    const Text(
-                                      '360 Dukungan',
-                                      style: TextStyle(
+                                    Text(
+                                      supportsText,
+                                      style: const TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.w600,
                                         color: AppColors.greenPrimary,
@@ -184,9 +232,9 @@ class SimilarReportScreen extends StatelessWidget {
                                             borderRadius:
                                                 BorderRadius.circular(8),
                                           ),
-                                          child: const Text(
-                                            'Sedang Diproses',
-                                            style: TextStyle(
+                                          child: Text(
+                                            statusText,
+                                            style: const TextStyle(
                                               fontSize: 10,
                                               fontWeight: FontWeight.w600,
                                               color: Color(0xFFE68A00),
@@ -275,7 +323,11 @@ class SimilarReportScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
               child: ElevatedButton(
                 onPressed: () {
-                  Navigator.pushNamed(context, '/report-confirmation');
+                  Navigator.pushNamed(
+                    context,
+                    '/report-confirmation',
+                    arguments: args,
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.greenPrimary,

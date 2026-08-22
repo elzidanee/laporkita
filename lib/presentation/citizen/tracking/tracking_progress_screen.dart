@@ -1,26 +1,123 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../data/models/report_model.dart';
+import '../../../data/repositories/report_repository.dart';
 
-class TrackingProgressScreen extends StatelessWidget {
-  const TrackingProgressScreen({super.key});
+class TrackingProgressScreen extends StatefulWidget {
+  final Map<String, dynamic>? reportData;
+
+  const TrackingProgressScreen({super.key, this.reportData});
+
+  @override
+  State<TrackingProgressScreen> createState() =>
+      _TrackingProgressScreenState();
+}
+
+class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
+  ReportModel? _report;
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadReport();
+  }
+
+  Future<void> _loadReport() async {
+    // Prefer pre-loaded model
+    final preloaded = widget.reportData?['reportModel'] as ReportModel?;
+    if (preloaded != null) {
+      setState(() {
+        _report = preloaded;
+        _isLoading = false;
+      });
+      // Optionally refresh in background
+      _refreshFromApi(preloaded.id);
+      return;
+    }
+
+    final String? reportId = widget.reportData?['reportId'] as String? ??
+        widget.reportData?['id'] as String?;
+
+    if (reportId == null || reportId.isEmpty || !reportId.contains('-')) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = null; // show empty state instead
+      });
+      return;
+    }
+
+    await _refreshFromApi(reportId);
+  }
+
+  Future<void> _refreshFromApi(String reportId) async {
+    try {
+      final repo = context.read<ReportRepository>();
+      final detail = await repo.getReportById(reportId);
+      if (mounted) {
+        setState(() {
+          _report = detail;
+          _isLoading = false;
+          _errorMessage = null;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Gagal memuat data laporan.';
+        });
+      }
+    }
+  }
+
+  // ─── Helpers ──────────────────────────────────────────────────────────────
+  String _monthName(int month) {
+    const months = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+    return months[(month - 1) % 12];
+  }
+
+  String _formatDate(DateTime dt) =>
+      '${dt.day} ${_monthName(dt.month)} ${dt.year}';
+
+  String _formatTime(DateTime dt) =>
+      '${dt.hour.toString().padLeft(2, '0')}.${dt.minute.toString().padLeft(2, '0')} WIB';
+
+  // Progress percentage based on status
+  double _progressFromStatus(ReportStatus status) {
+    switch (status) {
+      case ReportStatus.pendingVerification:
+        return 0.15;
+      case ReportStatus.verified:
+        return 0.30;
+      case ReportStatus.assigned:
+        return 0.50;
+      case ReportStatus.inProgress:
+        return 0.75;
+      case ReportStatus.completed:
+        return 0.95;
+      case ReportStatus.resolved:
+        return 1.0;
+      case ReportStatus.rejected:
+        return 0.0;
+      case ReportStatus.disputed:
+        return 0.50;
+    }
+  }
+
+  String _progressLabel(ReportStatus status) {
+    return '${(_progressFromStatus(status) * 100).toInt()}%';
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Extract args if any
-    final args =
-        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-
-    final String? imagePath = args?['imagePath'];
-    final String location =
-        args?['location'] ?? 'Jl. Ahmad Yani No.15 Malang';
-    final String coordinates =
-        args?['coordinates'] ?? '-6.382728,107.734682';
-    final String timestamp =
-        args?['timestamp'] ?? 'Kamis, 12 Mei 2026 | 10.30 WIB';
-    final String reportId = args?['reportId'] ?? '#LP_2026_002487';
-
     return Scaffold(
       backgroundColor: AppColors.white,
       appBar: AppBar(
@@ -43,89 +140,200 @@ class TrackingProgressScreen extends StatelessWidget {
           ),
         ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded,
+                color: AppColors.greenPrimary),
+            onPressed: () {
+              setState(() => _isLoading = true);
+              _loadReport();
+            },
+          ),
+        ],
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Photo Preview with Overlay Stamp
-                    _buildPhotoPreviewWithStamp(
-                      imagePath: imagePath,
-                      location: location,
-                      coordinates: coordinates,
-                      timestamp: timestamp,
-                      reportId: reportId,
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.greenPrimary))
+          : _buildBody(),
+    );
+  }
+
+  Widget _buildBody() {
+    final report = _report;
+
+    // --- Fallback values from passed args if API not yet loaded ---
+    final String? imagePath = widget.reportData?['imagePath'] as String?;
+    final String photoUrl = report?.formattedPhotoUrl ??
+        report?.photoUrl ??
+        (widget.reportData?['photoUrl'] as String? ?? '');
+    final String location = report?.addressText ??
+        (widget.reportData?['location'] as String? ??
+            widget.reportData?['address'] as String? ??
+            'Lokasi tidak tersedia');
+    final String coordinates =
+        '${report?.latitude ?? widget.reportData?['latitude'] ?? '-'}, '
+        '${report?.longitude ?? widget.reportData?['longitude'] ?? '-'}';
+    final String reportCode = report?.reportCode.isNotEmpty == true
+        ? report!.reportCode
+        : (widget.reportData?['reportCode'] as String? ??
+            widget.reportData?['reportId'] as String? ??
+            '#LP-2026-000000');
+
+    final DateTime createdAt = report?.createdAt ?? DateTime.now();
+    final String dateStr = _formatDate(createdAt);
+    final String timeStr = _formatTime(createdAt);
+    final String timestamp = '$dateStr | $timeStr';
+
+    final ReportStatus status = report?.status ?? ReportStatus.pendingVerification;
+    final String statusText = report?.status.displayName ?? 'Menunggu Verifikasi';
+    final String agencyName =
+        report?.assignedAgency?['name'] as String? ?? 'Dinas terkait';
+    final String categoryName = report?.categoryName ?? 'Laporan';
+
+    return SafeArea(
+      child: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Error notice
+                  if (_errorMessage != null)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF3F3),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFFFCCCC)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.warning_amber_rounded,
+                              color: Colors.orange, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _errorMessage!,
+                              style: const TextStyle(
+                                  fontSize: 12, color: AppColors.neutral900),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 24),
 
-                    // Status Card (Figma Node 98:806)
-                    _buildStatusCard(),
-                    const SizedBox(height: 12),
+                  // Photo Preview with Overlay Stamp
+                  _buildPhotoPreview(
+                    imagePath: imagePath,
+                    photoUrl: photoUrl,
+                    location: location,
+                    coordinates: coordinates,
+                    timestamp: timestamp,
+                    reportId: reportCode,
+                    title: categoryName,
+                  ),
+                  const SizedBox(height: 24),
 
-                    // Progress Card (Figma Node 103:892)
-                    _buildProgressCard(),
-                    const SizedBox(height: 12),
+                  // Status Card
+                  _buildStatusCard(status, statusText, agencyName),
+                  const SizedBox(height: 12),
 
-                    // Estimasi Selesai Card (Figma Node 98:815)
-                    _buildEstimasiSelesaiCard(),
-                    const SizedBox(height: 12),
+                  // Progress Card
+                  _buildProgressCard(status),
+                  const SizedBox(height: 12),
 
-                    // Petugas Penanganan Card (Figma Node 103:881)
-                    _buildPetugasCard(),
-                    const SizedBox(height: 24),
+                  // Estimasi Selesai Card
+                  _buildEstimasiSelesaiCard(report),
+                  const SizedBox(height: 12),
 
-                    // Foto Progres Terbaru
-                    _buildFotoProgresTerbaru(context),
-                    const SizedBox(height: 24),
-                  ],
-                ),
+                  // Petugas Card
+                  _buildPetugasCard(agencyName),
+                  const SizedBox(height: 24),
+
+                  // Foto Progres Terbaru
+                  _buildFotoProgresTerbaru(context, photoUrl, dateStr, timeStr),
+                  const SizedBox(height: 24),
+                ],
               ),
             ),
-            
-            // Bottom Action Button: Lihat Detail Progress
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pushNamed(context, '/report-detail', arguments: args);
-                },
-                icon: const Icon(Icons.remove_red_eye_rounded, size: 22),
-                label: const Text(
-                  'Lihat Detail Progress',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1976D2), // Blue button
-                  foregroundColor: AppColors.white,
-                  minimumSize: const Size.fromHeight(56),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  elevation: 0,
+          ),
+
+          // Bottom Action Button
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+            child: ElevatedButton.icon(
+              onPressed: () {
+                final Map<String, dynamic> detailArgs = report != null
+                    ? {
+                        'id': report.id,
+                        'reportCode': report.reportCode,
+                        'reportModel': report,
+                        'imagePath': imagePath,
+                      }
+                    : Map<String, dynamic>.from(widget.reportData ?? {});
+                if (imagePath != null && imagePath.isNotEmpty) {
+                  detailArgs['imagePath'] = imagePath;
+                }
+                Navigator.pushNamed(
+                  context,
+                  '/report-detail',
+                  arguments: detailArgs,
+                );
+              },
+              icon: const Icon(Icons.remove_red_eye_rounded, size: 22),
+              label: const Text(
+                'Lihat Detail Progress',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1976D2),
+                foregroundColor: AppColors.white,
+                minimumSize: const Size.fromHeight(56),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                elevation: 0,
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildPhotoPreviewWithStamp({
+  // ── Photo Preview (Gambar laporan + Stamp Metadata) ────────────────────────
+  Widget _buildPhotoPreview({
     required String? imagePath,
+    required String photoUrl,
     required String location,
     required String coordinates,
     required String timestamp,
     required String reportId,
+    required String title,
   }) {
+    Widget imageWidget;
+    if (imagePath != null &&
+        imagePath.isNotEmpty &&
+        !kIsWeb &&
+        File(imagePath).existsSync()) {
+      imageWidget = Image.file(File(imagePath), fit: BoxFit.cover);
+    } else if (photoUrl.isNotEmpty) {
+      imageWidget = Image.network(
+        photoUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _placeholderImage(title),
+      );
+    } else {
+      imageWidget = _placeholderImage(title);
+    }
+
     return Container(
       height: 210,
       width: double.infinity,
@@ -143,29 +351,8 @@ class TrackingProgressScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         child: Stack(
           children: [
-            // Captured Image / High-res fallback
-            Positioned.fill(
-              child: imagePath != null &&
-                      imagePath.isNotEmpty &&
-                      !kIsWeb &&
-                      File(imagePath).existsSync()
-                  ? Image.file(
-                      File(imagePath),
-                      fit: BoxFit.cover,
-                    )
-                  : Image.network(
-                      'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?q=80&w=800&auto=format&fit=crop',
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        color: Colors.grey.shade300,
-                        child: const Icon(
-                          Icons.broken_image_rounded,
-                          size: 48,
-                          color: AppColors.neutral500,
-                        ),
-                      ),
-                    ),
-            ),
+            Positioned.fill(child: imageWidget),
+            // Gradient overlay
             Positioned.fill(
               child: Container(
                 decoration: BoxDecoration(
@@ -181,6 +368,7 @@ class TrackingProgressScreen extends StatelessWidget {
                 ),
               ),
             ),
+            // Metadata stamp
             Positioned(
               left: 12,
               bottom: 12,
@@ -221,25 +409,13 @@ class TrackingProgressScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    _buildStampItem(
-                      icon: Icons.location_on_outlined,
-                      text: location,
-                    ),
+                    _stampItem(Icons.location_on_outlined, location),
                     const SizedBox(height: 3),
-                    _buildStampItem(
-                      icon: Icons.access_time_outlined,
-                      text: timestamp,
-                    ),
+                    _stampItem(Icons.access_time_outlined, timestamp),
                     const SizedBox(height: 3),
-                    _buildStampItem(
-                      icon: Icons.warning_amber_rounded,
-                      text: 'Jalan Rusak',
-                    ),
+                    _stampItem(Icons.warning_amber_rounded, title),
                     const SizedBox(height: 3),
-                    _buildStampItem(
-                      icon: Icons.memory_outlined,
-                      text: coordinates,
-                    ),
+                    _stampItem(Icons.memory_outlined, coordinates),
                   ],
                 ),
               ),
@@ -250,15 +426,28 @@ class TrackingProgressScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStampItem({required IconData icon, required String text}) {
+  Widget _placeholderImage([String categoryTitle = '']) {
+    return Image.network(
+      ReportModel.getCategoryFallbackImage(categoryTitle),
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) => Container(
+        color: const Color(0xFFF0F4F8),
+        child: const Center(
+          child: Icon(
+            Icons.image_not_supported_rounded,
+            size: 48,
+            color: AppColors.greenPrimary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _stampItem(IconData icon, String text) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(
-          icon,
-          size: 11,
-          color: Colors.white,
-        ),
+        Icon(icon, size: 11, color: Colors.white),
         const SizedBox(width: 4),
         Text(
           text,
@@ -272,7 +461,47 @@ class TrackingProgressScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusCard() {
+  // ── Status Card ────────────────────────────────────────────────────────────
+  Widget _buildStatusCard(
+      ReportStatus status, String statusText, String agencyName) {
+    String desc;
+    switch (status) {
+      case ReportStatus.pendingVerification:
+        desc = 'Laporan Anda sedang menunggu verifikasi oleh admin.';
+        break;
+      case ReportStatus.verified:
+        desc = 'Laporan Anda telah diverifikasi dan siap ditugaskan.';
+        break;
+      case ReportStatus.assigned:
+        desc = 'Laporan telah diteruskan ke $agencyName untuk ditangani.';
+        break;
+      case ReportStatus.inProgress:
+        desc =
+            'Petugas $agencyName sedang mengerjakan perbaikan di lokasi laporan Anda.';
+        break;
+      case ReportStatus.completed:
+        desc = 'Pekerjaan telah selesai. Menunggu konfirmasi penyelesaian.';
+        break;
+      case ReportStatus.resolved:
+        desc = 'Laporan telah terselesaikan. Terima kasih atas partisipasi Anda!';
+        break;
+      case ReportStatus.rejected:
+        desc = 'Laporan ditolak. Silakan hubungi admin untuk informasi lebih lanjut.';
+        break;
+      case ReportStatus.disputed:
+        desc = 'Laporan sedang dalam peninjauan ulang.';
+        break;
+    }
+
+    Color statusColor;
+    if (status == ReportStatus.completed || status == ReportStatus.resolved) {
+      statusColor = AppColors.greenPrimary;
+    } else if (status == ReportStatus.rejected) {
+      statusColor = const Color(0xFFE53935);
+    } else {
+      statusColor = const Color(0xFFF2AE01);
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: BoxDecoration(
@@ -282,27 +511,24 @@ class TrackingProgressScreen extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          Text(
+        children: [
+          const Text(
             'Status saat ini',
-            style: TextStyle(
-              fontSize: 13,
-              color: AppColors.neutral900,
-            ),
+            style: TextStyle(fontSize: 13, color: AppColors.neutral900),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Text(
-            'Sedang Dikerjakan',
+            statusText,
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: Color(0xFFF2AE01), // Yellow/Orange
+              color: statusColor,
             ),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Text(
-            'Untuk Petugas dinas PUPR sedang mengerjakan perbaikan dilokasi laporan anda.',
-            style: TextStyle(
+            desc,
+            style: const TextStyle(
               fontSize: 13,
               color: AppColors.neutral900,
               height: 1.4,
@@ -313,7 +539,11 @@ class TrackingProgressScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildProgressCard() {
+  // ── Progress Card ──────────────────────────────────────────────────────────
+  Widget _buildProgressCard(ReportStatus status) {
+    final value = _progressFromStatus(status);
+    final label = _progressLabel(status);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
@@ -333,8 +563,8 @@ class TrackingProgressScreen extends StatelessWidget {
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: const [
-              Text(
+            children: [
+              const Text(
                 'Progress',
                 style: TextStyle(
                   fontSize: 15,
@@ -343,8 +573,8 @@ class TrackingProgressScreen extends StatelessWidget {
                 ),
               ),
               Text(
-                '78%',
-                style: TextStyle(
+                label,
+                style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
                   color: AppColors.greenPrimary,
@@ -356,7 +586,7 @@ class TrackingProgressScreen extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: LinearProgressIndicator(
-              value: 0.78,
+              value: value,
               minHeight: 8,
               backgroundColor: AppColors.neutral100,
               color: AppColors.greenPrimary,
@@ -367,7 +597,33 @@ class TrackingProgressScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildEstimasiSelesaiCard() {
+  // ── Estimasi Selesai Card ──────────────────────────────────────────────────
+  Widget _buildEstimasiSelesaiCard(ReportModel? report) {
+    // Try to find estimasi from status history or use +7 days from creation
+    String estimasiLabel;
+    String estimasiDate;
+
+    if (report != null) {
+      // Check if there's an "estimasi" note in status history
+      final historyNote = report.statusHistory
+          .where((h) => h.note != null && h.note!.isNotEmpty)
+          .map((h) => h.note!)
+          .firstOrNull;
+
+      if (historyNote != null && historyNote.contains('estimasi')) {
+        estimasiDate = historyNote;
+        estimasiLabel = 'Sesuai catatan petugas';
+      } else {
+        final est = report.createdAt.add(const Duration(days: 7));
+        estimasiDate = _formatDate(est);
+        final diff = est.difference(DateTime.now()).inDays;
+        estimasiLabel = diff > 0 ? '$diff Hari Lagi' : 'Segera';
+      }
+    } else {
+      estimasiDate = 'Belum ditentukan';
+      estimasiLabel = '-';
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
@@ -399,27 +655,27 @@ class TrackingProgressScreen extends StatelessWidget {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text(
+              children: [
+                const Text(
                   'Estimasi Selesai',
                   style: TextStyle(
                     fontSize: 13,
                     color: AppColors.neutral900,
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
-                  '2 Hari Lagi',
-                  style: TextStyle(
+                  estimasiLabel,
+                  style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
                     color: AppColors.neutral900,
                   ),
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Text(
-                  '18 Mei 2026',
-                  style: TextStyle(
+                  estimasiDate,
+                  style: const TextStyle(
                     fontSize: 13,
                     color: AppColors.neutral900,
                   ),
@@ -432,7 +688,13 @@ class TrackingProgressScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPetugasCard() {
+  // ── Petugas Card ───────────────────────────────────────────────────────────
+  Widget _buildPetugasCard(String agencyName) {
+    final agencyPhone =
+        _report?.assignedAgency?['phone'] as String? ?? '+62 80878367243';
+    final agencyType =
+        _report?.assignedAgency?['type'] as String? ?? 'Dinas';
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -463,13 +725,23 @@ class TrackingProgressScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  'Dinas PUPR Kota Malang Bidang Bina Marga',
-                  style: TextStyle(
+                Text(
+                  agencyName.isEmpty ? 'Belum ditugaskan' : agencyName,
+                  style: const TextStyle(
                     fontSize: 12,
                     color: AppColors.neutral900,
                   ),
                 ),
+                if (agencyType.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    agencyType,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.neutral500,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 12),
                 const Text(
                   'Kontak',
@@ -481,16 +753,16 @@ class TrackingProgressScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Row(
-                  children: const [
-                    Icon(
+                  children: [
+                    const Icon(
                       Icons.call_rounded,
                       size: 16,
                       color: AppColors.greenPrimary,
                     ),
-                    SizedBox(width: 8),
+                    const SizedBox(width: 8),
                     Text(
-                      '+62 80878367243',
-                      style: TextStyle(
+                      agencyPhone,
+                      style: const TextStyle(
                         fontSize: 12,
                         color: AppColors.neutral900,
                       ),
@@ -511,13 +783,44 @@ class TrackingProgressScreen extends StatelessWidget {
               size: 28,
               color: AppColors.greenPrimary,
             ),
-          )
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildFotoProgresTerbaru(BuildContext context) {
+  // ── Foto Progres Terbaru ──────────────────────────────────────────────────
+  Widget _buildFotoProgresTerbaru(
+    BuildContext context,
+    String reportPhotoUrl,
+    String dateStr,
+    String timeStr,
+  ) {
+    // Find latest progress photo from media list (type: progress_photo)
+    final progressMedia = _report?.media
+        .where((m) => m.type == 'progress_photo')
+        .toList();
+
+    final latestMedia =
+        progressMedia?.isNotEmpty == true ? progressMedia!.last : null;
+
+    String thumbUrl = reportPhotoUrl;
+    String progressDateStr = '$dateStr. $timeStr';
+    String progressLabel = 'Foto Laporan Awal';
+
+    if (latestMedia != null) {
+      final rawUrl = latestMedia.url;
+      if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
+        thumbUrl = rawUrl;
+      } else {
+        thumbUrl = '${_report?.formattedPhotoUrl?.split('/api/v1').first ?? ''}$rawUrl';
+      }
+      final d = latestMedia.createdAt;
+      progressDateStr =
+          '${_formatDate(d)}. ${_formatTime(d)}';
+      progressLabel = 'Sedang diperbaiki';
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -549,42 +852,34 @@ class TrackingProgressScreen extends StatelessWidget {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  'https://images.unsplash.com/photo-1584464491033-06628f3a6b7b?q=80&w=200&auto=format&fit=crop',
-                  width: 100,
-                  height: 70,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      width: 100,
-                      height: 70,
-                      color: const Color(0xFFF0F4F8),
-                      child: const Icon(
-                        Icons.image_not_supported_rounded,
-                        color: AppColors.greenPrimary,
-                        size: 28,
-                      ),
-                    );
-                  },
-                ),
+                child: thumbUrl.isNotEmpty
+                    ? Image.network(
+                        thumbUrl,
+                        width: 100,
+                        height: 70,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            _progressPhotoPlaceholder(),
+                      )
+                    : _progressPhotoPlaceholder(),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children: [
                     Text(
-                      'Sedang diperbaiki',
-                      style: TextStyle(
+                      progressLabel,
+                      style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
                         color: AppColors.neutral900,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
-                      '13 Mei 2026. 12.43',
-                      style: TextStyle(
+                      progressDateStr,
+                      style: const TextStyle(
                         fontSize: 12,
                         color: AppColors.neutral500,
                       ),
@@ -593,17 +888,22 @@ class TrackingProgressScreen extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.greenPrimary,
+                  color: latestMedia != null
+                      ? AppColors.greenPrimary
+                      : AppColors.neutral100,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Text(
-                  'Baru',
+                child: Text(
+                  latestMedia != null ? 'Baru' : 'Awal',
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.white,
+                    color: latestMedia != null
+                        ? AppColors.white
+                        : AppColors.neutral900,
                   ),
                 ),
               ),
@@ -614,19 +914,43 @@ class TrackingProgressScreen extends StatelessWidget {
         Center(
           child: GestureDetector(
             onTap: () {
-              Navigator.pushNamed(context, '/foto-progress');
+              final Map<String, dynamic> fotoArgs =
+                  Map<String, dynamic>.from(widget.reportData ?? {});
+              if (_report != null) {
+                fotoArgs['reportModel'] = _report;
+                fotoArgs['id'] = _report!.id;
+              }
+              final imgPath = widget.reportData?['imagePath'] as String? ??
+                  _report?.directPhotoUrl;
+              if (imgPath != null && imgPath.isNotEmpty) {
+                fotoArgs['imagePath'] = imgPath;
+              }
+              Navigator.pushNamed(context, '/foto-progress', arguments: fotoArgs);
             },
             child: const Text(
               'Lihat Semua Foto Progres',
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF1976D2), // Blue
+                color: Color(0xFF1976D2),
               ),
             ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _progressPhotoPlaceholder() {
+    return Container(
+      width: 100,
+      height: 70,
+      color: const Color(0xFFF0F4F8),
+      child: const Icon(
+        Icons.image_not_supported_rounded,
+        color: AppColors.greenPrimary,
+        size: 28,
+      ),
     );
   }
 }
