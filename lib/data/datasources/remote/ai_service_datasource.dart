@@ -53,6 +53,8 @@ class AiServiceDatasource {
     required double latitude,
     required double longitude,
     DateTime? timestamp,
+    String? deviceHintCategory,
+    double? deviceHintConfidence,
   }) async {
     // Konversi file lokal ke base64 jika ada
     String? imageBase64;
@@ -73,6 +75,8 @@ class AiServiceDatasource {
       if (imageUrl != null && imageUrl.isNotEmpty) 'image_url': imageUrl,
       if (claimedCategory != null) 'claimed_category': claimedCategory,
       if (timestamp != null) 'timestamp': timestamp.toIso8601String(),
+      if (deviceHintCategory != null) 'device_hint_category': deviceHintCategory,
+      if (deviceHintConfidence != null) 'device_hint_confidence': deviceHintConfidence,
     };
 
     final response = await _dio.post('/v1/verify', data: payload);

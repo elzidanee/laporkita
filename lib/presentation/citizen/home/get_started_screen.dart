@@ -9,16 +9,6 @@ class GetStartedScreen extends StatefulWidget {
 }
 
 class _GetStartedScreenState extends State<GetStartedScreen> {
-  String _selectedRole = 'Citizen'; // Default selected role ('Citizen' or 'CommandCenter')
-
-  void _onMulaiPressed() {
-    Navigator.pushNamed(
-      context,
-      '/login',
-      arguments: _selectedRole,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -85,45 +75,33 @@ class _GetStartedScreenState extends State<GetStartedScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 16),
                         Text(
-                          'Pilih Peran Anda',
+                          'Akses Aplikasi',
                           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                            fontSize: 18,
+                            fontSize: 22,
                             fontWeight: FontWeight.bold,
+                            color: AppColors.neutral900,
                           ),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Pilih akses yang sesuai untuk melanjutkan ke dalam aplikasi',
-                          style: Theme.of(context).textTheme.bodySmall,
+                          'Masuk dengan akun terdaftar (Warga / Pemerintah) atau buat akun Warga baru',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.neutral500,
+                            fontSize: 13,
+                            height: 1.4,
+                          ),
                           textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 32),
 
-                        // Role Option 1: Citizen (Warga)
-                        _buildRoleCard(
-                          roleKey: 'Citizen',
-                          title: 'Citizen (Warga)',
-                          subtitle: 'Laporkan masalah jalan, sampah & fasilitas umum',
-                          icon: Icons.person_pin_circle_outlined,
-                        ),
-                        const SizedBox(height: 12),
-
-                        // Role Option 2: Command Center (Admin)
-                        _buildRoleCard(
-                          roleKey: 'CommandCenter',
-                          title: 'Command Center (Pemerintah)',
-                          subtitle: 'Monitoring & tindak lanjut laporan kota',
-                          icon: Icons.admin_panel_settings_outlined,
-                        ),
-
-                        const Spacer(),
-
-                        // "Mulai" Button
+                        // Button 1: MASUK (Login)
                         ElevatedButton(
-                          onPressed: _onMulaiPressed,
+                          onPressed: () {
+                            Navigator.pushNamed(context, '/login');
+                          },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.greenPrimary,
                             foregroundColor: AppColors.white,
@@ -131,9 +109,10 @@ class _GetStartedScreenState extends State<GetStartedScreen> {
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(27),
                             ),
+                            elevation: 0,
                           ),
                           child: const Text(
-                            'MULAI',
+                            'MASUK',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -141,6 +120,31 @@ class _GetStartedScreenState extends State<GetStartedScreen> {
                             ),
                           ),
                         ),
+                        const SizedBox(height: 14),
+
+                        // Button 2: DAFTAR AKUN WARGA (Register)
+                        OutlinedButton(
+                          onPressed: () {
+                            Navigator.pushNamed(context, '/signup');
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.greenPrimary,
+                            side: const BorderSide(color: AppColors.greenPrimary, width: 1.5),
+                            minimumSize: const Size.fromHeight(54),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(27),
+                            ),
+                          ),
+                          child: const Text(
+                            'DAFTAR AKUN WARGA',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.0,
+                            ),
+                          ),
+                        ),
+                        const Spacer(),
                       ],
                     ),
                   ),
@@ -149,84 +153,6 @@ class _GetStartedScreenState extends State<GetStartedScreen> {
             ],
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildRoleCard({
-    required String roleKey,
-    required String title,
-    required String subtitle,
-    required IconData icon,
-  }) {
-    final isSelected = _selectedRole == roleKey;
-
-    return InkWell(
-      onTap: () {
-        setState(() {
-          _selectedRole = roleKey;
-        });
-      },
-      borderRadius: BorderRadius.circular(16),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: isSelected 
-              ? AppColors.greenPrimary.withValues(alpha: 0.08) 
-              : AppColors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected ? AppColors.greenPrimary : AppColors.border,
-            width: isSelected ? 2.0 : 1.0,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: isSelected 
-                    ? AppColors.greenPrimary 
-                    : AppColors.neutral100,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                icon,
-                color: isSelected ? AppColors.white : AppColors.neutral500,
-                size: 22,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      color: isSelected ? AppColors.greenPrimary : AppColors.neutral900,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppColors.neutral500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(
-              isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
-              color: isSelected ? AppColors.greenPrimary : AppColors.neutral500,
-            ),
-          ],
-        ),
       ),
     );
   }

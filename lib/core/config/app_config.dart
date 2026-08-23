@@ -1,20 +1,22 @@
-// STATUS: VERIFIED — base URL dari intruksi.md §1
-// Ganti value saat flutter run:
-//   flutter run --dart-define=API_BASE_URL=https://your-tunnel.trycloudflare.com/api/v1
-//   flutter run --dart-define=AI_SERVICE_URL=http://192.168.x.x:8000
+// STATUS: VERIFIED — Production URLs
+// Backend  : https://api.canadev.my.id  (NestJS, port 3000)
+// AI Service: https://ai.canadev.my.id  (FastAPI, port 8000)
+//
+// Override via dart-define jika perlu:
+//   flutter run --dart-define=API_BASE_URL=https://api.canadev.my.id/api/v1
+//   flutter run --dart-define=AI_SERVICE_URL=https://ai.canadev.my.id
 class AppConfig {
   AppConfig._();
 
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://passage-chancellor-isle-leslie.trycloudflare.com/api/v1',
+    defaultValue: 'https://api.canadev.my.id/api/v1',
   );
 
-  /// URL AI Microservice (FastAPI). Untuk device fisik gunakan IP LAN laptop.
-  /// Contoh: flutter run --dart-define=AI_SERVICE_URL=http://192.168.1.5:8000
+  /// URL AI Microservice (FastAPI) — production
   static const String aiServiceUrl = String.fromEnvironment(
     'AI_SERVICE_URL',
-    defaultValue: 'http://192.168.1.100:8000',
+    defaultValue: 'https://ai.canadev.my.id',
   );
 
   // Token storage keys

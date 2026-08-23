@@ -70,12 +70,18 @@ class _AiVerificationScreenState extends State<AiVerificationScreen>
     });
 
     try {
+      final String? hintCategory = args?['detectedCategory'] ?? args?['claimedCategory'];
+      final double? hintConfidence = (args?['confidence'] as num?)?.toDouble();
+
       final result = await AiServiceDatasource().verifyReport(
         imagePath: imagePath,
         imageUrl: imageUrl,
+        claimedCategory: hintCategory,
         latitude: lat,
         longitude: lng,
         timestamp: DateTime.now(),
+        deviceHintCategory: hintCategory,
+        deviceHintConfidence: hintConfidence,
       );
       if (!mounted) return;
       setState(() {

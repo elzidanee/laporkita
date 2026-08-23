@@ -1,8 +1,8 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../shared_widgets/custom_alert.dart';
 import '../../reports/bloc/report_bloc.dart';
 import '../../../data/models/category_model.dart';
 
@@ -37,11 +37,10 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
     String? photoPath,
   ) {
     if (categoryId == null || categoryId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Silakan pilih kategori laporan terlebih dahulu.'),
-          backgroundColor: AppColors.statusDanger,
-        ),
+      AppAlert.warning(
+        context,
+        title: 'Kategori Belum Dipilih',
+        message: 'Silakan pilih kategori laporan terlebih dahulu.',
       );
       return;
     }

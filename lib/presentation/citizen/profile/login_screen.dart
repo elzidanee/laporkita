@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../shared_widgets/custom_alert.dart';
 import '../../auth/bloc/auth_bloc.dart';
 import '../home/get_started_screen.dart'; // Reuse MapBackgroundPainter & TopCurveClipper
 
@@ -46,11 +47,10 @@ class _LoginScreenState extends State<LoginScreen> {
     return BlocConsumer<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthAuthenticated) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Selamat datang, ${state.user.fullName}!'),
-              backgroundColor: AppColors.greenPrimary,
-            ),
+          AppAlert.success(
+            context,
+            title: 'Berhasil Masuk',
+            message: 'Selamat datang kembali, ${state.user.fullName}!',
           );
           if (state.user.role.isCommandCenter || argsRole == 'CommandCenter') {
             Navigator.pushNamedAndRemoveUntil(
@@ -60,27 +60,21 @@ class _LoginScreenState extends State<LoginScreen> {
                 context, '/citizen', (route) => false);
           }
         } else if (state is AuthPhoneNotVerified) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                  'Nomor telepon belum diverifikasi. Silakan lakukan verifikasi OTP.'),
-              backgroundColor: AppColors.statusPending,
-            ),
+          AppAlert.warning(
+            context,
+            title: 'Verifikasi Diperlukan',
+            message: 'Nomor telepon belum diverifikasi. Silakan verifikasi OTP.',
           );
           Navigator.pushNamed(
             context,
             '/otp',
-            arguments: {
-              'role': argsRole,
-              'phone': state.phoneNumber,
-            },
+            arguments: {'phoneNumber': state.phoneNumber},
           );
         } else if (state is AuthError) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(state.message),
-              backgroundColor: AppColors.statusDanger,
-            ),
+          AppAlert.error(
+            context,
+            title: 'Gagal Masuk',
+            message: state.message,
           );
         }
       },
