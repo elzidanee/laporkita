@@ -3,7 +3,9 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:laporkita/core/theme/app_colors.dart';
+import 'package:laporkita/data/datasources/remote/ai_service_datasource.dart';
 import 'package:laporkita/data/models/report_model.dart';
+import 'package:laporkita/data/models/risk_prediction_model.dart';
 import 'package:laporkita/data/repositories/report_repository.dart';
 import 'package:laporkita/presentation/auth/bloc/auth_bloc.dart';
 import 'package:laporkita/presentation/reports/bloc/report_bloc.dart';
@@ -199,13 +201,37 @@ class CitizenDashboardTab extends StatefulWidget {
 
 class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
   final TextEditingController _searchController = TextEditingController();
+  RiskPredictionResult? _riskResult;
+  bool _isLoadingRisk = false;
 
   @override
   void initState() {
     super.initState();
+    _searchController.addListener(() {
+      if (mounted) setState(() {});
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ReportBloc>().add(const ReportLoadRequested());
+      _fetchRiskPrediction();
     });
+  }
+
+  Future<void> _fetchRiskPrediction() async {
+    if (!mounted) return;
+    setState(() => _isLoadingRisk = true);
+    try {
+      final result = await AiServiceDatasource().predictRisk(
+        reportDensity: 10,
+        rainfallMm: 5.0,
+        temperatureC: 27.0,
+        weatherCondition: 'Berawan',
+      );
+      if (mounted) setState(() => _riskResult = result);
+    } catch (_) {
+      // AI service tidak tersedia — sembunyikan widget saja
+    } finally {
+      if (mounted) setState(() => _isLoadingRisk = false);
+    }
   }
 
   @override
@@ -331,6 +357,12 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
                     _buildUrbanHealthScoreCard(),
                     const SizedBox(height: 16),
 
+                    // Risk Prediction Card (AI Service)
+                    if (_isLoadingRisk || _riskResult != null)
+                      _buildRiskPredictionCard(),
+                    if (_isLoadingRisk || _riskResult != null)
+                      const SizedBox(height: 16),
+
                     // 3 Stat Cards Row (12 Laporan Saya, 8 Sedang diproses, 5 Laporan selesai)
                     _buildStatCardsRow(),
                     const SizedBox(height: 24),
@@ -410,104 +442,388 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
     );
   }
 
-  /// Urban Health Score Card with Arc Gauge Meter
-  Widget _buildUrbanHealthScoreCard() {
+  /// Risk Prediction Card — menampilkan hasil dari AI Service POST /v1/predict-risk
+  Widget _buildRiskPredictionCard() {
+    if (_isLoadingRisk) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE0DFDF)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: const Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.greenPrimary,
+              ),
+            ),
+            SizedBox(width: 12),
+            Text(
+              'Memuat prediksi kondisi wilayah...',
+              style: TextStyle(fontSize: 13, color: AppColors.neutral500),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final result = _riskResult!;
+    final Color riskColor = result.isHighRisk
+        ? const Color(0xFFE53935)
+        : result.isMediumRisk
+            ? const Color(0xFFF5A623)
+            : AppColors.greenPrimary;
+    final String riskLabel = result.isHighRisk
+        ? 'TINGGI'
+        : result.isMediumRisk
+            ? 'SEDANG'
+            : 'RENDAH';
+    final IconData riskIcon = result.isHighRisk
+        ? Icons.warning_amber_rounded
+        : result.isMediumRisk
+            ? Icons.info_rounded
+            : Icons.check_circle_rounded;
+
+    // Ikon cuaca
+    final IconData weatherIcon = result.weatherCondition.toLowerCase().contains('hujan')
+        ? Icons.thunderstorm_rounded
+        : result.weatherCondition.toLowerCase().contains('cerah')
+            ? Icons.wb_sunny_rounded
+            : Icons.cloud_rounded;
+
     return Container(
-      width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.white,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            riskColor.withValues(alpha: 0.08),
+            AppColors.white,
+          ],
+        ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: riskColor.withValues(alpha: 0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: riskColor.withValues(alpha: 0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Top Left City Dropdown
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: const [
-                Text(
-                  'Kota Malang',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.neutral900,
+          // Header baris atas
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: riskColor.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(Icons.shield_rounded, color: riskColor, size: 20),
                   ),
-                ),
-                SizedBox(width: 4),
-                Icon(
-                  Icons.keyboard_arrow_down_rounded,
-                  color: AppColors.neutral900,
-                  size: 20,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-
-          // Arc Gauge Gauge Meter (Semi circle arc gauge painter)
-          SizedBox(
-            width: 180,
-            height: 95,
-            child: Stack(
-              alignment: Alignment.bottomCenter,
-              children: [
-                CustomPaint(
-                  size: const Size(180, 90),
-                  painter: UrbanHealthArcPainter(percentage: 0.78),
-                ),
-                Positioned(
-                  bottom: 2,
-                  child: Text(
-                    '78',
-                    style: const TextStyle(
-                      fontSize: 34,
+                  const SizedBox(width: 10),
+                  const Text(
+                    'Kondisi Risiko Wilayah',
+                    style: TextStyle(
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
                       color: AppColors.neutral900,
                     ),
                   ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-
-          // Title: Urban Health Score
-          const Text(
-            'Urban Health Score',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-              color: AppColors.neutral900,
-            ),
-          ),
-          const SizedBox(height: 4),
-
-          // Status Chip Badge: Status : Sehat & Terkendali
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: const [
-              Icon(
-                Icons.check_circle_outline_rounded,
-                size: 14,
-                color: AppColors.greenPrimary,
+                ],
               ),
-              SizedBox(width: 4),
-              Text(
-                'Status : Sehat & Terkendali',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.greenPrimary,
+              // Badge level risiko
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: riskColor,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(riskIcon, size: 12, color: Colors.white),
+                    const SizedBox(width: 4),
+                    Text(
+                      riskLabel,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 14),
+
+          // Info row: cuaca + suhu + flood risk
+          Row(
+            children: [
+              _riskInfoChip(
+                icon: weatherIcon,
+                label: result.weatherCondition,
+                color: const Color(0xFF2B82C4),
+              ),
+              const SizedBox(width: 8),
+              _riskInfoChip(
+                icon: Icons.thermostat_rounded,
+                label: '${result.temperatureC.toStringAsFixed(0)}°C',
+                color: const Color(0xFFF5A623),
+              ),
+              const SizedBox(width: 8),
+              _riskInfoChip(
+                icon: Icons.water_drop_rounded,
+                label: '${result.floodRiskPercent}% banjir',
+                color: riskColor,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Rekomendasi
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.8),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.lightbulb_outline_rounded,
+                    size: 15, color: Color(0xFFF5A623)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    result.recommendation,
+                    style: const TextStyle(
+                        fontSize: 11.5, color: AppColors.neutral900),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Tombol refresh
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: _fetchRiskPrediction,
+              icon: const Icon(Icons.refresh_rounded, size: 14),
+              label: const Text('Perbarui', style: TextStyle(fontSize: 11)),
+              style: TextButton.styleFrom(
+                foregroundColor: riskColor,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+          ),
         ],
       ),
+    );
+  }
+
+  Widget _riskInfoChip({
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+                fontSize: 11, fontWeight: FontWeight.w600, color: color),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Urban Health Score Card with Arc Gauge Meter dynamically calculated from report counts
+  Widget _buildUrbanHealthScoreCard() {
+    return BlocBuilder<ReportBloc, ReportState>(
+      builder: (context, state) {
+        List<ReportModel> reportList = [];
+        try {
+          if (state is ReportListLoaded) {
+            reportList = state.reports;
+          } else {
+            final repo = context.read<ReportRepository>();
+            reportList = repo.localSubmittedReports;
+          }
+        } catch (_) {}
+
+        // Hitung Urban Health Score dinamis:
+        // Skor awal 100. Semakin banyak laporan aktif (belum selesai), skor semakin turun.
+        final activeCount = reportList.where((r) =>
+            r.status == ReportStatus.pendingVerification ||
+            r.status == ReportStatus.verified ||
+            r.status == ReportStatus.assigned ||
+            r.status == ReportStatus.inProgress).length;
+
+        final completedCount = reportList.where((r) =>
+            r.status == ReportStatus.completed ||
+            r.status == ReportStatus.resolved).length;
+
+        int score = 100 - (activeCount * 3) + (completedCount * 1);
+        if (reportList.isEmpty) {
+          score = 88; // Default skor kota sehat saat belum ada laporan
+        }
+        score = score.clamp(15, 100);
+
+        final double percentage = score / 100.0;
+
+        String statusText = 'Status : Sehat & Terkendali';
+        Color statusColor = AppColors.greenPrimary;
+        IconData statusIcon = Icons.check_circle_outline_rounded;
+
+        if (score < 50) {
+          statusText = 'Status : Perlu Penanganan Segera';
+          statusColor = const Color(0xFFFF3D00);
+          statusIcon = Icons.error_outline_rounded;
+        } else if (score < 75) {
+          statusText = 'Status : Waspada & Dalam Perbaikan';
+          statusColor = const Color(0xFFE68A00);
+          statusIcon = Icons.warning_amber_rounded;
+        }
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Top Left City Dropdown
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Text(
+                      'Kota Malang',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.neutral900,
+                      ),
+                    ),
+                    SizedBox(width: 4),
+                    Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: AppColors.neutral900,
+                      size: 20,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // Arc Gauge Meter (Dynamic semi circle arc gauge painter)
+              SizedBox(
+                width: 180,
+                height: 95,
+                child: Stack(
+                  alignment: Alignment.bottomCenter,
+                  children: [
+                    CustomPaint(
+                      size: const Size(180, 90),
+                      painter: UrbanHealthArcPainter(
+                        percentage: percentage,
+                        arcColor: statusColor,
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 2,
+                      child: Text(
+                        '$score',
+                        style: const TextStyle(
+                          fontSize: 34,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.neutral900,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // Title: Urban Health Score
+              const Text(
+                'Urban Health Score',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.neutral900,
+                ),
+              ),
+              const SizedBox(height: 4),
+
+              // Dynamic Status Badge
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    statusIcon,
+                    size: 14,
+                    color: statusColor,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    statusText,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: statusColor,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -519,27 +835,44 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
         int inProgressCount = 0;
         int completedCount = 0;
 
-        List<ReportModel> reportList = [];
-        if (state is ReportListLoaded) {
-          reportList = state.reports;
-        } else {
+        try {
+          List<ReportModel> reportList = [];
           final repo = context.read<ReportRepository>();
-          reportList = repo.localSubmittedReports;
-        }
+          if (state is ReportListLoaded) {
+            reportList = state.reports;
+          } else {
+            reportList = repo.localSubmittedReports;
+          }
 
-        totalReports = reportList.length;
-        inProgressCount = reportList
-            .where((r) =>
-                r.status == ReportStatus.inProgress ||
-                r.status == ReportStatus.assigned ||
-                r.status == ReportStatus.verified ||
-                r.status == ReportStatus.pendingVerification)
-            .length;
-        completedCount = reportList
-            .where((r) =>
-                r.status == ReportStatus.completed ||
-                r.status == ReportStatus.resolved)
-            .length;
+          final authState = context.watch<AuthBloc>().state;
+          List<ReportModel> myReports = [];
+
+          if (authState is AuthAuthenticated) {
+            final String userId = authState.user.id;
+            final userReports =
+                reportList.where((r) => r.reporterId == userId).toList();
+            final localUnsynced = repo.localSubmittedReports
+                .where((lr) => !userReports.any((ur) => ur.id == lr.id))
+                .toList();
+            myReports = [...userReports, ...localUnsynced];
+          } else {
+            myReports = List.from(repo.localSubmittedReports);
+          }
+
+          totalReports = myReports.length;
+          inProgressCount = myReports
+              .where((r) =>
+                  r.status == ReportStatus.inProgress ||
+                  r.status == ReportStatus.assigned ||
+                  r.status == ReportStatus.verified ||
+                  r.status == ReportStatus.pendingVerification)
+              .length;
+          completedCount = myReports
+              .where((r) =>
+                  r.status == ReportStatus.completed ||
+                  r.status == ReportStatus.resolved)
+              .length;
+        } catch (_) {}
 
         return Row(
           children: [
@@ -740,64 +1073,89 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
 
         BlocBuilder<ReportBloc, ReportState>(
           builder: (context, state) {
-            if (state is ReportLoading) {
-              return const Padding(
-                padding: EdgeInsets.symmetric(vertical: 24),
-                child: Center(
-                  child:
-                      CircularProgressIndicator(color: AppColors.greenPrimary),
+            try {
+              if (state is ReportLoading) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      color: AppColors.greenPrimary,
+                    ),
+                  ),
+                );
+              }
+
+              List<ReportModel> reports = [];
+              if (state is ReportListLoaded) {
+                reports = state.reports;
+              }
+
+              if (reports.isEmpty) {
+                try {
+                  final repo = context.read<ReportRepository>();
+                  reports = repo.localSubmittedReports;
+                } catch (_) {}
+              }
+
+              final searchQuery = _searchController.text.trim().toLowerCase();
+              if (searchQuery.isNotEmpty) {
+                reports = reports.where((r) {
+                  final cat = r.categoryName.toLowerCase();
+                  final addr = (r.addressText ?? '').toLowerCase();
+                  final desc = (r.description ?? '').toLowerCase();
+                  return cat.contains(searchQuery) ||
+                      addr.contains(searchQuery) ||
+                      desc.contains(searchQuery);
+                }).toList();
+              }
+
+              if (reports.isNotEmpty) {
+                final displayList = reports.take(20).toList();
+                return ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: displayList.length,
+                  itemBuilder: (context, index) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _buildReportListItemFromModel(displayList[index]),
+                    );
+                  },
+                );
+              }
+            } catch (_) {}
+
+            // Empty State jika belum ada laporan publik
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 32),
+              child: Center(
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.inbox_rounded,
+                      size: 48,
+                      color: AppColors.neutral500,
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Belum ada laporan di sekitarmu',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.neutral500,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Ayo buat laporan fasilitas publik pertama!',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.neutral500,
+                      ),
+                    ),
+                  ],
                 ),
-              );
-            }
-
-            List<ReportModel> reports = [];
-            if (state is ReportListLoaded) {
-              reports = state.reports;
-            }
-
-            if (reports.isEmpty) {
-              final repo = context.read<ReportRepository>();
-              reports = repo.localSubmittedReports;
-            }
-
-            if (reports.isNotEmpty) {
-              return Column(
-                children: reports.map((report) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _buildReportListItemFromModel(report),
-                  );
-                }).toList(),
-              );
-            }
-
-            // Fallback if no reports anywhere yet
-            return Column(
-              children: [
-                _buildReportListItem(
-                  title: 'Jembatan rusak',
-                  date: '18 juli 2026',
-                  address: 'Jl. toyiban no.13 f5',
-                  supports: '1.208 Dukungan',
-                  statusText: 'Menunggu verifikasi',
-                  statusBgColor: const Color(0xFFE6F2FF),
-                  statusTextColor: const Color(0xFF2B82C4),
-                  iconData: Icons.water_rounded,
-                  placeholderColor: Colors.blue.shade100,
-                ),
-                const SizedBox(height: 12),
-                _buildReportListItem(
-                  title: 'Jalan Rusak',
-                  date: '12 Mei 2026',
-                  address: 'Jl. Ahmad Yani no. 15',
-                  supports: '360 Dukungan',
-                  statusText: 'Sedang Diproses',
-                  statusBgColor: const Color(0xFFFFF8E6),
-                  statusTextColor: const Color(0xFFE68A00),
-                  iconData: Icons.alt_route_rounded,
-                  placeholderColor: Colors.amber.shade100,
-                ),
-              ],
+              ),
             );
           },
         ),
@@ -839,30 +1197,34 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
         }
       }
 
+      final Widget safePlaceholderWidget = Container(
+        width: 80,
+        height: 72,
+        color: AppColors.greenLight,
+        child: const Center(
+          child: Icon(
+            Icons.location_city_rounded,
+            size: 32,
+            color: AppColors.greenPrimary,
+          ),
+        ),
+      );
+
       Widget cardImageWidget;
       if (isLocalFileValid && localPath != null) {
         cardImageWidget = Image.file(
           File(localPath),
           fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => Image.network(
-            ReportModel.getCategoryFallbackImage(report.categoryName),
-            fit: BoxFit.cover,
-          ),
+          errorBuilder: (context, error, stackTrace) => safePlaceholderWidget,
         );
       } else if (imgUrl != null && imgUrl.isNotEmpty) {
         cardImageWidget = Image.network(
           imgUrl,
           fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => Image.network(
-            ReportModel.getCategoryFallbackImage(report.categoryName),
-            fit: BoxFit.cover,
-          ),
+          errorBuilder: (context, error, stackTrace) => safePlaceholderWidget,
         );
       } else {
-        cardImageWidget = Image.network(
-          ReportModel.getCategoryFallbackImage(report.categoryName),
-          fit: BoxFit.cover,
-        );
+        cardImageWidget = safePlaceholderWidget;
       }
 
       return GestureDetector(
@@ -1007,201 +1369,14 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
     ];
     return months[(month - 1) % 12];
   }
-
-  Widget _buildReportListItem({
-    required String title,
-    required String date,
-    required String address,
-    required String supports,
-    required String statusText,
-    required Color statusBgColor,
-    required Color statusTextColor,
-    required IconData iconData,
-    required Color placeholderColor,
-  }) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ReportDetailScreen(
-              reportData: {
-                'title': title,
-                'date': date,
-                'address': address,
-                'status': statusText,
-              },
-            ),
-          ),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
-        ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Image thumbnail with realistic visual container
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: Container(
-              width: 80,
-              height: 72,
-              color: placeholderColor,
-              child: Stack(
-                children: [
-                  Center(
-                    child: Icon(
-                      iconData,
-                      size: 32,
-                      color: AppColors.neutral500,
-                    ),
-                  ),
-                  Positioned(
-                    bottom: 4,
-                    right: 4,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.6),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Text(
-                        'FOTO',
-                        style: TextStyle(
-                          fontSize: 8,
-                          color: AppColors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-
-          // Details Column
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Row 1: Title + Date
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.neutral900,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Text(
-                      date,
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: AppColors.neutral500,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-
-                // Address
-                Text(
-                  address,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.neutral500,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    const Icon(
-                      Icons.chevron_right_rounded,
-                      size: 20,
-                      color: AppColors.neutral900,
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 8),
-
-                // Row 3: Support Count + Status Chip + Chevron Icon
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Support Count Text
-                    Text(
-                      supports,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.greenPrimary,
-                      ),
-                    ),
-
-                    Row(
-                      children: [
-                        // Status Badge Chip
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: statusBgColor,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            statusText,
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: statusTextColor,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-
-                        // Chevron Right Arrow
-                      ],
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    ),
-    );
-  }
 }
 
 /// Custom Painter for Arc Gauge Meter ("Urban Health Score")
 class UrbanHealthArcPainter extends CustomPainter {
   final double percentage; // e.g. 0.78 for 78
+  final Color? arcColor;
 
-  UrbanHealthArcPainter({required this.percentage});
+  UrbanHealthArcPainter({required this.percentage, this.arcColor});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1224,9 +1399,9 @@ class UrbanHealthArcPainter extends CustomPainter {
       bgPaint,
     );
 
-    // 2. Active Arc (Green)
+    // 2. Active Arc (Dynamic Color: Green / Amber / Red)
     final activePaint = Paint()
-      ..color = AppColors.greenPrimary
+      ..color = arcColor ?? AppColors.greenPrimary
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round;
@@ -1234,7 +1409,7 @@ class UrbanHealthArcPainter extends CustomPainter {
     canvas.drawArc(
       Rect.fromCircle(center: center, radius: radius),
       math.pi,
-      math.pi * percentage,
+      math.pi * percentage.clamp(0.0, 1.0),
       false,
       activePaint,
     );
@@ -1242,7 +1417,7 @@ class UrbanHealthArcPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant UrbanHealthArcPainter oldDelegate) {
-    return oldDelegate.percentage != percentage;
+    return oldDelegate.percentage != percentage || oldDelegate.arcColor != arcColor;
   }
 }
 

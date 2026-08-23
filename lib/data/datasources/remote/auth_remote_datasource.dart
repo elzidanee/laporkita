@@ -115,6 +115,22 @@ class AuthRemoteDatasource {
     return response.data!;
   }
 
+  // ── Get User Points Log ────────────────────────────────────────────────────
+  // STATUS: VERIFIED — GET /users/me/points
+  Future<List<Map<String, dynamic>>> getMyPoints({int limit = 20}) async {
+    final response = await _dioClient.get<List<Map<String, dynamic>>>(
+      '/users/me/points?limit=$limit',
+      fromJson: (json) {
+        if (json is List) {
+          return List<Map<String, dynamic>>.from(
+              json.map((x) => Map<String, dynamic>.from(x as Map)));
+        }
+        return [];
+      },
+    );
+    return response.data ?? [];
+  }
+
   // ── Token Storage Helpers ─────────────────────────────────────────────────
 
   Future<void> saveTokens(AuthTokenModel tokens) async {

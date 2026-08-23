@@ -180,36 +180,42 @@ class ReportSuccessScreen extends StatelessWidget {
                             child: SizedBox(
                               width: 80,
                               height: 64,
-                              child: imagePath != null &&
-                                      imagePath.isNotEmpty &&
-                                      File(imagePath).existsSync()
-                                  ? Image.file(
-                                      File(imagePath),
-                                      fit: BoxFit.cover,
-                                    )
-                                  : (photoUrl != null && photoUrl.isNotEmpty
-                                      ? Image.network(
-                                          photoUrl,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (context, error,
-                                                  stackTrace) =>
-                                              Container(
-                                            color: const Color(0xFFF0F4F8),
-                                            child: const Icon(
-                                              Icons.image_not_supported_rounded,
-                                              color: AppColors.greenPrimary,
-                                              size: 28,
-                                            ),
-                                          ),
-                                        )
-                                      : Container(
-                                          color: const Color(0xFFF0F4F8),
-                                          child: const Icon(
-                                            Icons.image_not_supported_rounded,
-                                            color: AppColors.greenPrimary,
-                                            size: 28,
-                                          ),
-                                        )),
+                              child: () {
+                                bool isLocalValid = false;
+                                if (imagePath != null &&
+                                    imagePath.isNotEmpty &&
+                                    !imagePath.startsWith('http')) {
+                                  try {
+                                    isLocalValid = File(imagePath).existsSync();
+                                  } catch (_) {
+                                    isLocalValid = false;
+                                  }
+                                }
+                                if (isLocalValid && imagePath != null) {
+                                  return Image.file(
+                                    File(imagePath),
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) =>
+                                        Container(color: AppColors.neutral100),
+                                  );
+                                } else if (photoUrl != null && photoUrl.isNotEmpty) {
+                                  return Image.network(
+                                    photoUrl,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) =>
+                                        Container(color: AppColors.neutral100),
+                                  );
+                                } else {
+                                  return Container(
+                                    color: const Color(0xFFF0F4F8),
+                                    child: const Icon(
+                                      Icons.image_not_supported_rounded,
+                                      color: AppColors.greenPrimary,
+                                      size: 28,
+                                    ),
+                                  );
+                                }
+                              }(),
                             ),
                           ),
                           const SizedBox(width: 12),

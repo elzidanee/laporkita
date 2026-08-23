@@ -276,8 +276,10 @@ class ReportModel {
       return null;
     }
     // Berkas lokal (kamera/galeri user)
-    if (!raw.startsWith('http') && File(raw).existsSync()) {
-      return raw;
+    if (!raw.startsWith('http')) {
+      try {
+        if (File(raw).existsSync()) return raw;
+      } catch (_) {}
     }
     // Domain dummy test suite QA
     if (raw.contains('storage.example.com')) {

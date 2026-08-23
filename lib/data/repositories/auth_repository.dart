@@ -68,6 +68,9 @@ class AuthRepository {
 
   Future<UserModel> getMe() => _datasource.getMe();
 
+  Future<List<Map<String, dynamic>>> getMyPoints({int limit = 20}) =>
+      _datasource.getMyPoints(limit: limit);
+
   Future<void> logout() => _datasource.clearTokens();
 
   Future<bool> isLoggedIn() => _datasource.hasValidToken();

@@ -406,15 +406,23 @@ class _FotoProgressScreenState extends State<FotoProgressScreen> {
     required String imageUrl,
     required bool isNew,
   }) {
+    bool isLocalValid = false;
+    if (imageUrl.isNotEmpty && !imageUrl.startsWith('http')) {
+      try {
+        isLocalValid = File(imageUrl).existsSync();
+      } catch (_) {
+        isLocalValid = false;
+      }
+    }
+
     Widget imgWidget;
-    if (imageUrl.isNotEmpty &&
-        !imageUrl.startsWith('http') &&
-        File(imageUrl).existsSync()) {
+    if (isLocalValid) {
       imgWidget = Image.file(
         File(imageUrl),
         width: 100,
         height: 80,
         fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _photoPlaceholder(),
       );
     } else if (imageUrl.isNotEmpty) {
       imgWidget = Image.network(

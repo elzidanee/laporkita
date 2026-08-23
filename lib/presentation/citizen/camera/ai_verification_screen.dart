@@ -1,8 +1,9 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../data/datasources/remote/ai_service_datasource.dart';
+import '../../../data/models/ai_verification_model.dart';
 import '../../../data/repositories/report_repository.dart';
 
 class AiVerificationScreen extends StatefulWidget {
@@ -12,17 +13,95 @@ class AiVerificationScreen extends StatefulWidget {
   State<AiVerificationScreen> createState() => _AiVerificationScreenState();
 }
 
-class _AiVerificationScreenState extends State<AiVerificationScreen> {
+class _AiVerificationScreenState extends State<AiVerificationScreen>
+    with SingleTickerProviderStateMixin {
   bool _isChecking = false;
+  bool _isVerifying = false;
+  AiVerificationResult? _verificationResult;
+  String? _verificationError;
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
 
-  Future<void> _handleLanjut(Map<String, dynamic>? args) async {
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+    _pulseAnimation = Tween<double>(begin: 0.85, end: 1.0).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+    // Mulai verifikasi otomatis setelah frame pertama
+    WidgetsBinding.instance.addPostFrameCallback((_) => _runAiVerification());
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  Map<String, dynamic>? get _args =>
+      ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+
+  Future<void> _runAiVerification() async {
+    final args = _args;
+    final String? imagePath = args?['imagePath'];
+    final String? imageUrl = args?['photoUrl'];
+    final String coordinates = args?['coordinates'] ?? '-7.9827,112.6304';
+
+    double lat = -7.9827;
+    double lng = 112.6304;
+    if (coordinates.contains(',')) {
+      try {
+        final parts = coordinates.split(',');
+        if (parts.length == 2) {
+          lat = double.parse(parts[0].trim());
+          lng = double.parse(parts[1].trim());
+        }
+      } catch (_) {}
+    }
+
+    setState(() {
+      _isVerifying = true;
+      _verificationResult = null;
+      _verificationError = null;
+    });
+
+    try {
+      final result = await AiServiceDatasource().verifyReport(
+        imagePath: imagePath,
+        imageUrl: imageUrl,
+        latitude: lat,
+        longitude: lng,
+        timestamp: DateTime.now(),
+      );
+      if (!mounted) return;
+      setState(() {
+        _verificationResult = result;
+        _isVerifying = false;
+      });
+      _pulseController.stop();
+    } catch (e) {
+      if (!mounted) return;
+      // Jika AI service tidak dapat dihubungi, tetap izinkan lanjut
+      setState(() {
+        _verificationError = 'Layanan AI tidak tersedia. Laporan tetap dapat dikirim.';
+        _isVerifying = false;
+      });
+      _pulseController.stop();
+    }
+  }
+
+  Future<void> _handleLanjut() async {
+    final args = _args;
     if (_isChecking) return;
     setState(() => _isChecking = true);
 
     double lat = -7.9827;
     double lng = 112.6304;
     final String? coordinates = args?['coordinates'];
-
     if (coordinates != null && coordinates.contains(',')) {
       try {
         final parts = coordinates.split(',');
@@ -39,34 +118,32 @@ class _AiVerificationScreenState extends State<AiVerificationScreen> {
         latitude: lat,
         longitude: lng,
       );
-
       if (!mounted) return;
-
       if (similarReports.isNotEmpty) {
-        // Ada laporan serupa! Buka halaman Deteksi Laporan Serupa
         Navigator.pushNamed(
           context,
           '/similar-reports',
           arguments: {
             if (args != null) ...args,
             'similarReports': similarReports,
+            if (_verificationResult != null)
+              'aiVerification': _verificationResult,
           },
         );
       } else {
-        // Tidak ada laporan serupa! Langsung buka halaman Laporan Baru
         Navigator.pushNamed(
           context,
           '/new-report-form',
-          arguments: args,
+          arguments: {
+            if (args != null) ...args,
+            if (_verificationResult != null)
+              'aiVerification': _verificationResult,
+          },
         );
       }
     } catch (_) {
       if (!mounted) return;
-      Navigator.pushNamed(
-        context,
-        '/new-report-form',
-        arguments: args,
-      );
+      Navigator.pushNamed(context, '/new-report-form', arguments: args);
     } finally {
       if (mounted) setState(() => _isChecking = false);
     }
@@ -74,17 +151,17 @@ class _AiVerificationScreenState extends State<AiVerificationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Retrieve arguments passed from camera screen
-    final args =
-        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-
+    final args = _args;
     final String? imagePath = args?['imagePath'];
-    final String location =
-        args?['location'] ?? 'Jl. Ahmad Yani No.15 Malang';
-    final String coordinates =
-        args?['coordinates'] ?? '-6.382728,107.734682';
-    final String timestamp =
-        args?['timestamp'] ?? 'Kamis, 12 Mei 2026 | 10.30 WIB';
+    final String location = args?['location'] ?? 'Kota Malang';
+    final String coordinates = args?['coordinates'] ?? '-7.9827,112.6304';
+    final String timestamp = args?['timestamp'] ?? '-';
+
+    // Jika foto ditolak AI (bukan wilayah Malang / bukan fasilitas publik),
+    // nonaktifkan tombol Lanjut
+    final bool isRejectedByAi = _verificationResult != null &&
+        !_verificationResult!.isVerified &&
+        _verificationResult!.rejectionReason != null;
 
     return Scaffold(
       backgroundColor: AppColors.white,
@@ -114,12 +191,13 @@ class _AiVerificationScreenState extends State<AiVerificationScreen> {
           children: [
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 1. Photo Container with Stamp Overlay
-                    _buildPhotoPreviewWithStamp(
+                    // 1. Foto Preview
+                    _buildPhotoPreview(
                       imagePath: imagePath,
                       location: location,
                       coordinates: coordinates,
@@ -127,66 +205,102 @@ class _AiVerificationScreenState extends State<AiVerificationScreen> {
                     ),
                     const SizedBox(height: 20),
 
-                    // 2. 4 Verification Status Cards List
-                    _buildVerificationCard(
-                      title: 'Foto Asli',
-                      subtitle: 'Foto diambil langsung dari camera',
-                    ),
-                    const SizedBox(height: 12),
-                    _buildVerificationCard(
+                    // 2. Status Cards (GPS, Timestamp, Metadata)
+                    _buildStaticCheckCard(
+                      icon: Icons.gps_fixed_rounded,
                       title: 'GPS Valid',
-                      subtitle: 'Lokasi sesuai dan akurat',
+                      subtitle: coordinates,
+                      color: AppColors.greenPrimary,
                     ),
-                    const SizedBox(height: 12),
-                    _buildVerificationCard(
+                    const SizedBox(height: 10),
+                    _buildStaticCheckCard(
+                      icon: Icons.access_time_rounded,
                       title: 'Timestamp Valid',
-                      subtitle: 'Waktu sesuai saat pengambilan',
+                      subtitle: timestamp,
+                      color: AppColors.greenPrimary,
                     ),
-                    const SizedBox(height: 12),
-                    _buildVerificationCard(
-                      title: 'Metadata Lengkap',
-                      subtitle: 'Data foto lengkap dan utuh',
+                    const SizedBox(height: 10),
+                    _buildStaticCheckCard(
+                      icon: Icons.location_city_rounded,
+                      title: 'Wilayah Kota Malang',
+                      subtitle: location,
+                      color: _verificationResult?.isWithinMalang == false
+                          ? const Color(0xFFE53935)
+                          : AppColors.greenPrimary,
+                      statusOverride: _verificationResult?.isWithinMalang == false
+                          ? 'Di luar area'
+                          : null,
                     ),
                     const SizedBox(height: 20),
 
-                    // 3. AI Detection & Confidence Card
+                    // 3. AI Detection Card
                     _buildAiDetectionCard(),
                     const SizedBox(height: 16),
+
+                    // 4. Pesan error / penolakan jika ada
+                    if (isRejectedByAi) ...[
+                      _buildRejectionBanner(
+                          _verificationResult!.rejectionReason!),
+                      const SizedBox(height: 16),
+                    ],
                   ],
                 ),
               ),
             ),
 
-            // 4. Bottom Action Button: "Lanjut"
+            // Bottom Action Button
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-              child: ElevatedButton(
-                onPressed: _isChecking ? null : () => _handleLanjut(args),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.greenPrimary,
-                  foregroundColor: AppColors.white,
-                  minimumSize: const Size.fromHeight(54),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  elevation: 0,
-                ),
-                child: _isChecking
-                    ? const SizedBox(
-                        height: 22,
-                        width: 22,
-                        child: CircularProgressIndicator(
-                          color: AppColors.white,
-                          strokeWidth: 2.5,
-                        ),
-                      )
-                    : const Text(
-                        'Lanjut',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (isRejectedByAi)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Text(
+                        'Foto tidak lolos verifikasi AI. Silakan ambil foto ulang.',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFFE53935),
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
+                    ),
+                  ElevatedButton(
+                    onPressed: (_isChecking || _isVerifying || isRejectedByAi)
+                        ? null
+                        : _handleLanjut,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.greenPrimary,
+                      foregroundColor: AppColors.white,
+                      disabledBackgroundColor: isRejectedByAi
+                          ? const Color(0xFFE53935).withValues(alpha: 0.5)
+                          : null,
+                      minimumSize: const Size.fromHeight(54),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: (_isChecking || _isVerifying)
+                        ? const SizedBox(
+                            height: 22,
+                            width: 22,
+                            child: CircularProgressIndicator(
+                              color: AppColors.white,
+                              strokeWidth: 2.5,
+                            ),
+                          )
+                        : Text(
+                            isRejectedByAi ? 'Foto Ditolak AI' : 'Lanjut',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -195,8 +309,7 @@ class _AiVerificationScreenState extends State<AiVerificationScreen> {
     );
   }
 
-  /// Photo preview with camera metadata overlay stamp
-  Widget _buildPhotoPreviewWithStamp({
+  Widget _buildPhotoPreview({
     required String? imagePath,
     required String location,
     required String coordinates,
@@ -219,37 +332,7 @@ class _AiVerificationScreenState extends State<AiVerificationScreen> {
         borderRadius: BorderRadius.circular(16),
         child: Stack(
           children: [
-            Positioned.fill(
-              child: imagePath != null &&
-                      imagePath.isNotEmpty &&
-                      !kIsWeb &&
-                      File(imagePath).existsSync()
-                  ? Image.file(
-                      File(imagePath),
-                      fit: BoxFit.cover,
-                    )
-                  : (imagePath != null && imagePath.startsWith('http')
-                      ? Image.network(
-                          imagePath,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Container(
-                            color: const Color(0xFFF0F4F8),
-                            child: const Icon(
-                              Icons.image_not_supported_rounded,
-                              size: 48,
-                              color: AppColors.greenPrimary,
-                            ),
-                          ),
-                        )
-                      : Container(
-                          color: const Color(0xFFF0F4F8),
-                          child: const Icon(
-                            Icons.image_not_supported_rounded,
-                            size: 48,
-                            color: AppColors.greenPrimary,
-                          ),
-                        )),
-            ),
+            Positioned.fill(child: _buildImageWidget(imagePath)),
             Positioned.fill(
               child: Container(
                 decoration: BoxDecoration(
@@ -283,47 +366,22 @@ class _AiVerificationScreenState extends State<AiVerificationScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: AppColors.greenPrimary.withValues(alpha: 0.85),
+                        color:
+                            AppColors.greenPrimary.withValues(alpha: 0.85),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Text(
-                        'LaporKita',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      child: const Text('LaporKita',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold)),
                     ),
                     const SizedBox(height: 4),
-                    const Text(
-                      '#LP_2026_002487',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    _buildStampItem(
-                      icon: Icons.location_on_outlined,
-                      text: location,
-                    ),
+                    _stampRow(Icons.location_on_outlined, location),
                     const SizedBox(height: 3),
-                    _buildStampItem(
-                      icon: Icons.access_time_outlined,
-                      text: timestamp,
-                    ),
+                    _stampRow(Icons.access_time_outlined, timestamp),
                     const SizedBox(height: 3),
-                    _buildStampItem(
-                      icon: Icons.warning_amber_rounded,
-                      text: 'Jalan Rusak',
-                    ),
-                    const SizedBox(height: 3),
-                    _buildStampItem(
-                      icon: Icons.memory_outlined,
-                      text: coordinates,
-                    ),
+                    _stampRow(Icons.memory_outlined, coordinates),
                   ],
                 ),
               ),
@@ -334,42 +392,55 @@ class _AiVerificationScreenState extends State<AiVerificationScreen> {
     );
   }
 
-  Widget _buildStampItem({required IconData icon, required String text}) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          icon,
-          size: 11,
-          color: Colors.white,
-        ),
-        const SizedBox(width: 4),
-        Text(
-          text,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 9,
-            fontWeight: FontWeight.w400,
-          ),
-        ),
-      ],
+  Widget _buildImageWidget(String? imagePath) {
+    final placeholder = Container(
+      color: const Color(0xFFF0F4F8),
+      child: const Icon(Icons.image_not_supported_rounded,
+          size: 48, color: AppColors.greenPrimary),
     );
+    if (imagePath == null || imagePath.isEmpty) return placeholder;
+    if (!imagePath.startsWith('http')) {
+      try {
+        if (File(imagePath).existsSync()) {
+          return Image.file(File(imagePath), fit: BoxFit.cover);
+        }
+      } catch (_) {}
+      return placeholder;
+    }
+    return Image.network(imagePath, fit: BoxFit.cover,
+        errorBuilder: (context, error, _) => placeholder);
   }
 
-  Widget _buildVerificationCard({
+  Widget _stampRow(IconData icon, String text) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: Colors.white),
+          const SizedBox(width: 4),
+          Text(text,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w400)),
+        ],
+      );
+
+  Widget _buildStaticCheckCard({
+    required IconData icon,
     required String title,
     required String subtitle,
+    required Color color,
+    String? statusOverride,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFE0DFDF)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 5,
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 4,
             offset: const Offset(0, 2),
           ),
         ],
@@ -377,41 +448,46 @@ class _AiVerificationScreenState extends State<AiVerificationScreen> {
       child: Row(
         children: [
           Container(
-            width: 28,
-            height: 28,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
-              color: AppColors.greenPrimary.withValues(alpha: 0.15),
+              color: color.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Icons.check_rounded,
-              size: 18,
-              color: AppColors.greenPrimary,
-            ),
+            child: Icon(icon, size: 20, color: color),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text(title,
+                    style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.neutral900)),
+                const SizedBox(height: 1),
                 Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.neutral900,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.neutral500,
-                  ),
+                  statusOverride ?? subtitle,
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: statusOverride != null
+                          ? const Color(0xFFE53935)
+                          : AppColors.neutral500),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
+          ),
+          Icon(
+            statusOverride != null
+                ? Icons.cancel_rounded
+                : Icons.check_circle_rounded,
+            color: statusOverride != null
+                ? const Color(0xFFE53935)
+                : AppColors.greenPrimary,
+            size: 22,
           ),
         ],
       ),
@@ -423,20 +499,28 @@ class _AiVerificationScreenState extends State<AiVerificationScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE0DFDF)),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: _verificationResult == null
+              ? const Color(0xFFE0DFDF)
+              : _verificationResult!.isVerified
+                  ? AppColors.greenPrimary.withValues(alpha: 0.4)
+                  : const Color(0xFFE53935).withValues(alpha: 0.4),
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 5,
-            offset: const Offset(0, 2),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
+              // Icon AI
               Container(
                 width: 52,
                 height: 52,
@@ -444,76 +528,203 @@ class _AiVerificationScreenState extends State<AiVerificationScreen> {
                   color: AppColors.greenLight,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(
-                  Icons.psychology_rounded,
-                  size: 32,
-                  color: AppColors.greenPrimary,
-                ),
+                child: _isVerifying
+                    ? ScaleTransition(
+                        scale: _pulseAnimation,
+                        child: const Icon(Icons.psychology_rounded,
+                            size: 30, color: AppColors.greenPrimary),
+                      )
+                    : Icon(
+                        _verificationResult?.isVerified == true
+                            ? Icons.verified_rounded
+                            : _verificationResult?.isVerified == false
+                                ? Icons.cancel_rounded
+                                : Icons.psychology_rounded,
+                        size: 30,
+                        color: _verificationResult?.isVerified == false
+                            ? const Color(0xFFE53935)
+                            : AppColors.greenPrimary,
+                      ),
               ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children: [
                     Text(
-                      'AI Mendeteksi',
+                      _isVerifying
+                          ? 'AI Sedang Menganalisa...'
+                          : _verificationError != null
+                              ? 'AI Tidak Tersedia'
+                              : _verificationResult?.isVerified == true
+                                  ? 'Terverifikasi ✓'
+                                  : _verificationResult?.isVerified == false
+                                      ? 'Tidak Lolos Verifikasi'
+                                      : 'Menunggu Analisis',
                       style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.neutral500,
-                      ),
-                    ),
-                    SizedBox(height: 2),
-                    Text(
-                      'Jalan rusak',
-                      style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 15,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.neutral900,
+                        color: _verificationResult?.isVerified == false
+                            ? const Color(0xFFE53935)
+                            : AppColors.neutral900,
                       ),
                     ),
-                    SizedBox(height: 2),
+                    const SizedBox(height: 2),
                     Text(
-                      'Kerusakan pada permukaan jalan',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.neutral500,
-                      ),
+                      _isVerifying
+                          ? 'Sedang memproses gambar dengan YOLOv11...'
+                          : _verificationError != null
+                              ? _verificationError!
+                              : _verificationResult?.detectedCategory ??
+                                  'Menunggu...',
+                      style: const TextStyle(
+                          fontSize: 12, color: AppColors.neutral500),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: const [
-              Text(
-                'Confidence',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.neutral900,
+
+          // Confidence bar (hanya tampil jika ada hasil)
+          if (_verificationResult != null && !_isVerifying) ...[
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Confidence AI',
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.neutral900)),
+                Text(
+                  '${_verificationResult!.confidencePercent}%',
+                  style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: _verificationResult!.isVerified
+                          ? AppColors.greenPrimary
+                          : const Color(0xFFE53935)),
                 ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: _verificationResult!.confidence.clamp(0.0, 1.0),
+                minHeight: 8,
+                backgroundColor: const Color(0xFFE8E8E8),
+                color: _verificationResult!.isVerified
+                    ? AppColors.greenPrimary
+                    : const Color(0xFFE53935),
               ),
-              Text(
-                '98%',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.greenPrimary,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Urgency Score',
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.neutral900)),
+                Text(
+                  '${_verificationResult!.urgencyPercent}%',
+                  style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFFF5A623)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: _verificationResult!.urgencyScore.clamp(0.0, 1.0),
+                minHeight: 8,
+                backgroundColor: const Color(0xFFE8E8E8),
+                color: const Color(0xFFF5A623),
+              ),
+            ),
+
+            // Auto description dari AI
+            if (_verificationResult!.autoDescription.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF7FBF7),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.greenLight),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.info_outline_rounded,
+                        size: 16, color: AppColors.greenPrimary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _verificationResult!.autoDescription,
+                        style: const TextStyle(
+                            fontSize: 11.5, color: AppColors.neutral900),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: const LinearProgressIndicator(
-              value: 0.98,
-              minHeight: 8,
-              backgroundColor: AppColors.neutral100,
-              color: AppColors.greenPrimary,
+          ],
+
+          // Loading shimmer saat verifikasi berjalan
+          if (_isVerifying) ...[
+            const SizedBox(height: 16),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: const LinearProgressIndicator(
+                minHeight: 6,
+                backgroundColor: Color(0xFFE8E8E8),
+                color: AppColors.greenPrimary,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRejectionBanner(String reason) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFEBEB),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE53935).withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.warning_amber_rounded,
+              color: Color(0xFFE53935), size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Verifikasi Ditolak',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFFE53935),
+                        fontSize: 14)),
+                const SizedBox(height: 4),
+                Text(reason,
+                    style: const TextStyle(
+                        fontSize: 12.5, color: Color(0xFF8B0000))),
+              ],
             ),
           ),
         ],

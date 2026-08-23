@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/report_model.dart';
@@ -13,22 +14,96 @@ class SimilarReportScreen extends StatelessWidget {
     final List<ReportModel>? similarReports =
         args?['similarReports'] as List<ReportModel>?;
 
-    String reportTitle = 'Jalan Rusak';
-    String reportAddress = 'Jl. Ahmad Yani no. 15';
-    String reportDate = '12 Mei 2026';
-    String supportsText = '360 Dukungan';
-    String statusText = 'Sedang Diproses';
+    final String categoryArg = (args?['category'] as String?) ?? 'Laporan Fasilitas';
+    final String locationArg = (args?['location'] as String?) ?? 'Malang';
+    final String timestampArg = (args?['timestamp'] as String?) ?? 'Baru saja';
+
+    String reportTitle = categoryArg;
+    String reportAddress = locationArg;
+    String reportDate = timestampArg;
+    String supportsText = '0 Dukungan';
+    String statusText = 'Menunggu Verifikasi';
     String? photoUrl;
 
     if (similarReports != null && similarReports.isNotEmpty) {
       final report = similarReports.first;
       reportTitle = report.categoryName;
-      reportAddress = report.addressText ?? 'Malang';
+      reportAddress = report.addressText ?? locationArg;
       reportDate =
           '${report.createdAt.day}/${report.createdAt.month}/${report.createdAt.year}';
       supportsText = '${report.supportCount} Dukungan';
       statusText = report.status.displayName;
-      photoUrl = report.photoUrl;
+      photoUrl = report.formattedPhotoUrl ?? report.photoUrl;
+    }
+
+    // Mengutamakan foto terbaru yang baru saja diambil/diinputkan oleh user
+    final String? userPhotoPath = args?['imagePath'] as String? ??
+        args?['photoPath'] as String? ??
+        args?['directPhotoUrl'] as String? ??
+        args?['photoUrl'] as String?;
+
+    bool isLocalValid = false;
+    if (userPhotoPath != null &&
+        userPhotoPath.isNotEmpty &&
+        !userPhotoPath.startsWith('http')) {
+      try {
+        isLocalValid = File(userPhotoPath).existsSync();
+      } catch (_) {
+        isLocalValid = false;
+      }
+    }
+
+    Widget cardImageWidget;
+    if (isLocalValid && userPhotoPath != null) {
+      cardImageWidget = Image.file(
+        File(userPhotoPath),
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Container(
+          color: Colors.amber.shade100,
+          child: const Icon(
+            Icons.alt_route_rounded,
+            color: Color(0xFFE68A00),
+            size: 32,
+          ),
+        ),
+      );
+    } else if (userPhotoPath != null &&
+        userPhotoPath.isNotEmpty &&
+        userPhotoPath.startsWith('http')) {
+      cardImageWidget = Image.network(
+        userPhotoPath,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Container(
+          color: Colors.amber.shade100,
+          child: const Icon(
+            Icons.alt_route_rounded,
+            color: Color(0xFFE68A00),
+            size: 32,
+          ),
+        ),
+      );
+    } else if (photoUrl != null && photoUrl.isNotEmpty) {
+      cardImageWidget = Image.network(
+        photoUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Container(
+          color: Colors.amber.shade100,
+          child: const Icon(
+            Icons.alt_route_rounded,
+            color: Color(0xFFE68A00),
+            size: 32,
+          ),
+        ),
+      );
+    } else {
+      cardImageWidget = Container(
+        color: Colors.amber.shade100,
+        child: const Icon(
+          Icons.alt_route_rounded,
+          color: Color(0xFFE68A00),
+          size: 32,
+        ),
+      );
     }
 
     return Scaffold(
@@ -144,29 +219,7 @@ class SimilarReportScreen extends StatelessWidget {
                             child: SizedBox(
                               width: 80,
                               height: 64,
-                              child: photoUrl != null && photoUrl.isNotEmpty
-                                  ? Image.network(
-                                      photoUrl,
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (context, error, stackTrace) =>
-                                              Container(
-                                        color: Colors.amber.shade100,
-                                        child: const Icon(
-                                          Icons.alt_route_rounded,
-                                          color: Color(0xFFE68A00),
-                                          size: 32,
-                                        ),
-                                      ),
-                                    )
-                                  : Container(
-                                      color: Colors.amber.shade100,
-                                      child: const Icon(
-                                        Icons.alt_route_rounded,
-                                        color: Color(0xFFE68A00),
-                                        size: 32,
-                                      ),
-                                    ),
+                              child: cardImageWidget,
                             ),
                           ),
                           const SizedBox(width: 12),

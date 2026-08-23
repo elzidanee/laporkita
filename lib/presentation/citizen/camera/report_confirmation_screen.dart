@@ -30,14 +30,21 @@ class _ReportConfirmationScreenState extends State<ReportConfirmationScreen> {
       Navigator.pushNamed(
         context,
         '/report-success',
-        arguments: {'isSupportOnly': true},
+        arguments: {
+          if (args != null) ...args,
+          'isSupportOnly': true,
+          'notes': _notesController.text,
+        },
       );
     } else {
       // User selected Option 2: Tetap membuat laporan baru -> Navigate to Form Laporan Baru
       Navigator.pushNamed(
         context,
         '/new-report-form',
-        arguments: args,
+        arguments: {
+          if (args != null) ...args,
+          'notes': _notesController.text,
+        },
       );
     }
   }

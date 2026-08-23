@@ -521,35 +521,42 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
             child: SizedBox(
               width: 120,
               height: 120,
-              child: imagePath != null &&
-                      imagePath.isNotEmpty &&
-                      !kIsWeb &&
-                      File(imagePath).existsSync()
-                  ? Image.file(
-                      File(imagePath),
-                      fit: BoxFit.cover,
-                    )
-                  : (imagePath != null && imagePath.startsWith('http')
-                      ? Image.network(
-                          imagePath,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Container(
-                            color: const Color(0xFFF0F4F8),
-                            child: const Icon(
-                              Icons.image_not_supported_rounded,
-                              color: AppColors.greenPrimary,
-                              size: 32,
-                            ),
-                          ),
-                        )
-                      : Container(
-                          color: const Color(0xFFF0F4F8),
-                          child: const Icon(
-                            Icons.image_not_supported_rounded,
-                            color: AppColors.greenPrimary,
-                            size: 32,
-                          ),
-                        )),
+              child: () {
+                bool isLocalValid = false;
+                if (imagePath != null &&
+                    imagePath.isNotEmpty &&
+                    !imagePath.startsWith('http')) {
+                  try {
+                    isLocalValid = File(imagePath).existsSync();
+                  } catch (_) {
+                    isLocalValid = false;
+                  }
+                }
+                if (isLocalValid && imagePath != null) {
+                  return Image.file(
+                    File(imagePath),
+                    fit: BoxFit.cover,
+                  );
+                } else if (imagePath != null && imagePath.startsWith('http')) {
+                  return Image.network(
+                    imagePath,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      color: AppColors.neutral100,
+                      child: const Icon(Icons.image, size: 40, color: AppColors.neutral500),
+                    ),
+                  );
+                } else {
+                  return Container(
+                    color: const Color(0xFFF0F4F8),
+                    child: const Icon(
+                      Icons.image_not_supported_rounded,
+                      color: AppColors.greenPrimary,
+                      size: 32,
+                    ),
+                  );
+                }
+              }(),
             ),
           ),
           const SizedBox(width: 16),

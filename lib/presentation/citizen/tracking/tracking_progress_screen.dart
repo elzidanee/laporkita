@@ -318,12 +318,24 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
     required String reportId,
     required String title,
   }) {
-    Widget imageWidget;
+    bool isLocalValid = false;
     if (imagePath != null &&
         imagePath.isNotEmpty &&
-        !kIsWeb &&
-        File(imagePath).existsSync()) {
-      imageWidget = Image.file(File(imagePath), fit: BoxFit.cover);
+        !imagePath.startsWith('http')) {
+      try {
+        isLocalValid = File(imagePath).existsSync();
+      } catch (_) {
+        isLocalValid = false;
+      }
+    }
+
+    Widget imageWidget;
+    if (isLocalValid && imagePath != null) {
+      imageWidget = Image.file(
+        File(imagePath),
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _placeholderImage(title),
+      );
     } else if (photoUrl.isNotEmpty) {
       imageWidget = Image.network(
         photoUrl,

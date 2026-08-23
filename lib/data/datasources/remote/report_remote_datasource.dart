@@ -94,10 +94,18 @@ class ReportRemoteDatasource {
       if (idempotencyKey case final key?) 'idempotency_key': key,
     };
 
+    bool isLocalValid = false;
     if (photoPath != null &&
         photoPath.isNotEmpty &&
-        !photoPath.startsWith('http') &&
-        File(photoPath).existsSync()) {
+        !photoPath.startsWith('http')) {
+      try {
+        isLocalValid = File(photoPath).existsSync();
+      } catch (_) {
+        isLocalValid = false;
+      }
+    }
+
+    if (isLocalValid && photoPath != null) {
       map['photo'] = await MultipartFile.fromFile(
         photoPath,
         filename: 'report_photo.jpg',
@@ -133,10 +141,18 @@ class ReportRemoteDatasource {
     final result = response.data!;
 
     // Pasang photoPath lokal hanya jika result tidak memiliki photoUrl dari backend
+    bool isLocalFileValid = false;
     if (photoPath != null &&
         photoPath.isNotEmpty &&
-        !photoPath.startsWith('http') &&
-        File(photoPath).existsSync()) {
+        !photoPath.startsWith('http')) {
+      try {
+        isLocalFileValid = File(photoPath).existsSync();
+      } catch (_) {
+        isLocalFileValid = false;
+      }
+    }
+
+    if (isLocalFileValid && photoPath != null) {
       final String currentUrl = result.photoUrl ?? '';
       if (currentUrl.isEmpty) {
         return ReportModel(

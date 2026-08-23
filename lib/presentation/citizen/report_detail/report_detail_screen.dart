@@ -431,12 +431,27 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
         widget.reportData?['photoPath'] as String? ??
         _report?.directPhotoUrl;
 
-    Widget imgWidget;
+    bool isLocalValid = false;
     if (localPath != null &&
         localPath.isNotEmpty &&
-        !localPath.startsWith('http') &&
-        File(localPath).existsSync()) {
-      imgWidget = Image.file(File(localPath), fit: BoxFit.cover);
+        !localPath.startsWith('http')) {
+      try {
+        isLocalValid = File(localPath).existsSync();
+      } catch (_) {
+        isLocalValid = false;
+      }
+    }
+
+    Widget imgWidget;
+    if (isLocalValid && localPath != null) {
+      imgWidget = Image.file(
+        File(localPath),
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Image.network(
+          ReportModel.getCategoryFallbackImage(title),
+          fit: BoxFit.cover,
+        ),
+      );
     } else if (photoUrl.isNotEmpty) {
       imgWidget = Image.network(
         photoUrl,

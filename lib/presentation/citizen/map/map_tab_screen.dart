@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -38,6 +39,35 @@ class _CitizenPetaTabState extends State<CitizenPetaTab> {
         .toList();
   }
 
+  LatLng _safeLatLng(double lat, double lng) {
+    if (lat.isNaN || lng.isNaN || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      return const LatLng(-7.9666, 112.6326);
+    }
+    return LatLng(lat, lng);
+  }
+
+  /// Warna sesuai status laporan — digunakan konsisten di pin marker & kartu
+  Color _statusColor(ReportStatus status) {
+    switch (status) {
+      case ReportStatus.pendingVerification:
+        return const Color(0xFF2B82C4);  // Biru — menunggu verifikasi
+      case ReportStatus.verified:
+        return const Color(0xFF26A69A);  // Teal — terverifikasi
+      case ReportStatus.rejected:
+        return const Color(0xFFE53935);  // Merah — ditolak
+      case ReportStatus.assigned:
+        return const Color(0xFF7B1FA2);  // Ungu — ditugaskan
+      case ReportStatus.inProgress:
+        return const Color(0xFFF5A623);  // Oranye — sedang diproses
+      case ReportStatus.completed:
+        return const Color(0xFF1D9C51);  // Hijau tua — selesai
+      case ReportStatus.resolved:
+        return const Color(0xFF388E3C);  // Hijau gelap — terselesaikan
+      case ReportStatus.disputed:
+        return const Color(0xFF757575);  // Abu-abu — diperdebatkan
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -58,7 +88,7 @@ class _CitizenPetaTabState extends State<CitizenPetaTab> {
                 mapController: _mapController,
                 options: MapOptions(
                   initialCenter: displayReports.isNotEmpty
-                      ? LatLng(
+                      ? _safeLatLng(
                           displayReports.first.latitude,
                           displayReports.first.longitude,
                         )
@@ -75,35 +105,33 @@ class _CitizenPetaTabState extends State<CitizenPetaTab> {
                   ),
                   MarkerLayer(
                     markers: displayReports.map((report) {
-                      final point = LatLng(report.latitude, report.longitude);
-                      final Color pinColor =
-                          report.status == ReportStatus.inProgress
-                              ? const Color(0xFFF5A623)
-                              : (report.status == ReportStatus.pendingVerification
-                                  ? const Color(0xFFE53935)
-                                  : AppColors.greenPrimary);
+                      final point =
+                          _safeLatLng(report.latitude, report.longitude);
+                      final pinColor = _statusColor(report.status);
 
                       return Marker(
                         point: point,
-                        width: 44,
-                        height: 44,
+                        width: 40,
+                        height: 48,
                         child: GestureDetector(
                           onTap: () {
                             _mapController.move(point, 16.0);
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
-                                    '${report.categoryName} - ${report.addressText ?? "Malang"}'),
+                                    '${report.categoryName} — ${report.status.displayName}'),
+                                backgroundColor: pinColor,
                                 duration: const Duration(seconds: 2),
                                 action: SnackBarAction(
                                   label: 'Detail',
-                                  textColor: Colors.amber,
+                                  textColor: Colors.white,
                                   onPressed: () {
                                     Navigator.pushNamed(
                                       context,
                                       '/report-detail',
                                       arguments: {
                                         'id': report.id,
+                                        'reportModel': report,
                                         'title': report.categoryName,
                                         'address': report.addressText ?? 'Malang',
                                         'fullAddress':
@@ -120,25 +148,33 @@ class _CitizenPetaTabState extends State<CitizenPetaTab> {
                               ),
                             );
                           },
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: pinColor,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                  color: Colors.white, width: 2.5),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.25),
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 3),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Icon(
+                                Icons.location_on_rounded,
+                                color: pinColor,
+                                size: 48,
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.black.withValues(alpha: 0.35),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              Positioned(
+                                top: 8,
+                                child: Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                  ),
                                 ),
-                              ],
-                            ),
-                            child: const Icon(
-                              Icons.location_on_rounded,
-                              color: Colors.white,
-                              size: 24,
-                            ),
+                              ),
+                            ],
                           ),
                         ),
                       );
@@ -244,6 +280,47 @@ class _CitizenPetaTabState extends State<CitizenPetaTab> {
                 ),
               ),
 
+              // 2b. Status Legend Overlay (bottom-left)
+              Positioned(
+                left: 16,
+                bottom: MediaQuery.of(context).size.height * 0.38,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.92),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.12),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'Legenda',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF333333),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      _buildLegendItem(const Color(0xFF2B82C4), 'Menunggu'),
+                      _buildLegendItem(const Color(0xFF26A69A), 'Terverifikasi'),
+                      _buildLegendItem(const Color(0xFF7B1FA2), 'Ditugaskan'),
+                      _buildLegendItem(const Color(0xFFF5A623), 'Diproses'),
+                      _buildLegendItem(const Color(0xFF1D9C51), 'Selesai'),
+                      _buildLegendItem(const Color(0xFFE53935), 'Ditolak'),
+                    ],
+                  ),
+                ),
+              ),
+
               // 3. DraggableScrollableSheet for Pull-Up Menu
               DraggableScrollableSheet(
                 controller: _sheetController,
@@ -338,7 +415,7 @@ class _CitizenPetaTabState extends State<CitizenPetaTab> {
                             ),
                           )
                         else
-                          ...displayReports.map((report) => Padding(
+                          ...displayReports.take(20).map((report) => Padding(
                                 padding: const EdgeInsets.only(bottom: 12),
                                 child: _buildMapReportCardFromModel(
                                     context, report),
@@ -357,74 +434,125 @@ class _CitizenPetaTabState extends State<CitizenPetaTab> {
     );
   }
 
+  Widget _buildLegendItem(Color color, String label) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 3),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 9,
+              color: Color(0xFF444444),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildMapReportCardFromModel(
       BuildContext context, ReportModel report) {
-    Color statusBgColor = const Color(0xFFFFF8E6);
-    Color statusTextColor = const Color(0xFFE68A00);
+    try {
+      final statusColor = _statusColor(report.status);
+      final statusBgColor = statusColor.withValues(alpha: 0.12);
+      final statusTextColor = statusColor;
 
-    if (report.status == ReportStatus.resolved ||
-        report.status == ReportStatus.completed) {
-      statusBgColor = const Color(0xFFE8F5E9);
-      statusTextColor = AppColors.greenPrimary;
-    } else if (report.status == ReportStatus.pendingVerification) {
-      statusBgColor = const Color(0xFFFFEAEA);
-      statusTextColor = const Color(0xFFE53935);
-    }
+      final imgUrl = report.formattedPhotoUrl ?? report.photoUrl;
+      final String? localPath = report.directPhotoUrl ?? report.photoUrl;
 
-    return GestureDetector(
-      onTap: () {
-        Navigator.pushNamed(context, '/report-detail', arguments: {
-          'id': report.id,
-          'title': report.categoryName,
-          'address': report.addressText ?? 'Malang',
-          'fullAddress': report.addressText ?? 'Kota Malang',
-          'status': report.status.displayName,
-          'description': report.description ?? 'Laporan fasilitas umum.',
-          'photoUrl': report.photoUrl,
-          'supports': report.supportCount,
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE0DFDF)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 5,
-              offset: const Offset(0, 2),
-            ),
-          ],
+      bool isLocalValid = false;
+      if (localPath != null &&
+          localPath.isNotEmpty &&
+          !localPath.startsWith('http')) {
+        try {
+          isLocalValid = File(localPath).existsSync();
+        } catch (_) {
+          isLocalValid = false;
+        }
+      }
+
+      final Widget safePlaceholderWidget = Container(
+        width: 80,
+        height: 64,
+        color: AppColors.greenLight,
+        child: const Center(
+          child: Icon(
+            Icons.location_city_rounded,
+            size: 28,
+            color: AppColors.greenPrimary,
+          ),
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: SizedBox(
-                width: 80,
-                height: 64,
-                child: (report.formattedPhotoUrl ?? report.photoUrl) != null &&
-                        (report.formattedPhotoUrl ?? report.photoUrl)!.isNotEmpty
-                    ? Image.network(
-                        (report.formattedPhotoUrl ?? report.photoUrl)!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) =>
-                            Image.network(
-                          ReportModel.getCategoryFallbackImage(
-                              report.categoryName),
-                          fit: BoxFit.cover,
-                        ),
-                      )
-                    : Image.network(
-                        ReportModel.getCategoryFallbackImage(
-                            report.categoryName),
-                        fit: BoxFit.cover,
-                      ),
+      );
+
+      Widget cardImageWidget;
+      if (isLocalValid && localPath != null) {
+        cardImageWidget = Image.file(
+          File(localPath),
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => safePlaceholderWidget,
+        );
+      } else if (imgUrl != null && imgUrl.isNotEmpty) {
+        cardImageWidget = Image.network(
+          imgUrl,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => safePlaceholderWidget,
+        );
+      } else {
+        cardImageWidget = safePlaceholderWidget;
+      }
+
+      return GestureDetector(
+        onTap: () {
+          Navigator.pushNamed(context, '/report-detail', arguments: {
+            'id': report.id,
+            'reportModel': report,
+            'title': report.categoryName,
+            'address': report.addressText ?? 'Malang',
+            'fullAddress': report.addressText ?? 'Kota Malang',
+            'status': report.status.displayName,
+            'description': report.description ?? 'Laporan fasilitas umum.',
+            'photoUrl': imgUrl,
+            'imagePath': localPath,
+            'supports': report.supportCount,
+          });
+        },
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE0DFDF)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 5,
+                offset: const Offset(0, 2),
               ),
-            ),
+            ],
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: SizedBox(
+                  width: 80,
+                  height: 64,
+                  child: cardImageWidget,
+                ),
+              ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -492,6 +620,9 @@ class _CitizenPetaTabState extends State<CitizenPetaTab> {
                             decoration: BoxDecoration(
                               color: statusBgColor,
                               borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: statusColor.withValues(alpha: 0.3),
+                              ),
                             ),
                             child: Text(
                               report.status.displayName,
@@ -519,5 +650,8 @@ class _CitizenPetaTabState extends State<CitizenPetaTab> {
         ),
       ),
     );
+    } catch (_) {
+      return const SizedBox.shrink();
+    }
   }
 }

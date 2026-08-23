@@ -22,6 +22,7 @@ import 'presentation/reports/bloc/report_bloc.dart';
 import 'data/repositories/auth_repository.dart';
 import 'data/repositories/report_repository.dart';
 import 'data/repositories/category_repository.dart';
+import 'data/models/report_model.dart';
 
 void main() {
   runApp(const MyApp());
@@ -86,9 +87,13 @@ Widget? _resolveScreen(RouteSettings settings) {
     case '/citizen':
       return const CitizenHomeScreen();
     case '/report-detail':
-      return ReportDetailScreen(
-        reportData: settings.arguments as Map<String, dynamic>?,
-      );
+      Map<String, dynamic>? detailData;
+      if (settings.arguments is Map<String, dynamic>) {
+        detailData = settings.arguments as Map<String, dynamic>;
+      } else if (settings.arguments is ReportModel) {
+        detailData = {'reportModel': settings.arguments};
+      }
+      return ReportDetailScreen(reportData: detailData);
     case '/camera':
       return const CameraCaptureScreen();
     case '/similar-reports':
@@ -98,21 +103,29 @@ Widget? _resolveScreen(RouteSettings settings) {
     case '/ai-verification':
       return const AiVerificationScreen();
     case '/report-success':
-      return ReportSuccessScreen(
-        reportData: settings.arguments as Map<String, dynamic>?,
-      );
+      Map<String, dynamic>? successData;
+      if (settings.arguments is Map<String, dynamic>) {
+        successData = settings.arguments as Map<String, dynamic>;
+      }
+      return ReportSuccessScreen(reportData: successData);
     case '/new-report-form':
       return const NewReportFormScreen();
     case '/command-center':
       return const CommandCenterDashboard();
     case '/tracking-progress':
-      return TrackingProgressScreen(
-        reportData: settings.arguments as Map<String, dynamic>?,
-      );
+      Map<String, dynamic>? trackingData;
+      if (settings.arguments is Map<String, dynamic>) {
+        trackingData = settings.arguments as Map<String, dynamic>;
+      } else if (settings.arguments is ReportModel) {
+        trackingData = {'reportModel': settings.arguments};
+      }
+      return TrackingProgressScreen(reportData: trackingData);
     case '/foto-progress':
-      return FotoProgressScreen(
-        reportData: settings.arguments as Map<String, dynamic>?,
-      );
+      Map<String, dynamic>? fotoData;
+      if (settings.arguments is Map<String, dynamic>) {
+        fotoData = settings.arguments as Map<String, dynamic>;
+      }
+      return FotoProgressScreen(reportData: fotoData);
     default:
       return null;
   }
