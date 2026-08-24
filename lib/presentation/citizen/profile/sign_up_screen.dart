@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:laporkita/presentation/citizen/profile/login_screen.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../shared_widgets/custom_alert.dart';
 import '../../auth/bloc/auth_bloc.dart';
 import '../home/get_started_screen.dart'; // Reuse MapBackgroundPainter & TopCurveClipper
 
@@ -62,11 +63,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
     return BlocConsumer<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthRegistered) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(state.message),
-              backgroundColor: AppColors.greenPrimary,
-            ),
+          AppAlert.success(
+            context,
+            title: 'Pendaftaran Berhasil',
+            message: state.message,
           );
           Navigator.pushNamed(
             context,
@@ -78,11 +78,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
             },
           );
         } else if (state is AuthError) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(state.message),
-              backgroundColor: AppColors.statusDanger,
-            ),
+          AppAlert.error(
+            context,
+            title: 'Pendaftaran Gagal',
+            message: state.message,
           );
         }
       },

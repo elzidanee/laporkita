@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../auth/bloc/auth_bloc.dart';
 
 class CommandCenterDashboard extends StatelessWidget {
   const CommandCenterDashboard({super.key});
@@ -14,7 +16,9 @@ class CommandCenterDashboard extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.logout_outlined),
             onPressed: () {
-              Navigator.pushReplacementNamed(context, '/login');
+              context.read<AuthBloc>().add(const AuthLogoutRequested());
+              Navigator.pushNamedAndRemoveUntil(
+                  context, '/get-started', (route) => false);
             },
             tooltip: 'Keluar',
           ),

@@ -58,46 +58,53 @@ class _GetStartedScreenState extends State<GetStartedScreen> {
                 ),
               ),
 
-              // Bottom Section: White Curved Container with Role Selector & CTA Button
+              // Bottom Section: White Curved Container with Figma Node 1:4 CTA Buttons
               Expanded(
-                flex: 6,
+                flex: 5,
                 child: ClipPath(
                   clipper: TopCurveClipper(),
                   child: Container(
                     color: AppColors.white,
                     width: double.infinity,
                     padding: EdgeInsets.fromLTRB(
-                      24,
+                      36,
                       48,
-                      24,
-                      24 + MediaQuery.of(context).padding.bottom,
+                      36,
+                      28 + MediaQuery.of(context).padding.bottom,
                     ),
                     child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const SizedBox(height: 16),
-                        Text(
-                          'Akses Aplikasi',
-                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.neutral900,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Masuk dengan akun terdaftar (Warga / Pemerintah) atau buat akun Warga baru',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.neutral500,
-                            fontSize: 13,
-                            height: 1.4,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 32),
+                        const Spacer(),
 
-                        // Button 1: MASUK (Login)
+                        // Button 1: "Get Started" (Figma Node 399:3)
+                        ElevatedButton(
+                          onPressed: () {
+                            Navigator.pushNamed(context, '/signup');
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.greenDark,
+                            foregroundColor: AppColors.white,
+                            minimumSize: const Size.fromHeight(65),
+                            side: const BorderSide(color: AppColors.greenLight, width: 1.5),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: const Text(
+                            'Get Started',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.white,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+
+                        // Button 2: "Login" (Figma Node 399:15)
                         ElevatedButton(
                           onPressed: () {
                             Navigator.pushNamed(context, '/login');
@@ -105,42 +112,19 @@ class _GetStartedScreenState extends State<GetStartedScreen> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.greenPrimary,
                             foregroundColor: AppColors.white,
-                            minimumSize: const Size.fromHeight(54),
+                            minimumSize: const Size.fromHeight(65),
+                            side: const BorderSide(color: AppColors.greenLight, width: 1.5),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(27),
+                              borderRadius: BorderRadius.circular(15),
                             ),
                             elevation: 0,
                           ),
                           child: const Text(
-                            'MASUK',
+                            'Login',
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: 20,
                               fontWeight: FontWeight.bold,
-                              letterSpacing: 1.0,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-
-                        // Button 2: DAFTAR AKUN WARGA (Register)
-                        OutlinedButton(
-                          onPressed: () {
-                            Navigator.pushNamed(context, '/signup');
-                          },
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.greenPrimary,
-                            side: const BorderSide(color: AppColors.greenPrimary, width: 1.5),
-                            minimumSize: const Size.fromHeight(54),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(27),
-                            ),
-                          ),
-                          child: const Text(
-                            'DAFTAR AKUN WARGA',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.0,
+                              color: AppColors.white,
                             ),
                           ),
                         ),

@@ -1891,7 +1891,7 @@ class CitizenProfileTab extends StatelessWidget {
                           .read<AuthBloc>()
                           .add(const AuthLogoutRequested());
                       Navigator.pushNamedAndRemoveUntil(
-                          context, '/login', (route) => false);
+                          context, '/get-started', (route) => false);
                     },
                     child: Container(
                       height: 52,

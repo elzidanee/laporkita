@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../auth/bloc/auth_bloc.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -11,6 +13,7 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
+  bool _animationCompleted = false;
 
   // Phase 1: logoLK.png Zoom Out & Fade In (0.0 -> 0.35)
   late Animation<double> _lkScale;
@@ -32,7 +35,7 @@ class _SplashScreenState extends State<SplashScreen>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 3400),
+      duration: const Duration(milliseconds: 3000),
     );
 
     // 1. logoLK.png Zoom Out (scales down from 2.2 to 1.0) & Fades In
@@ -87,14 +90,25 @@ class _SplashScreenState extends State<SplashScreen>
       ),
     );
 
-    // Start animation sequence and navigate to Get Started screen
+    // Start animation sequence and navigate based on auth state when complete
     _controller.forward().then((_) {
-      _navigateToHome();
+      if (mounted) {
+        setState(() => _animationCompleted = true);
+        _performNavigation(context.read<AuthBloc>().state);
+      }
     });
   }
 
-  void _navigateToHome() {
-    if (mounted) {
+  void _performNavigation(AuthState state) {
+    if (!mounted || !_animationCompleted) return;
+
+    if (state is AuthAuthenticated) {
+      if (state.user.role.isCommandCenter) {
+        Navigator.of(context).pushReplacementNamed('/command-center');
+      } else {
+        Navigator.of(context).pushReplacementNamed('/citizen');
+      }
+    } else if (state is AuthUnauthenticated || state is AuthError || state is AuthPhoneNotVerified) {
       Navigator.of(context).pushReplacementNamed('/get-started');
     }
   }
@@ -107,9 +121,13 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.greenPrimary,
-      body: Stack(
+    return BlocListener<AuthBloc, AuthState>(
+      listener: (context, state) {
+        _performNavigation(state);
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.greenPrimary,
+        body: Stack(
         children: [
           // Center Animation Area
           Center(
@@ -212,6 +230,7 @@ class _SplashScreenState extends State<SplashScreen>
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../shared_widgets/custom_alert.dart';
 import '../../auth/bloc/auth_bloc.dart';
 import '../home/get_started_screen.dart'; // Reuse MapBackgroundPainter & TopCurveClipper
 
@@ -103,11 +104,10 @@ class _OtpScreenState extends State<OtpScreen> {
     return BlocConsumer<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthAuthenticated) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Verifikasi OTP berhasil! Selamat datang.'),
-              backgroundColor: AppColors.greenPrimary,
-            ),
+          AppAlert.success(
+            context,
+            title: 'Verifikasi Berhasil',
+            message: 'Akun Anda berhasil diverifikasi! Selamat datang.',
           );
           if (state.user.role.isCommandCenter || role == 'CommandCenter') {
             Navigator.pushNamedAndRemoveUntil(
@@ -123,19 +123,17 @@ class _OtpScreenState extends State<OtpScreen> {
             );
           }
         } else if (state is AuthOtpResent) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(state.message),
-              backgroundColor: AppColors.greenPrimary,
-            ),
+          AppAlert.info(
+            context,
+            title: 'OTP Dikirim Ulang',
+            message: state.message,
           );
           _startTimer(state.cooldownSeconds);
         } else if (state is AuthError) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(state.message),
-              backgroundColor: AppColors.statusDanger,
-            ),
+          AppAlert.error(
+            context,
+            title: 'Verifikasi Gagal',
+            message: state.message,
           );
         }
       },

@@ -213,8 +213,9 @@ class AppAlert {
     required String message,
     Duration duration = const Duration(seconds: 4),
   }) {
-    ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.clearSnackBars();
+    messenger.showSnackBar(
       SnackBar(
         elevation: 0,
         backgroundColor: Colors.transparent,
@@ -227,7 +228,7 @@ class AppAlert {
           title: title,
           message: message,
           onClose: () {
-            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            messenger.hideCurrentSnackBar();
           },
         ),
       ),
