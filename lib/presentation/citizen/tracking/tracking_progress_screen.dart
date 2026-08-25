@@ -42,7 +42,7 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
     final String? reportId = widget.reportData?['reportId'] as String? ??
         widget.reportData?['id'] as String?;
 
-    if (reportId == null || reportId.isEmpty || !reportId.contains('-')) {
+    if (reportId == null || reportId.isEmpty) {
       setState(() {
         _isLoading = false;
         _errorMessage = null; // show empty state instead

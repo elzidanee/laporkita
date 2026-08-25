@@ -41,41 +41,41 @@ class ReportRepository {
     }
 
     for (final r in remoteData) {
-      if (!seenIds.contains(r.id)) {
+      final idx = merged.indexWhere((item) => item.id == r.id);
+      if (idx != -1) {
+        final localItem = merged[idx];
+        final updatedMerged = ReportModel(
+          id: r.id,
+          reportCode: r.reportCode,
+          reporterId: r.reporterId,
+          categoryId: r.categoryId,
+          status: r.status,
+          latitude: r.latitude,
+          longitude: r.longitude,
+          addressText: r.addressText,
+          description: r.description,
+          directPhotoUrl: localItem.directPhotoUrl ?? r.photoUrl,
+          supportCount: r.supportCount,
+          viewCount: r.viewCount,
+          urgencyScore: r.urgencyScore,
+          needsManualReview: r.needsManualReview,
+          createdAt: r.createdAt,
+          updatedAt: r.updatedAt,
+          category: r.category,
+          reporter: r.reporter,
+          assignedAgency: r.assignedAgency,
+          media: r.media,
+          statusHistory: r.statusHistory,
+          count: r.count,
+        );
+        merged[idx] = updatedMerged;
+        final subIdx = _submittedReports.indexWhere((item) => item.id == r.id);
+        if (subIdx != -1) {
+          _submittedReports[subIdx] = updatedMerged;
+        }
+      } else {
         seenIds.add(r.id);
         merged.add(r);
-      } else {
-        final idx = merged.indexWhere((item) => item.id == r.id);
-        if (idx != -1) {
-          final localItem = merged[idx];
-          if (localItem.directPhotoUrl != null &&
-              localItem.directPhotoUrl!.isNotEmpty) {
-            merged[idx] = ReportModel(
-              id: r.id,
-              reportCode: r.reportCode,
-              reporterId: r.reporterId,
-              categoryId: r.categoryId,
-              status: r.status,
-              latitude: r.latitude,
-              longitude: r.longitude,
-              addressText: r.addressText,
-              description: r.description,
-              directPhotoUrl: localItem.directPhotoUrl,
-              supportCount: r.supportCount,
-              viewCount: r.viewCount,
-              urgencyScore: r.urgencyScore,
-              needsManualReview: r.needsManualReview,
-              createdAt: r.createdAt,
-              updatedAt: r.updatedAt,
-              category: r.category,
-              reporter: r.reporter,
-              assignedAgency: r.assignedAgency,
-              media: r.media,
-              statusHistory: r.statusHistory,
-              count: r.count,
-            );
-          }
-        }
       }
     }
 

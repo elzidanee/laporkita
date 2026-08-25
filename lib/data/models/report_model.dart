@@ -12,24 +12,17 @@ enum ReportStatus {
   disputed;
 
   static ReportStatus fromString(String value) {
-    switch (value) {
-      case 'verified':
-        return ReportStatus.verified;
-      case 'rejected':
-        return ReportStatus.rejected;
-      case 'assigned':
-        return ReportStatus.assigned;
-      case 'in_progress':
-        return ReportStatus.inProgress;
-      case 'completed':
-        return ReportStatus.completed;
-      case 'resolved':
-        return ReportStatus.resolved;
-      case 'disputed':
-        return ReportStatus.disputed;
-      default:
-        return ReportStatus.pendingVerification;
-    }
+    final lower = value.toLowerCase().replaceAll('_', '').replaceAll(' ', '');
+    if (lower.contains('pending')) return ReportStatus.pendingVerification;
+    if (lower.contains('verifi')) return ReportStatus.verified;
+    if (lower.contains('reject')) return ReportStatus.rejected;
+    if (lower.contains('assign')) return ReportStatus.assigned;
+    if (lower.contains('progress')) return ReportStatus.inProgress;
+    if (lower.contains('complet')) return ReportStatus.completed;
+    if (lower.contains('resolv')) return ReportStatus.resolved;
+    if (lower.contains('disput')) return ReportStatus.disputed;
+
+    return ReportStatus.pendingVerification;
   }
 
   String get displayName {

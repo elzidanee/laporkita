@@ -54,7 +54,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
 
   Future<void> _fetchLatestReportDetail() async {
     final String? reportId = widget.reportData?['id'] as String?;
-    if (reportId == null || reportId.isEmpty || !reportId.contains('-')) return;
+    if (reportId == null || reportId.isEmpty) return;
 
     setState(() => _isLoading = true);
 
@@ -77,7 +77,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
 
   Future<void> _fetchComments() async {
     final String? reportId = widget.reportData?['id'] as String?;
-    if (reportId == null || reportId.isEmpty || !reportId.contains('-')) return;
+    if (reportId == null || reportId.isEmpty) return;
 
     setState(() => _isLoadingComments = true);
 
@@ -102,7 +102,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     if (text.isEmpty) return;
 
     final String? reportId = widget.reportData?['id'] as String?;
-    if (reportId == null || reportId.isEmpty || !reportId.contains('-')) {
+    if (reportId == null || reportId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('ID laporan tidak valid untuk mengirim komentar.'),

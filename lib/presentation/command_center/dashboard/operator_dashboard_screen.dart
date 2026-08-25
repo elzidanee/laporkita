@@ -177,6 +177,9 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
                                   newStatus: newStatus.apiValue,
                                 ),
                               );
+                          context
+                              .read<ReportBloc>()
+                              .add(const ReportLoadRequested());
                         }
                         if (!mounted) return;
                         ScaffoldMessenger.of(this.context).showSnackBar(

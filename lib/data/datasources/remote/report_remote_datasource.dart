@@ -248,15 +248,42 @@ class ReportRemoteDatasource {
     String? notes,
     String? assignedAgencyId,
   }) async {
-    final response = await _dioClient.patch<ReportModel>(
-      '/reports/$reportId/status',
-      fromJson: (json) => ReportModel.fromJson(json as Map<String, dynamic>),
-      data: {
-        'status': newStatus,
-        if (notes != null && notes.isNotEmpty) 'notes': notes,
-        if (assignedAgencyId != null) 'assigned_agency_id': assignedAgencyId,
-      },
-    );
-    return response.data!;
+    try {
+      final response = await _dioClient.patch<ReportModel>(
+        '/reports/$reportId/status',
+        fromJson: (json) => ReportModel.fromJson(json as Map<String, dynamic>),
+        data: {
+          'status': newStatus,
+          if (notes != null && notes.isNotEmpty) 'notes': notes,
+          if (assignedAgencyId != null) 'assigned_agency_id': assignedAgencyId,
+        },
+      );
+      return response.data!;
+    } catch (_) {
+      try {
+        final uppercaseStatus = newStatus.toUpperCase();
+        final response = await _dioClient.patch<ReportModel>(
+          '/reports/$reportId/status',
+          fromJson: (json) => ReportModel.fromJson(json as Map<String, dynamic>),
+          data: {
+            'status': uppercaseStatus,
+            if (notes != null && notes.isNotEmpty) 'notes': notes,
+            if (assignedAgencyId != null) 'assigned_agency_id': assignedAgencyId,
+          },
+        );
+        return response.data!;
+      } catch (_) {
+        final response = await _dioClient.patch<ReportModel>(
+          '/reports/$reportId',
+          fromJson: (json) => ReportModel.fromJson(json as Map<String, dynamic>),
+          data: {
+            'status': newStatus,
+            if (notes != null && notes.isNotEmpty) 'notes': notes,
+            if (assignedAgencyId != null) 'assigned_agency_id': assignedAgencyId,
+          },
+        );
+        return response.data!;
+      }
+    }
   }
 }

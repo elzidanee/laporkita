@@ -32,8 +32,11 @@ import 'data/repositories/policy_simulator_repository.dart';
 import 'data/repositories/prediction_repository.dart';
 import 'data/repositories/notification_repository.dart';
 import 'data/models/report_model.dart';
+import 'core/services/fcm_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await FcmService.instance.initialize();
   runApp(const MyApp());
 }
 

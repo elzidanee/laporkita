@@ -53,6 +53,8 @@ dependencies:
 
   # Notifications & Offline Storage (FE-04)
   flutter_local_notifications: ^19.0.0
+  firebase_core: ^3.12.0
+  firebase_messaging: ^15.2.4
   hive: ^2.2.3
   hive_flutter: ^1.1.0
 
