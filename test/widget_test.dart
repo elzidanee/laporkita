@@ -10,6 +10,7 @@ import 'package:laporkita/data/repositories/report_repository.dart';
 import 'package:laporkita/data/repositories/category_repository.dart';
 import 'package:laporkita/data/repositories/policy_simulator_repository.dart';
 import 'package:laporkita/data/repositories/prediction_repository.dart';
+import 'package:laporkita/data/repositories/notification_repository.dart';
 import 'package:laporkita/presentation/auth/bloc/auth_bloc.dart';
 import 'package:laporkita/presentation/reports/bloc/report_bloc.dart';
 
@@ -60,6 +61,10 @@ void main() {
 
     test('PredictionRepository dapat diinstansiasi', () {
       expect(PredictionRepository(), isNotNull);
+    });
+
+    test('NotificationRepository dapat diinstansiasi', () {
+      expect(NotificationRepository(), isNotNull);
     });
   });
 }

@@ -25,6 +25,7 @@ import 'data/repositories/report_repository.dart';
 import 'data/repositories/category_repository.dart';
 import 'data/repositories/policy_simulator_repository.dart';
 import 'data/repositories/prediction_repository.dart';
+import 'data/repositories/notification_repository.dart';
 import 'data/models/report_model.dart';
 
 void main() {
@@ -43,6 +44,7 @@ class MyApp extends StatelessWidget {
         RepositoryProvider(create: (_) => CategoryRepository()),
         RepositoryProvider(create: (_) => PolicySimulatorRepository()),
         RepositoryProvider(create: (_) => PredictionRepository()),
+        RepositoryProvider(create: (_) => NotificationRepository()),
       ],
       child: MultiBlocProvider(
         providers: [
