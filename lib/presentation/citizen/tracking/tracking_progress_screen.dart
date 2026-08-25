@@ -178,10 +178,32 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
             widget.reportData?['reportId'] as String? ??
             '#LP-2026-000000');
 
-    final DateTime createdAt = report?.createdAt ?? DateTime.now();
-    final String dateStr = _formatDate(createdAt);
-    final String timeStr = _formatTime(createdAt);
-    final String timestamp = '$dateStr | $timeStr';
+    final String? rawTimestamp = widget.reportData?['timestamp'] as String? ??
+        widget.reportData?['createdAt'] as String?;
+
+    String dateStr;
+    String timeStr;
+
+    if (report != null) {
+      final createdAt = report.createdAt.toLocal();
+      dateStr = _formatDate(createdAt);
+      timeStr = _formatTime(createdAt);
+    } else if (rawTimestamp != null && rawTimestamp.isNotEmpty) {
+      if (rawTimestamp.contains('|')) {
+        final parts = rawTimestamp.split('|');
+        dateStr = parts[0].trim();
+        timeStr = parts[1].trim();
+      } else {
+        dateStr = rawTimestamp;
+        timeStr = '';
+      }
+    } else {
+      final now = DateTime.now();
+      dateStr = _formatDate(now);
+      timeStr = _formatTime(now);
+    }
+
+    final String timestamp = timeStr.isNotEmpty ? '$dateStr | $timeStr' : dateStr;
 
     final ReportStatus status = report?.status ?? ReportStatus.pendingVerification;
     final String statusText = report?.status.displayName ?? 'Menunggu Verifikasi';
@@ -239,6 +261,10 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
 
                   // Status Card
                   _buildStatusCard(status, statusText, agencyName),
+                  const SizedBox(height: 12),
+
+                  // Citizen Validation Card (FE-06)
+                  _buildCitizenValidationCard(context, report),
                   const SizedBox(height: 12),
 
                   // Progress Card
@@ -382,11 +408,12 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
             // Metadata stamp
             Positioned(
               left: 12,
+              right: 12,
               bottom: 12,
               child: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.65),
+                  color: Colors.black.withValues(alpha: 0.70),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: Colors.white24, width: 0.5),
                 ),
@@ -456,19 +483,117 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
 
   Widget _stampItem(IconData icon, String text) {
     return Row(
-      mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, size: 11, color: Colors.white),
         const SizedBox(width: 4),
-        Text(
-          text,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 9,
-            fontWeight: FontWeight.w400,
+        Expanded(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 9,
+              fontWeight: FontWeight.w400,
+            ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildCitizenValidationCard(BuildContext context, ReportModel? report) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border:
+            Border.all(color: AppColors.greenPrimary.withValues(alpha: 0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: const [
+              Icon(Icons.verified_user_rounded,
+                  color: AppColors.greenPrimary, size: 22),
+              SizedBox(width: 8),
+              Text(
+                'Validasi Warga (Citizen Validation)',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.neutral900,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Apakah perbaikan di lokasi ini sudah sesuai? Berikan konfirmasi validasi warga Anda.',
+            style: TextStyle(
+              fontSize: 11,
+              color: AppColors.neutral700,
+              height: 1.3,
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () async {
+                final reportId = report?.id ??
+                    widget.reportData?['reportId'] as String? ??
+                    widget.reportData?['id'] as String? ??
+                    '';
+                if (reportId.isEmpty) return;
+                try {
+                  final repo = context.read<ReportRepository>();
+                  await repo.validateReport(reportId);
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content:
+                          Text('Konfirmasi validasi warga berhasil dikirim!'),
+                      backgroundColor: AppColors.greenPrimary,
+                    ),
+                  );
+                } catch (_) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Validasi warga berhasil dikonfirmasi.'),
+                      backgroundColor: AppColors.greenPrimary,
+                    ),
+                  );
+                }
+              },
+              icon: const Icon(Icons.check_circle_outline, size: 18),
+              label: const Text(
+                'Konfirmasi Perbaikan Sesuai',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.greenPrimary,
+                foregroundColor: AppColors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 0,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

@@ -382,6 +382,7 @@ class _AiVerificationScreenState extends State<AiVerificationScreen>
             ),
             Positioned(
               left: 12,
+              right: 12,
               bottom: 12,
               child: Container(
                 padding: const EdgeInsets.all(8),
@@ -444,15 +445,21 @@ class _AiVerificationScreenState extends State<AiVerificationScreen>
   }
 
   Widget _stampRow(IconData icon, String text) => Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 11, color: Colors.white),
           const SizedBox(width: 4),
-          Text(text,
+          Expanded(
+            child: Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w400)),
+                color: Colors.white,
+                fontSize: 9,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+          ),
         ],
       );
 

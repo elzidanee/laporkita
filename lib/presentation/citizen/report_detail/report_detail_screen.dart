@@ -484,12 +484,14 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
             // Stamp Box (Figma Node 193:3)
             Positioned(
               left: 14,
+              right: 14,
               bottom: 14,
               child: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.65),
-                  borderRadius: BorderRadius.circular(7.5),
+                  color: Colors.black.withValues(alpha: 0.70),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.white24, width: 0.5),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -499,7 +501,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                       padding: const EdgeInsets.symmetric(
                           horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF42A54B).withValues(alpha: 0.8),
+                        color: AppColors.greenPrimary.withValues(alpha: 0.85),
                         borderRadius: BorderRadius.circular(8.7),
                         border: Border.all(
                             color: const Color(0xFF62D26D), width: 0.35),
@@ -542,15 +544,19 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
 
   Widget _buildStampRow(IconData icon, String text) {
     return Row(
-      mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, size: 10, color: Colors.white),
         const SizedBox(width: 4),
-        Text(
-          text,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 7.5,
+        Expanded(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 8,
+              fontWeight: FontWeight.w400,
+            ),
           ),
         ),
       ],

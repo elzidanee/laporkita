@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart' show Geocoding;
@@ -28,14 +29,19 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
   String _coordinatesText = '';
   String _timestamp = '';
 
-  // ── Shutter pulse animation ────────────────────────────────────
+  // ── Shutter pulse animation & Timer ────────────────────────────
   late AnimationController _pulseCtrl;
   late Animation<double> _pulseAnim;
+  Timer? _clockTimer;
 
   @override
   void initState() {
     super.initState();
     _updateTimestamp();
+    _clockTimer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => _updateTimestamp(),
+    );
     _initAll();
     _pulseCtrl = AnimationController(
       duration: const Duration(milliseconds: 1000),
@@ -47,6 +53,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
 
   @override
   void dispose() {
+    _clockTimer?.cancel();
     _pulseCtrl.dispose();
     _controller?.dispose();
     super.dispose();
