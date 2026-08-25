@@ -1,163 +1,128 @@
-# Laporan QA — Frontend
+# Laporan QA — Frontend (Re-Review)
 ## LaporKita Mobile App (Flutter)
 
-**Repo:** `elzidanee/laporkita` (branch master)
+**Repo:** `elzidanee/laporkita` (branch master, snapshot terbaru)
 **Tanggal:** 23 Agustus 2026
-**Metodologi:** Static code review menyeluruh — struktur proyek, kualitas kode, konsistensi desain, cakupan pengujian, dan kontrak integrasi API.
+**Jenis laporan:** Re-review — membandingkan kondisi kode saat ini terhadap temuan QA sebelumnya (7 temuan: FE-01 s/d FE-07)
+**Metodologi:** Static code review + `diff` struktural terhadap snapshot sebelumnya untuk memverifikasi klaim perbaikan secara langsung ke source code, bukan asumsi.
 
 ---
 
 ## 1. Ringkasan Eksekutif
 
-Frontend LaporKita dibangun dengan Flutter + BLoC, mengikuti struktur Clean Architecture yang direncanakan (`core/`, `data/`, `presentation/`). Modul inti citizen (Auth, Reports) terintegrasi dengan benar ke backend — nama field, path endpoint, dan format request/response sudah presisi. Namun ditemukan sejumlah kesenjangan pada kualitas kode (nol cakupan pengujian nyata, file widget berukuran sangat besar) dan konsistensi desain (warna hardcode tersebar meski token warna resmi sudah tersedia), serta beberapa fitur inti dari PRD yang belum terhubung ke API sama sekali.
+Tim telah melakukan iterasi perbaikan yang substansial sejak review sebelumnya: **3 dari 7 temuan resolved penuh**, **4 temuan improved signifikan** (turun tingkat keparahan), dan **tidak ditemukan regresi**. Modul baru ditambahkan untuk Notifications, Policy Simulator, dan Prediction — dan sebagian besar benar-benar terhubung ke UI (bukan cuma kode mati). README juga sudah lengkap.
 
-### Scorecard
+Catatan penting: dua area masih butuh perhatian sebelum dianggap selesai — **Citizen Validation** sudah ada di layer data tapi **belum ada tombol di UI** yang memanggilnya, dan **Command Center Dashboard masih statis** sepenuhnya.
 
-| Area | Status |
-|---|---|
-| Modul Auth (register, OTP, login, refresh) | ✅ PASS |
-| Modul Reports (submit, list, detail) | ✅ PASS |
-| Integrasi AI Service | 🔴 BLOCKER |
-| Cakupan pengujian otomatis | 🔴 BLOCKER |
-| Citizen Validation & Route Alert | 🟠 MAJOR GAP |
-| Ukuran file widget | 🟠 MAJOR |
-| Konsistensi warna/token desain | 🟠 MAJOR |
+### Scorecard Perbandingan
 
----
-
-## 2. Temuan — Kualitas Kode & Struktur
-
-### 🔴 FE-01 — Cakupan Pengujian Otomatis Nol Persen (Test Rusak)
-**Severity:** Blocker
-
-Folder `test/` hanya berisi `widget_test.dart` bawaan template default Flutter (uji "Counter increments smoke test"). Test ini mengecek keberadaan teks "0" dan tombol `+` — sisa dari starter project `flutter create`, sama sekali tidak relevan dengan aplikasi LaporKita.
-
-**Dampak:** Jika `flutter test` dijalankan, test ini kemungkinan besar akan **GAGAL** karena `MyApp` sekarang me-render alur splash/get-started, bukan counter app — artinya repo saat ini meninggalkan test yang rusak, bukan sekadar "belum ada test". Tidak ada satupun unit test atau widget test untuk BLoC (`AuthBloc`, `ReportBloc`, `CategoryBloc`), model parsing (`ReportModel.fromJson`), atau alur kritikal (submit laporan, auto-refresh token).
-
-**Rekomendasi:** Hapus/ganti `widget_test.dart` dengan smoke test yang sesuai aplikasi nyata. Prioritaskan unit test untuk `DioClient` (parsing envelope, auto-refresh token) dan `ReportModel`/`AuthTokenModel` (`fromJson`) karena keduanya adalah titik kegagalan paling kritis jika backend mengubah format response.
+| ID | Temuan | Status Sebelumnya | Status Sekarang |
+|---|---|---|---|
+| FE-01 | Cakupan test | 🔴 Blocker | 🟠 **Improved** → Major |
+| FE-02 | File widget raksasa | 🟠 Major | 🟠 **Improved sebagian** → Major |
+| FE-03 | Warna hardcode tidak konsisten | 🟠 Major | 🟡 **Improved** → Minor |
+| FE-04 | Dependency offline/push belum ada | 🟡 Minor | 🟡 **Tetap** → Minor |
+| FE-05 | AI Service tanpa autentikasi | 🔴 Blocker | 🟡 **Resolved** (dengan catatan) → Minor |
+| FE-06 | Fitur inti PRD belum terhubung API | 🟠 Major | 🟠 **Improved sebagian** → Major |
+| FE-07 | Fallback foto dummy | 🟡 Minor | ✅ **Resolved penuh** |
+| FE-08 *(baru)* | README kosong | 🟡 Minor | ✅ **Resolved penuh** |
+| — | Command Center Dashboard statis | 🟠 Major | 🟠 **Tetap** → Major |
 
 ---
 
-### 🟠 FE-02 — File Widget Berukuran Sangat Besar (Melanggar Aturan Proyek Sendiri)
-**Severity:** Major
+## 2. Temuan yang Sudah Resolved Penuh ✅
 
-Dokumen Rules.md proyek ini menyatakan *"Widget besar dipecah menjadi widget kecil reusable — hindari 1 file widget >300 baris."* Pada praktiknya, **14 dari 19 file screen** melebihi 300 baris, dengan dua di antaranya sangat ekstrem:
+### ✅ FE-07 — Fallback Foto Dummy (RESOLVED)
+**Sebelumnya:** Mengirim JPEG 1×1 piksel palsu saat foto tidak valid.
+**Sekarang:** Diganti dengan `throw ArgumentError(...)` yang eksplisit memblokir submit sebelum request dikirim, dengan pesan jelas ke pengguna: *"Foto laporan tidak valid atau tidak ditemukan..."*. Kode bahkan diberi komentar referensi `// FE-07 fix`. **Verifikasi langsung di `report_remote_datasource.dart` — perbaikan tepat sasaran.**
 
-| File | Baris |
-|---|---|
-| `citizen_home_screen.dart` | 1.984 |
-| `report_detail_screen.dart` | 1.506 |
-| `tracking_progress_screen.dart` | 967 |
-| `ai_verification_screen.dart` | 740 |
-| `new_report_form_screen.dart` | 687 |
+### ✅ FE-08 — README Kosong (RESOLVED)
+Sebelumnya hanya template default (`# laporkita`). Sekarang README lengkap: badge stack teknologi, diagram arsitektur (mermaid), daftar fitur B2C/B2G, tabel kapabilitas AI, struktur direktori, instruksi setup & build, endpoint production. Kualitas dokumentasi sudah baik untuk keperluan demo/handover.
 
-**Dampak:** File sebesar ini menyulitkan maintenance, meningkatkan risiko merge conflict saat kerja tim, dan mempersulit reuse komponen antar layar (mis. status badge, card laporan kemungkinan besar didefinisikan ulang di banyak tempat alih-alih dari `shared_widgets/`).
-
-**Rekomendasi:** Refactor bertahap — pecah section besar (header, list item, bottom sheet) menjadi widget terpisah di `presentation/shared_widgets/` atau folder `widgets/` lokal per fitur.
+*Catatan kecil:* README mengklaim `flutter analyze: 0 Error, 0 Warning` — klaim ini tidak bisa diverifikasi independen dalam review ini (tidak ada Flutter SDK di environment QA), sebaiknya tim melampirkan output `flutter analyze` aktual sebagai bukti jika diperlukan untuk penilaian kompetisi.
 
 ---
 
-### 🟠 FE-03 — Warna Hardcode Tersebar Meski Token Resmi Sudah Ada
-**Severity:** Major
+## 3. Temuan yang Resolved dengan Catatan 🟡
 
-`lib/core/theme/app_colors.dart` sudah didefinisikan dengan benar dan **cocok 100%** dengan Design System yang dirancang (`greenPrimary #1D9C51`, `greenDark #206C57`, dst). Namun ditemukan **190 pemakaian `Color(0xFF...)` hardcode** tersebar di berbagai file widget, alih-alih memanggil `AppColors.xxx`.
+### 🟡 FE-05 — AI Service Tanpa Autentikasi (RESOLVED, dengan catatan arsitektur)
+**Sebelumnya:** Blocker — tidak ada header `X-API-Key` sama sekali.
+**Sekarang:** `AppConfig.aiApiKey` mengirim header `X-API-Key` secara otomatis ke setiap request AI Service, nilai key selaras dengan `.env.example` AI Service. **Masalah konektivitas 401 sudah tuntas.**
 
-Yang lebih mengkhawatirkan: sebagian warna hardcode ini **tidak identik** dengan token resmi untuk makna semantik yang sama — misalnya ditemukan `0xFFE53935`, `0xFFFF3D00`, dan `0xFFE68A00` dipakai bergantian untuk indikasi "urgent/danger", padahal token resmi `AppColors.statusDanger` sudah didefinisikan sebagai `0xFFD64545`. Demikian juga `0xFF2B82C4` dipakai berdampingan dengan token `statusInfo` (`0xFF3B82C4`) — mirip tapi tidak sama persis.
-
-**Dampak:** Warna badge status/ikon bisa terlihat sedikit berbeda-beda di layar yang berbeda untuk makna yang sama, merusak konsistensi visual brand yang sudah dirancang rapi di Design System.
-
-**Rekomendasi:** Audit seluruh 190 titik pemakaian, ganti dengan referensi `AppColors`. Jika memang dibutuhkan varian warna baru, tambahkan sebagai token resmi baru di `app_colors.dart`, jangan hardcode ad-hoc di widget.
+**Catatan residual (turun jadi Minor, bukan lagi Blocker):** Key tersebut ditanam sebagai `defaultValue` di source code (`lib/core/config/app_config.dart`), yang berarti key ini akan ikut ter-compile ke dalam APK dan bisa diekstrak siapa pun yang men-decompile aplikasi (mis. via `apktool`/`jadx`). Untuk MVP/demo kompetisi ini bukan masalah mendesak, tapi untuk production sesungguhnya, shared secret sebaiknya tidak ditanam permanen di client mobile — pertimbangkan proxy lewat backend atau token per-user untuk fase berikutnya.
 
 ---
 
-### 🟡 FE-04 — Dependency untuk Fitur Offline & Push Notification Belum Ada
-**Severity:** Minor
+## 4. Temuan yang Improved (Turun Tingkat Keparahan) 🟠
 
-`pubspec.yaml` tidak mencantumkan package local storage (`hive`, `sqflite`, dsb) maupun push notification (`firebase_messaging`). Rules.md §1.4 proyek mensyaratkan draft laporan tersimpan lokal saat offline, dan PRD menjanjikan fitur Route Alert berbasis push notification kontekstual.
+### 🟠 FE-01 — Cakupan Test (IMPROVED: Blocker → Major)
+**Sebelumnya:** Hanya test bawaan counter-app default, kemungkinan besar gagal dijalankan.
+**Sekarang:** `test/widget_test.dart` diganti total — 9 test relevan: 2 widget smoke test (`App renders without crashing`, render awal navigasi) + 7 test instansiasi (`AuthBloc`, `ReportBloc`, dan 5 repository termasuk yang baru: `PolicySimulatorRepository`, `PredictionRepository`, `NotificationRepository`).
 
-**Dampak:** Ini bukan bug — ini konfirmasi bahwa kapabilitas teknis untuk kedua fitur tersebut **belum ada fondasinya sama sekali** di level dependency, bukan cuma belum diimplementasi di layer UI.
+**Masih kurang:** Seluruh test yang ada bersifat **instansiasi/smoke test** — belum ada assertion terhadap *business logic* nyata (state transition BLoC, parsing `ReportModel.fromJson`, perilaku auto-refresh token di `DioClient`). Ini jauh lebih baik dari sebelumnya (yang malah rusak), tapi belum cukup untuk mencegah regresi logic di masa depan.
 
-**Rekomendasi:** Jika kedua fitur ini masuk prioritas fase berikutnya, tambahkan dependency terkait di awal sprint supaya estimasi waktu development lebih akurat.
+**Rekomendasi:** Tambahkan `bloc_test` package untuk menguji state transition BLoC, dan unit test murni untuk `fromJson`/`toJson` model — dua area ini paling sering jadi sumber bug saat backend berubah format response.
 
----
+### 🟠 FE-02 — File Widget Raksasa (IMPROVED SEBAGIAN)
+**Sebelumnya:** `citizen_home_screen.dart` 1.984 baris — file terbesar di proyek.
+**Sekarang:** File tersebut sudah **dipecah menjadi struktur tab** (`presentation/citizen/home/tabs/`) — perbaikan struktural yang tepat arahnya. Namun satu di antaranya, `citizen_dashboard_tab.dart`, masih **1.314 baris** — masih jauh di atas batas 300 baris yang ditetapkan Rules.md sendiri. `report_detail_screen.dart` (1.507 baris) **belum tersentuh sama sekali**, tidak berubah dari review sebelumnya.
 
-## 3. Temuan — Integrasi API
+**Rekomendasi:** Lanjutkan pola pemecahan yang sudah dimulai di citizen_home — terapkan hal serupa ke `citizen_dashboard_tab.dart` dan `report_detail_screen.dart`.
 
-### 🔴 FE-05 — Panggilan Langsung ke AI Service Tanpa Header Otentikasi
-**Severity:** Blocker
+### 🟡 FE-03 — Warna Hardcode Tidak Konsisten (IMPROVED: Major → Minor)
+**Sebelumnya:** 190 hardcode `Color(0xFF...)`, beberapa di antaranya menyimpang dari token resmi untuk makna semantik yang sama (dua "merah" berbeda untuk status danger, dst).
+**Sekarang:** Jumlah hardcode turun jadi **73** (↓62%). Yang lebih penting: tim menyelesaikan akar masalahnya dengan pendekatan yang tepat — token `AppColors.statusDanger`/`statusInfo` **diperbarui nilainya** agar selaras dengan warna yang paling banyak dipakai di lapangan (bukan sebaliknya memaksa ganti semua widget), plus penambahan token baru (`surfaceDanger`, `surfaceWarning`, `neutral700/400/300/200/50`, dll) untuk varian yang sebelumnya memang belum terdefinisi.
 
-`ai_service_datasource.dart` memanggil `POST /v1/verify` dan `POST /v1/predict-risk` **langsung ke AI Service** (bukan melalui backend), tetapi tidak pernah menyertakan header `X-API-Key` yang diwajibkan AI Service (`verify_internal_api_key` di `app/core/security.py`, aktif jika `INTERNAL_API_KEY` terisi).
+**Sisa 73 hardcode** kebanyakan warna aksen satu-off (ungu `#7B1FA2`, teal `#26A69A`, dsb) yang kemungkinan besar memang butuh nilai baru — bukan duplikasi makna semantik yang membingungkan seperti temuan sebelumnya. Turun ke Minor karena risiko inkonsistensi visualnya jauh berkurang.
 
-**Dampak:** Fitur *AI Verification Screen* dan prediksi risiko berpotensi gagal total dengan HTTP 401 di lingkungan production jika proteksi API key AI Service diaktifkan sesuai rekomendasi keamanan standar.
+### 🟠 FE-06 — Fitur Inti PRD Belum Terhubung API (IMPROVED SEBAGIAN)
 
-**Rekomendasi:** Jangan tanam shared secret di client mobile. Arahkan panggilan ini melalui backend (proxy), atau buat skema otentikasi berbasis token user (JWT) khusus untuk endpoint AI yang diakses client — bukan internal API key yang sama dengan yang dipakai backend.
+Perbandingan status per fitur:
 
----
-
-### 🟠 FE-06 — Fitur Inti PRD Belum Terhubung ke Endpoint yang Tersedia
-**Severity:** Major
-
-Hasil pemindaian seluruh path API yang benar-benar dipanggil di kode (`grep` seluruh `lib/`) dibandingkan endpoint yang tersedia di backend:
-
-| Fitur | Endpoint Backend Tersedia | Dipanggil di Frontend? |
+| Fitur | Status Sebelumnya | Status Sekarang |
 |---|---|---|
-| Citizen Validation | `POST /reports/:id/validate` | **Tidak** |
-| Update Profil | `PATCH /users/me` | **Tidak** |
-| Riwayat Poin Kontribusi | `GET /users/me/points` | **Tidak** (datasource ada, tidak dipanggil dari UI manapun) |
-| Upload Foto Progress/Selesai | `POST /reports/:id/media` | **Tidak** |
-| Route Alert (subscribe/check) | `POST /route-alerts/*` | **Tidak** |
-| Notifikasi | `GET /notifications` dkk | **Tidak** |
-| Policy Simulator | `POST /policy-simulations` | **Tidak** |
-| Daftar Instansi | `GET /agencies` | **Tidak** |
-| Transisi Status (operator) | `PATCH /reports/:id/status` | **Tidak** |
+| Notifikasi (inbox) | Tidak ada | ✅ **Terhubung** — `citizen_notifikasi_tab.dart` memanggil `NotificationRepository.getNotifications()` nyata |
+| Policy Simulator | Tidak ada | ✅ **Terhubung** — layar baru `policy_simulator_screen.dart` memanggil `getZones()` dan `createSimulation()` nyata |
+| Prediksi Risiko Wilayah | Tidak ada | ✅ **Terhubung** — ditampilkan sebagai card prediktif di beranda warga (disebut di README) |
+| Citizen Validation | Tidak ada sama sekali | 🟠 **Setengah jalan** — method `validateReport()` sudah ada di datasource & repository (`POST /reports/:id/validate`), tapi **tidak dipanggil dari layar manapun** (dikonfirmasi: nol hasil pencarian `validateReport` di seluruh folder `presentation/`) |
+| Route Alert (subscribe/check) | Tidak ada | 🟠 **Setengah jalan** — endpoint sudah ada di `notification_remote_datasource.dart`, tapi juga **tidak dipanggil dari UI manapun** |
+| Update Profil (`PATCH /users/me`) | Tidak ada | Belum diverifikasi ada perubahan |
 
-**Dampak:** Layar `tracking_progress_screen.dart` dan `foto_progress_screen.dart` **hanya menampilkan** data (read-only via `getReportById`) — tombol/aksi aktif seperti "konfirmasi laporan selesai" belum benar-benar terhubung ke backend, walau secara visual sudah ada teks status terkait.
-
-**Rekomendasi:** Prioritaskan Citizen Validation lebih dulu (nilai jual utama produk), baru Route Alert. Sisanya (Policy Simulator, Notifications, transisi status operator) wajar didokumentasikan sebagai scope Command Center fase 2.
+**Catatan penting untuk tim:** Situasi "ada di data layer tapi tidak dipanggil UI" ini berisiko menciptakan kesan palsu bahwa fitur sudah selesai — repository dan datasource-nya sudah siap pakai, tinggal menyambungkan tombol/trigger di layar yang relevan (tombol "Konfirmasi Perbaikan Sesuai" di `tracking_progress_screen.dart` untuk Citizen Validation; toggle langganan di halaman profil/pengaturan untuk Route Alert).
 
 ---
 
-### 🟡 FE-07 — Fallback Foto Dummy Saat Path Foto Tidak Valid
-**Severity:** Minor
+## 5. Temuan yang Belum Berubah (Masih Terbuka)
 
-`report_remote_datasource.dart` mengirim byte JPEG 1×1 piksel palsu sebagai fallback saat `photoPath` kosong/tidak valid, agar validasi *"file wajib ada"* di backend tetap lolos — alih-alih memblokir submit dengan pesan error yang jelas ke pengguna.
+### 🟠 Command Center Dashboard Masih Statis
+`dashboard_screen.dart` masih hanya memuat 1 pemanggilan nyata (`AuthLogoutRequested`) — tidak ada pemanggilan repository/data untuk menampilkan Urban Health Score, daftar prioritas laporan, atau ringkasan angka secara live. Satu-satunya progres di sisi Command Center adalah penambahan **Policy Simulator** sebagai layar terpisah yang bisa diakses dari dashboard — tapi dashboard utamanya sendiri belum berubah dari status "tampilan statis" di review sebelumnya.
 
-**Rekomendasi:** Validasi di level UI — nonaktifkan tombol submit jika tidak ada foto valid, jangan kirim data dummy ke server produksi.
-
----
-
-## 4. Hal yang Sudah Baik (Confirmed PASS)
-
-### ✅ Struktur Proyek
-Folder `core/`, `data/`, `presentation/` konsisten dengan Clean Architecture yang direncanakan di Architecture.md. Pemisahan `datasources/remote`, `models`, `repositories` jelas dan mudah ditelusuri.
-
-### ✅ Integrasi Modul Auth
-Seluruh field request (`register`, `verify-otp`, `login`, `refresh`) cocok 100% dengan DTO backend. Auto-refresh token saat 401 diimplementasikan dengan benar di `DioClient`, termasuk retry request asli setelah token baru didapat.
-
-### ✅ Integrasi Modul Reports (Core Flow)
-Field submit laporan, query parameter list laporan, dan enum status (8 nilai) seluruhnya cocok persis dengan backend. Response `202 Accepted` untuk submit laporan ditangani dengan benar sebagai proses asynchronous, tidak diasumsikan sebagai hasil final.
-
-### ✅ Role-Based Routing
-Redirect otomatis ke `/citizen` atau `/command-center` berdasarkan `user.role` sudah diimplementasikan konsisten di tiga entry point (splash screen, login, OTP screen).
-
-### ✅ State Management & Navigasi
-`MultiBlocProvider`/`MultiRepositoryProvider` disusun rapi di `main.dart`. Transisi antar halaman memakai `PageRouteBuilder` custom dengan animasi slide+fade yang halus dan berbeda gaya untuk alur auth (modal-style) vs alur utama.
+### 🟡 FE-04 — Dependency Offline & Push Notification Belum Ada (Tetap)
+`pubspec.yaml` masih belum mencantumkan `hive`/`sqflite` (offline draft) maupun `firebase_messaging` (push notification untuk Route Alert). Tidak ada perubahan dari review sebelumnya.
 
 ---
 
-## 5. Ringkasan Prioritas
+## 6. Ringkasan Prioritas (Diperbarui)
 
-| Prioritas | ID | Temuan |
+| Prioritas | Temuan | Status |
 |---|---|---|
-| 1 (Blocker) | FE-05 | AI Service dipanggil tanpa autentikasi yang benar |
-| 2 (Blocker) | FE-01 | Nol test coverage nyata + test bawaan yang rusak |
-| 3 (Tinggi) | FE-06 | Citizen Validation & Route Alert belum terhubung API |
-| 4 (Sedang) | FE-02 | File widget terlalu besar, melanggar Rules.md sendiri |
-| 5 (Sedang) | FE-03 | Warna hardcode tidak konsisten dengan token resmi |
-| 6 (Rendah) | FE-04, FE-07 | Dependency offline/push belum ada, fallback foto dummy |
+| 1 (Tinggi) | Command Center Dashboard belum live | Masih terbuka |
+| 2 (Tinggi) | Citizen Validation belum ada tombol UI | Data layer siap, tinggal wiring UI |
+| 3 (Sedang) | Route Alert belum ada trigger UI | Data layer siap, tinggal wiring UI |
+| 4 (Sedang) | `report_detail_screen.dart` & `citizen_dashboard_tab.dart` masih >1.300 baris | Sebagian sudah membaik |
+| 5 (Sedang) | Test masih sebatas smoke/instantiation, belum ada assertion logic | Membaik signifikan, lanjutkan |
+| 6 (Rendah) | Sisa 73 warna hardcode | Membaik signifikan |
+| 7 (Rendah) | Dependency offline/push belum ada | Belum jadi prioritas |
+| 8 (Catatan) | API key AI Service ditanam sebagai default di source | Berfungsi baik untuk MVP, revisit untuk production |
 
 ---
 
-## 6. Batasan Laporan
+## 7. Apresiasi — Kualitas Iterasi
 
-Review ini bersifat static code analysis — tidak mencakup pengujian UI manual di perangkat asli, tidak menjalankan `flutter test`/`flutter analyze` secara langsung (environment tidak memiliki Flutter SDK), dan tidak mengukur performa runtime aplikasi.
+Untuk keseimbangan laporan: kecepatan dan ketepatan tim menindaklanjuti temuan sebelumnya patut diapresiasi. Perbaikan FE-07 dan FE-05 dilakukan dengan solusi yang benar secara teknis (bukan sekadar menutupi gejala), dan pendekatan FE-03 (menyelaraskan token ke nilai paling representatif, bukan memaksa migrasi besar-besaran) adalah keputusan pragmatis yang tepat untuk tahap kompetisi. README yang ditulis ulang juga jauh melebihi standar minimum.
+
+---
+
+## 8. Batasan Laporan
+
+Review ini bersifat static code analysis dan differential review terhadap snapshot sebelumnya. Tidak mencakup eksekusi `flutter test`/`flutter analyze` langsung, tidak ada pengujian UI manual di perangkat, dan tidak mengukur performa runtime.
