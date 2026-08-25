@@ -5,6 +5,7 @@
 // Override via dart-define jika perlu:
 //   flutter run --dart-define=API_BASE_URL=https://api.canadev.my.id/api/v1
 //   flutter run --dart-define=AI_SERVICE_URL=https://ai.canadev.my.id
+//   flutter run --dart-define=AI_API_KEY=your_internal_key
 class AppConfig {
   AppConfig._();
 
@@ -17,6 +18,13 @@ class AppConfig {
   static const String aiServiceUrl = String.fromEnvironment(
     'AI_SERVICE_URL',
     defaultValue: 'https://ai.canadev.my.id',
+  );
+
+  /// Internal API Key untuk autentikasi service-to-service ke FastAPI AI.
+  /// Bisa di-override via --dart-define=AI_API_KEY=... saat build/run.
+  static const String aiApiKey = String.fromEnvironment(
+    'AI_API_KEY',
+    defaultValue: 'laporkita-a0de63d362f6bb7e9b7fa125a0452196',
   );
 
   // Token storage keys

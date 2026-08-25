@@ -8,7 +8,7 @@ import 'package:laporkita/data/models/risk_prediction_model.dart';
 /// Datasource untuk AI Microservice (FastAPI — berjalan di :8000).
 /// Menggunakan Dio instance terpisah karena:
 ///   1. Base URL berbeda dari backend NestJS
-///   2. Tidak memerlukan Authorization Bearer token
+///   2. Autentikasi via X-API-Key (bukan Bearer token user)
 ///   3. Timeout lebih panjang (inference bisa 5-10 detik)
 class AiServiceDatasource {
   static AiServiceDatasource? _instance;
@@ -23,6 +23,11 @@ class AiServiceDatasource {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          // Wajib agar tidak diblokir Cloudflare WAF (error 1010)
+          'User-Agent': 'LaporKita-MobileApp/1.0 (Flutter)',
+          // X-API-Key untuk autentikasi internal ke FastAPI AI Service.
+          // Kosong = server berjalan tanpa auth (dev mode), header tidak dikirim.
+          if (AppConfig.aiApiKey.isNotEmpty) 'X-API-Key': AppConfig.aiApiKey,
         },
       ),
     );
