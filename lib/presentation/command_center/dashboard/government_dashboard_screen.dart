@@ -67,6 +67,93 @@ class _GovernmentDashboardScreenState
     }
   }
 
+  void _showRiskPredictionModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: const [
+                      Icon(Icons.insights_rounded, color: Color(0xFFF2AE01)),
+                      SizedBox(width: 8),
+                      Text(
+                        'Prediksi Risiko Wilayah (XGBoost)',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.neutral900,
+                        ),
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Model AI XGBoost memprediksi indeks risiko banjir & kerusakan infrastruktur per kecamatan di Kota Malang:',
+                style: TextStyle(fontSize: 12, color: AppColors.neutral700),
+              ),
+              const SizedBox(height: 14),
+              _buildZoneRiskTile('Kecamatan Klojen', '0.78', 'RISIKO TINGGI', AppColors.statusDanger),
+              const SizedBox(height: 8),
+              _buildZoneRiskTile('Kecamatan Lowokwaru', '0.62', 'RISIKO SEDANG', const Color(0xFFF2AE01)),
+              const SizedBox(height: 8),
+              _buildZoneRiskTile('Kecamatan Blimbing', '0.55', 'RISIKO SEDANG', const Color(0xFFF2AE01)),
+              const SizedBox(height: 8),
+              _buildZoneRiskTile('Kecamatan Sukun', '0.30', 'RISIKO RENDAH', AppColors.greenPrimary),
+              const SizedBox(height: 8),
+              _buildZoneRiskTile('Kecamatan Kedungkandang', '0.42', 'RISIKO SEDANG', const Color(0xFFF2AE01)),
+              const SizedBox(height: 20),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildZoneRiskTile(String zoneName, String riskIndex, String statusLabel, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(zoneName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+              Text('Indeks Risiko: $riskIndex', style: const TextStyle(fontSize: 11, color: AppColors.neutral700)),
+            ],
+          ),
+          Chip(
+            label: Text(statusLabel, style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold)),
+            backgroundColor: color,
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -216,15 +303,7 @@ class _GovernmentDashboardScreenState
                             subtitle: 'XGBoost Heatmap',
                             icon: Icons.insights_rounded,
                             color: const Color(0xFFF2AE01),
-                            onTap: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                      'XGBoost Flood & Damage Risk Model aktif'),
-                                  backgroundColor: AppColors.greenPrimary,
-                                ),
-                              );
-                            },
+                            onTap: _showRiskPredictionModal,
                           ),
                         ),
                       ],

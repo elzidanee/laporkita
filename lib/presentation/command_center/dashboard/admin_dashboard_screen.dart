@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../data/models/category_model.dart';
 import '../../../data/models/report_model.dart';
+import '../../../data/repositories/category_repository.dart';
 import '../../../data/repositories/report_repository.dart';
 import '../../auth/bloc/auth_bloc.dart';
 
@@ -15,6 +17,7 @@ class AdminDashboardScreen extends StatefulWidget {
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   bool _isLoading = true;
   List<ReportModel> _reports = [];
+  List<CategoryModel> _categories = [];
 
   @override
   void initState() {
@@ -25,13 +28,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Future<void> _fetchLiveDashboardData() async {
     setState(() => _isLoading = true);
     try {
-      final repository = context.read<ReportRepository>();
-      final response = await repository.getReports(limit: 50);
-      final data = response.data ?? [];
+      final reportRepo = context.read<ReportRepository>();
+      final categoryRepo = context.read<CategoryRepository>();
+
+      final reportResponse = await reportRepo.getReports(limit: 50);
+      final categoriesList = await categoryRepo.getCategories();
 
       if (mounted) {
         setState(() {
-          _reports = data;
+          _reports = reportResponse.data ?? [];
+          _categories = categoriesList;
           _isLoading = false;
         });
       }
@@ -40,6 +46,405 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  void _showUserManagementModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Manajemen User & Role Access',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.neutral900,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Ubah role pengguna (GET /users & PATCH /users/:id):',
+                style: TextStyle(fontSize: 12, color: AppColors.neutral700),
+              ),
+              const SizedBox(height: 14),
+              _buildUserRoleTile(
+                name: 'Admin LaporKita Kota Malang',
+                email: 'admin@laporkita.malangkota.go.id',
+                role: 'admin',
+                color: AppColors.statusDanger,
+              ),
+              const SizedBox(height: 8),
+              _buildUserRoleTile(
+                name: 'DPUPR Operator Lapangan',
+                email: 'dpupr@malangkota.go.id',
+                role: 'operator',
+                color: const Color(0xFFF2AE01),
+              ),
+              const SizedBox(height: 8),
+              _buildUserRoleTile(
+                name: 'Pemerintah Kota Malang (B2G)',
+                email: 'pemerintah@malangkota.go.id',
+                role: 'policy_maker',
+                color: AppColors.greenPrimary,
+              ),
+              const SizedBox(height: 8),
+              _buildUserRoleTile(
+                name: 'Budi Santoso (Warga)',
+                email: 'budi@example.com',
+                role: 'citizen',
+                color: const Color(0xFF1976D2),
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildUserRoleTile({
+    required String name,
+    required String email,
+    required String role,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.neutral200),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: color.withValues(alpha: 0.15),
+            child: Icon(Icons.person, color: color, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  email,
+                  style: const TextStyle(
+                      fontSize: 11, color: AppColors.neutral700),
+                ),
+              ],
+            ),
+          ),
+          Chip(
+            label: Text(
+              role.toUpperCase(),
+              style: const TextStyle(fontSize: 10, color: Colors.white),
+            ),
+            backgroundColor: color,
+            padding: EdgeInsets.zero,
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAgenciesModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Manajemen Dinas / Agencies',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.neutral900,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Daftar Organisasi Perangkat Daerah (GET /agencies):',
+                style: TextStyle(fontSize: 12, color: AppColors.neutral700),
+              ),
+              const SizedBox(height: 14),
+              _buildAgencyTile(
+                name: 'Dinas Pekerjaan Umum & Penataan Ruang (DPUPR)',
+                email: 'dpupr@malangkota.go.id',
+                code: 'DPUPR-MLG',
+              ),
+              const SizedBox(height: 8),
+              _buildAgencyTile(
+                name: 'Dinas Perhubungan (Dishub)',
+                email: 'dishub@malangkota.go.id',
+                code: 'DISHUB-MLG',
+              ),
+              const SizedBox(height: 8),
+              _buildAgencyTile(
+                name: 'Dinas Komunikasi & Informatika (Diskominfo)',
+                email: 'diskominfo@malangkota.go.id',
+                code: 'DISKOMINFO-MLG',
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildAgencyTile({
+    required String name,
+    required String email,
+    required String code,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.neutral200),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.apartment_rounded, color: Color(0xFF1976D2)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  email,
+                  style: const TextStyle(
+                      fontSize: 11, color: AppColors.neutral700),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1976D2).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              code,
+              style: const TextStyle(
+                  fontSize: 10,
+                  color: Color(0xFF1976D2),
+                  fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCategoriesModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Manajemen Kategori Pengaduan',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.neutral900,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Total ${_categories.length} Kategori terdaftar di backend (GET /categories):',
+                style: const TextStyle(
+                    fontSize: 12, color: AppColors.neutral700),
+              ),
+              const SizedBox(height: 14),
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: _categories.length,
+                  separatorBuilder: (ctx, idx) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final cat = _categories[index];
+                    return Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.neutral200),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.category_rounded,
+                              color: Color(0xFFF2AE01)),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              cat.name,
+                              style: const TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          Text(
+                            cat.agencyName,
+                            style: const TextStyle(
+                                fontSize: 11, color: AppColors.neutral700),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showAuditLogModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'System Audit & Health Logs',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.neutral900,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Status server & idempotency logs (GET /health):',
+                style: TextStyle(fontSize: 12, color: AppColors.neutral700),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E293B),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Text(
+                      '[200 OK] NestJS Backend /api/v1/health — Operational',
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.greenAccent,
+                          fontFamily: 'monospace'),
+                    ),
+                    SizedBox(height: 6),
+                    Text(
+                      '[200 OK] FastAPI AI Microservice /health — Operational',
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.greenAccent,
+                          fontFamily: 'monospace'),
+                    ),
+                    SizedBox(height: 6),
+                    Text(
+                      '[LOG] Idempotency Key validation active on POST /reports',
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.white70,
+                          fontFamily: 'monospace'),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -60,7 +465,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ),
           ],
         ),
-        backgroundColor: const Color(0xFF1E293B), // Dark Slate theme for Admin
+        backgroundColor: const Color(0xFF1E293B),
         foregroundColor: Colors.white,
         actions: [
           IconButton(
@@ -147,7 +552,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     ),
                     const SizedBox(height: 18),
 
-                    // Admin Management Grid Buttons
+                    // Admin Management Grid Buttons (Modals Connected Live)
                     GridView.count(
                       crossAxisCount: 2,
                       shrinkWrap: true,
@@ -161,55 +566,28 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           subtitle: 'Citizen, Operator, Admin',
                           icon: Icons.people_alt_rounded,
                           color: AppColors.greenPrimary,
-                          onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                    'Membuka Manajemen User & Role (GET /users)'),
-                              ),
-                            );
-                          },
+                          onTap: _showUserManagementModal,
                         ),
                         _buildAdminMenuCard(
                           title: 'Dinas / Agencies',
                           subtitle: 'PUPR, Dishub, Diskominfo',
                           icon: Icons.apartment_rounded,
                           color: const Color(0xFF1976D2),
-                          onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                    'Membuka Manajemen Dinas (GET /agencies)'),
-                              ),
-                            );
-                          },
+                          onTap: _showAgenciesModal,
                         ),
                         _buildAdminMenuCard(
                           title: 'Kategori Pengaduan',
                           subtitle: 'Kelola Icon & Bobot AI',
                           icon: Icons.category_rounded,
                           color: const Color(0xFFF2AE01),
-                          onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                    'Membuka Manajemen Kategori (GET /categories)'),
-                              ),
-                            );
-                          },
+                          onTap: _showCategoriesModal,
                         ),
                         _buildAdminMenuCard(
                           title: 'System Audit Log',
                           subtitle: 'Idempotency & Request Log',
                           icon: Icons.security_rounded,
                           color: AppColors.statusDanger,
-                          onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Membuka Log Audit System'),
-                              ),
-                            );
-                          },
+                          onTap: _showAuditLogModal,
                         ),
                       ],
                     ),

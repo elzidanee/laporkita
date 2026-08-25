@@ -54,6 +54,17 @@ enum ReportStatus {
   }
 
   String get label => displayName;
+
+  String get apiValue {
+    switch (this) {
+      case ReportStatus.pendingVerification:
+        return 'pending_verification';
+      case ReportStatus.inProgress:
+        return 'in_progress';
+      default:
+        return name;
+    }
+  }
 }
 
 class ReportMediaModel {

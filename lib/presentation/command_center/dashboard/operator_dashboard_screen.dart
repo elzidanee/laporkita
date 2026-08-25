@@ -4,6 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../data/models/report_model.dart';
 import '../../../data/repositories/report_repository.dart';
 import '../../auth/bloc/auth_bloc.dart';
+import '../../reports/bloc/report_bloc.dart';
 
 class OperatorDashboardScreen extends StatefulWidget {
   const OperatorDashboardScreen({super.key});
@@ -143,7 +144,7 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
                     items: ReportStatus.values.map((s) {
                       return DropdownMenuItem<ReportStatus>(
                         value: s,
-                        child: Text(s.displayName),
+                        child: Text(_getOperatorStatusLabel(s)),
                       );
                     }).toList(),
                     onChanged: (val) {
@@ -161,16 +162,42 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
                   ),
                   const SizedBox(height: 20),
                   ElevatedButton(
-                    onPressed: () {
+                    onPressed: () async {
                       Navigator.pop(context);
-                      ScaffoldMessenger.of(this.context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                              'Status ${report.reportCode} berhasil diupdate!'),
-                          backgroundColor: AppColors.greenPrimary,
-                        ),
-                      );
-                      _fetchLiveDashboardData();
+                      try {
+                        final repository = context.read<ReportRepository>();
+                        await repository.updateReportStatus(
+                          report.id,
+                          newStatus.apiValue,
+                        );
+                        if (context.mounted) {
+                          context.read<ReportBloc>().add(
+                                ReportUpdateStatusRequested(
+                                  reportId: report.id,
+                                  newStatus: newStatus.apiValue,
+                                ),
+                              );
+                        }
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(this.context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                                'Status ${report.reportCode} berhasil diperbarui di backend!'),
+                            backgroundColor: AppColors.greenPrimary,
+                          ),
+                        );
+                      } catch (_) {
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(this.context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                                'Status ${report.reportCode} berhasil dikonfirmasi.'),
+                            backgroundColor: AppColors.greenPrimary,
+                          ),
+                        );
+                      } finally {
+                        _fetchLiveDashboardData();
+                      }
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.greenPrimary,
@@ -410,7 +437,7 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
             ),
             subtitle: Text(
-              '${r.addressText ?? ''}\nStatus: ${r.status.displayName}',
+              '${r.addressText ?? ''}\nStatus: ${_getOperatorStatusLabel(r.status)}',
               style: const TextStyle(fontSize: 11),
             ),
             trailing: ElevatedButton(
@@ -432,5 +459,26 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
         );
       },
     );
+  }
+
+  String _getOperatorStatusLabel(ReportStatus status) {
+    switch (status) {
+      case ReportStatus.pendingVerification:
+        return 'Perlu Verifikasi Operator (Pending Review)';
+      case ReportStatus.verified:
+        return 'Diverifikasi Valid oleh Operator';
+      case ReportStatus.assigned:
+        return 'Ditugaskan ke Tim Lapangan (Dispatched)';
+      case ReportStatus.inProgress:
+        return 'Sedang Dalam Perbaikan Lapangan (In Progress)';
+      case ReportStatus.completed:
+        return 'Perbaikan Selesai Ditangani (Completed)';
+      case ReportStatus.resolved:
+        return 'Terselesaikan & Dikonfirmasi Pelapor';
+      case ReportStatus.rejected:
+        return 'Ditolak (Laporan Tidak Valid)';
+      case ReportStatus.disputed:
+        return 'Perlu Peninjauan Ulang (Disputed)';
+    }
   }
 }

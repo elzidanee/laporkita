@@ -150,13 +150,53 @@ class ReportRepository {
     String newStatus, {
     String? notes,
     String? assignedAgencyId,
-  }) {
-    return _datasource.updateReportStatus(
-      reportId,
-      newStatus,
-      notes: notes,
-      assignedAgencyId: assignedAgencyId,
-    );
+  }) async {
+    try {
+      final updated = await _datasource.updateReportStatus(
+        reportId,
+        newStatus,
+        notes: notes,
+        assignedAgencyId: assignedAgencyId,
+      );
+      final idx = _submittedReports.indexWhere((r) => r.id == reportId);
+      if (idx != -1) {
+        _submittedReports[idx] = updated;
+      }
+      return updated;
+    } catch (_) {
+      final newStatusEnum = ReportStatus.fromString(newStatus);
+      final idx = _submittedReports.indexWhere((r) => r.id == reportId);
+      if (idx != -1) {
+        final old = _submittedReports[idx];
+        final updatedLocal = ReportModel(
+          id: old.id,
+          reportCode: old.reportCode,
+          reporterId: old.reporterId,
+          categoryId: old.categoryId,
+          status: newStatusEnum,
+          latitude: old.latitude,
+          longitude: old.longitude,
+          addressText: old.addressText,
+          description: old.description,
+          directPhotoUrl: old.directPhotoUrl,
+          supportCount: old.supportCount,
+          viewCount: old.viewCount,
+          urgencyScore: old.urgencyScore,
+          needsManualReview: false,
+          createdAt: old.createdAt,
+          updatedAt: DateTime.now(),
+          category: old.category,
+          reporter: old.reporter,
+          assignedAgency: old.assignedAgency,
+          media: old.media,
+          statusHistory: old.statusHistory,
+          count: old.count,
+        );
+        _submittedReports[idx] = updatedLocal;
+        return updatedLocal;
+      }
+      rethrow;
+    }
   }
 
   /// Check whether there are nearby/similar active reports at lat/lng

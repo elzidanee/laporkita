@@ -68,6 +68,21 @@ class ReportSupportRequested extends ReportEvent {
   List<Object?> get props => [reportId];
 }
 
+class ReportUpdateStatusRequested extends ReportEvent {
+  final String reportId;
+  final String newStatus;
+  final String? notes;
+
+  const ReportUpdateStatusRequested({
+    required this.reportId,
+    required this.newStatus,
+    this.notes,
+  });
+
+  @override
+  List<Object?> get props => [reportId, newStatus, notes];
+}
+
 // ─── States ───────────────────────────────────────────────────────────────────
 
 abstract class ReportState extends Equatable {

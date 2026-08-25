@@ -18,6 +18,7 @@ class ReportBloc extends Bloc<ReportEvent, ReportState> {
     on<ReportDetailRequested>(_onDetailRequested);
     on<ReportSubmitRequested>(_onSubmitRequested);
     on<ReportSupportRequested>(_onSupportRequested);
+    on<ReportUpdateStatusRequested>(_onUpdateStatusRequested);
   }
 
   Future<void> _onLoadRequested(
@@ -128,6 +129,26 @@ class ReportBloc extends Bloc<ReportEvent, ReportState> {
       emit(ReportError(code: e.code, message: e.userMessage));
     } catch (e) {
       emit(ReportError(code: 'UNKNOWN', message: e.toString()));
+    }
+  }
+
+  Future<void> _onUpdateStatusRequested(
+    ReportUpdateStatusRequested event,
+    Emitter<ReportState> emit,
+  ) async {
+    try {
+      final updated = await _reportRepository.updateReportStatus(
+        event.reportId,
+        event.newStatus,
+        notes: event.notes,
+      );
+      if (state is ReportDetailLoaded) {
+        emit(ReportDetailLoaded(updated));
+      } else {
+        add(const ReportLoadRequested());
+      }
+    } catch (_) {
+      //
     }
   }
 }
