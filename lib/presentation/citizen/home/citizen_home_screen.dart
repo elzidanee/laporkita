@@ -203,6 +203,7 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
   final TextEditingController _searchController = TextEditingController();
   RiskPredictionResult? _riskResult;
   bool _isLoadingRisk = false;
+  bool _riskError = false;
 
   @override
   void initState() {
@@ -218,7 +219,10 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
 
   Future<void> _fetchRiskPrediction() async {
     if (!mounted) return;
-    setState(() => _isLoadingRisk = true);
+    setState(() {
+      _isLoadingRisk = true;
+      _riskError = false;
+    });
     try {
       final result = await AiServiceDatasource().predictRisk(
         reportDensity: 10,
@@ -228,7 +232,8 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
       );
       if (mounted) setState(() => _riskResult = result);
     } catch (_) {
-      // AI service tidak tersedia — sembunyikan widget saja
+      // AI service tidak tersedia — tampilkan fallback card
+      if (mounted) setState(() => _riskError = true);
     } finally {
       if (mounted) setState(() => _isLoadingRisk = false);
     }
@@ -358,10 +363,8 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
                     const SizedBox(height: 16),
 
                     // Risk Prediction Card (AI Service)
-                    if (_isLoadingRisk || _riskResult != null)
-                      _buildRiskPredictionCard(),
-                    if (_isLoadingRisk || _riskResult != null)
-                      const SizedBox(height: 16),
+                    _buildRiskPredictionCard(),
+                    const SizedBox(height: 16),
 
                     // 3 Stat Cards Row (12 Laporan Saya, 8 Sedang diproses, 5 Laporan selesai)
                     _buildStatCardsRow(),
@@ -473,6 +476,72 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
             Text(
               'Memuat prediksi kondisi wilayah...',
               style: TextStyle(fontSize: 13, color: AppColors.neutral500),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Fallback card ketika AI service tidak tersedia
+    if (_riskError || _riskResult == null) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE0DFDF)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5A623).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.cloud_off_rounded,
+                  color: Color(0xFFF5A623), size: 20),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Prediksi Cuaca Tidak Tersedia',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.neutral900,
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Tidak dapat terhubung ke layanan AI',
+                    style: TextStyle(fontSize: 11, color: AppColors.neutral500),
+                  ),
+                ],
+              ),
+            ),
+            TextButton.icon(
+              onPressed: _fetchRiskPrediction,
+              icon: const Icon(Icons.refresh_rounded, size: 14),
+              label: const Text('Coba Lagi', style: TextStyle(fontSize: 11)),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.greenPrimary,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
             ),
           ],
         ),

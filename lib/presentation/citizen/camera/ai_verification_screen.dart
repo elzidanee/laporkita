@@ -155,6 +155,24 @@ class _AiVerificationScreenState extends State<AiVerificationScreen>
     }
   }
 
+  bool get _isRejectedByAi {
+    final result = _verificationResult;
+    if (result == null) return false;
+    return !result.isWithinMalang || result.detectedCategory == 'bukan_fasilitas';
+  }
+
+  bool get _isVerified {
+    final result = _verificationResult;
+    if (result == null) return false;
+    return result.isVerified;
+  }
+
+  bool get _needsManualReview {
+    final result = _verificationResult;
+    if (result == null) return false;
+    return result.needsManualReview;
+  }
+
   @override
   Widget build(BuildContext context) {
     final args = _args;
@@ -163,11 +181,7 @@ class _AiVerificationScreenState extends State<AiVerificationScreen>
     final String coordinates = args?['coordinates'] ?? '-7.9827,112.6304';
     final String timestamp = args?['timestamp'] ?? '-';
 
-    // Jika foto ditolak AI (bukan wilayah Malang / bukan fasilitas publik),
-    // nonaktifkan tombol Lanjut
-    final bool isRejectedByAi = _verificationResult != null &&
-        !_verificationResult!.isVerified &&
-        _verificationResult!.rejectionReason != null;
+    final bool isRejectedByAi = _isRejectedByAi;
 
     return Scaffold(
       backgroundColor: AppColors.white,
@@ -243,10 +257,18 @@ class _AiVerificationScreenState extends State<AiVerificationScreen>
                     _buildAiDetectionCard(),
                     const SizedBox(height: 16),
 
-                    // 4. Pesan error / penolakan jika ada
+                    // 4. Pesan error / penolakan / review manual jika ada
                     if (isRejectedByAi) ...[
                       _buildRejectionBanner(
-                          _verificationResult!.rejectionReason!),
+                        _verificationResult?.rejectionReason ??
+                            'Foto tidak dapat diproses: Lokasi berada di luar wilayah Kota Malang atau objek bukan fasilitas publik.',
+                      ),
+                      const SizedBox(height: 16),
+                    ] else if (_needsManualReview) ...[
+                      _buildManualReviewBanner(
+                        _verificationResult?.rejectionReason ??
+                            'Laporan ini memerlukan peninjauan manual oleh tim verifikator. Anda tetap dapat melanjutkan untuk mengirimkan laporan.',
+                      ),
                       const SizedBox(height: 16),
                     ],
                   ],
@@ -531,7 +553,11 @@ class _AiVerificationScreenState extends State<AiVerificationScreen>
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  color: AppColors.greenLight,
+                  color: _isRejectedByAi
+                      ? const Color(0xFFFFEBEB)
+                      : _needsManualReview && !_isVerified
+                          ? const Color(0xFFFFF8E7)
+                          : AppColors.greenLight,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: _isVerifying
@@ -541,15 +567,21 @@ class _AiVerificationScreenState extends State<AiVerificationScreen>
                             size: 30, color: AppColors.greenPrimary),
                       )
                     : Icon(
-                        _verificationResult?.isVerified == true
-                            ? Icons.verified_rounded
-                            : _verificationResult?.isVerified == false
-                                ? Icons.cancel_rounded
-                                : Icons.psychology_rounded,
+                        _isRejectedByAi
+                            ? Icons.cancel_rounded
+                            : _isVerified
+                                ? Icons.verified_rounded
+                                : _needsManualReview
+                                    ? Icons.warning_amber_rounded
+                                    : Icons.psychology_rounded,
                         size: 30,
-                        color: _verificationResult?.isVerified == false
+                        color: _isRejectedByAi
                             ? const Color(0xFFE53935)
-                            : AppColors.greenPrimary,
+                            : _isVerified
+                                ? AppColors.greenPrimary
+                                : _needsManualReview
+                                    ? const Color(0xFFF5A623)
+                                    : AppColors.greenPrimary,
                       ),
               ),
               const SizedBox(width: 14),
@@ -562,17 +594,25 @@ class _AiVerificationScreenState extends State<AiVerificationScreen>
                           ? 'AI Sedang Menganalisa...'
                           : _verificationError != null
                               ? 'AI Tidak Tersedia'
-                              : _verificationResult?.isVerified == true
-                                  ? 'Terverifikasi ✓'
-                                  : _verificationResult?.isVerified == false
-                                      ? 'Tidak Lolos Verifikasi'
-                                      : 'Menunggu Analisis',
+                              : _isRejectedByAi
+                                  ? 'Ditolak AI ❌'
+                                  : _isVerified
+                                      ? 'Terverifikasi Otomatis ✓'
+                                      : _needsManualReview
+                                          ? 'Perlu Review Manual ⚠️'
+                                          : 'Menunggu Analisis',
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
-                        color: _verificationResult?.isVerified == false
-                            ? const Color(0xFFE53935)
-                            : AppColors.neutral900,
+                        color: _isVerifying || _verificationResult == null
+                            ? AppColors.neutral900
+                            : _isRejectedByAi
+                                ? const Color(0xFFE53935)
+                                : _isVerified
+                                    ? AppColors.greenPrimary
+                                    : _needsManualReview
+                                        ? const Color(0xFFF5A623)
+                                        : AppColors.neutral900,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -610,9 +650,11 @@ class _AiVerificationScreenState extends State<AiVerificationScreen>
                   style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
-                      color: _verificationResult!.isVerified
+                      color: _isVerified
                           ? AppColors.greenPrimary
-                          : const Color(0xFFE53935)),
+                          : _needsManualReview
+                              ? const Color(0xFFF5A623)
+                              : const Color(0xFFE53935)),
                 ),
               ],
             ),
@@ -623,9 +665,11 @@ class _AiVerificationScreenState extends State<AiVerificationScreen>
                 value: _verificationResult!.confidence.clamp(0.0, 1.0),
                 minHeight: 8,
                 backgroundColor: const Color(0xFFE8E8E8),
-                color: _verificationResult!.isVerified
+                color: _isVerified
                     ? AppColors.greenPrimary
-                    : const Color(0xFFE53935),
+                    : _needsManualReview
+                        ? const Color(0xFFF5A623)
+                        : const Color(0xFFE53935),
               ),
             ),
             const SizedBox(height: 12),
@@ -730,6 +774,42 @@ class _AiVerificationScreenState extends State<AiVerificationScreen>
                 Text(reason,
                     style: const TextStyle(
                         fontSize: 12.5, color: Color(0xFF8B0000))),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildManualReviewBanner(String reason) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8E7),
+        borderRadius: BorderRadius.circular(12),
+        border:
+            Border.all(color: const Color(0xFFF5A623).withValues(alpha: 0.5)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.info_outline_rounded,
+              color: Color(0xFFD9822B), size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Perlu Review Manual',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFFD9822B),
+                        fontSize: 14)),
+                const SizedBox(height: 4),
+                Text(reason,
+                    style: const TextStyle(
+                        fontSize: 12.5, color: Color(0xFF7A4A00))),
               ],
             ),
           ),

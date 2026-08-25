@@ -17,10 +17,24 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
   late TextEditingController _notesController;
   CategoryModel? _selectedCategory;
 
+  static final List<CategoryModel> _defaultCategories = [
+    CategoryModel(id: 'cat-jalan', name: 'Jalan Rusak', isActive: true, createdAt: DateTime.now()),
+    CategoryModel(id: 'cat-sampah', name: 'Sampah & Kebersihan', isActive: true, createdAt: DateTime.now()),
+    CategoryModel(id: 'cat-banjir', name: 'Banjir & Drainase', isActive: true, createdAt: DateTime.now()),
+    CategoryModel(id: 'cat-lampu', name: 'Penerangan Jalan', isActive: true, createdAt: DateTime.now()),
+    CategoryModel(id: 'cat-fasilitas', name: 'Fasilitas Umum', isActive: true, createdAt: DateTime.now()),
+    CategoryModel(id: 'cat-lain', name: 'Lainnya', isActive: true, createdAt: DateTime.now()),
+  ];
+
   @override
   void initState() {
     super.initState();
     _notesController = TextEditingController();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<CategoryBloc>().add(const CategoryLoadRequested());
+      }
+    });
   }
 
   @override
@@ -230,13 +244,24 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
                         // 6. Field 5: Kategori (*dapat diubah - Dropdown dari BLoC)
                         BlocBuilder<CategoryBloc, CategoryState>(
                           builder: (context, catState) {
-                            List<CategoryModel> categories = [];
-                            if (catState is CategoryLoaded) {
+                            List<CategoryModel> categories = _defaultCategories;
+                            if (catState is CategoryLoaded &&
+                                catState.categories.isNotEmpty) {
                               categories = catState.categories;
-                              if (_selectedCategory == null &&
-                                  categories.isNotEmpty) {
-                                _selectedCategory = categories.first;
-                              }
+                            }
+
+                            if (_selectedCategory == null &&
+                                categories.isNotEmpty) {
+                              _selectedCategory = categories.first;
+                            } else if (_selectedCategory != null &&
+                                !categories.contains(_selectedCategory)) {
+                              _selectedCategory = categories.firstWhere(
+                                (c) =>
+                                    c.id == _selectedCategory!.id ||
+                                    c.name.toLowerCase() ==
+                                        _selectedCategory!.name.toLowerCase(),
+                                orElse: () => categories.first,
+                              );
                             }
 
                             return Container(

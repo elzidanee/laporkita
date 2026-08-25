@@ -11,7 +11,7 @@ class CommandCenterDashboard extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Command Center Dashboard'),
-        backgroundColor: AppColors.greenDark, // Distinct header for admin/command center
+        backgroundColor: AppColors.greenDark,
         actions: [
           IconButton(
             icon: const Icon(Icons.logout_outlined),
@@ -34,7 +34,8 @@ class CommandCenterDashboard extends StatelessWidget {
               children: [
                 const CircleAvatar(
                   backgroundColor: AppColors.greenLight,
-                  child: Icon(Icons.admin_panel_settings, color: AppColors.greenDark),
+                  child: Icon(Icons.admin_panel_settings,
+                      color: AppColors.greenDark),
                 ),
                 const SizedBox(width: 12),
                 Column(
@@ -52,7 +53,79 @@ class CommandCenterDashboard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
+
+            // AI Policy Simulator Quick Access Banner
+            InkWell(
+              onTap: () {
+                Navigator.pushNamed(context, '/policy-simulator');
+              },
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [AppColors.greenDark, AppColors.greenPrimary],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.greenDark.withValues(alpha: 0.25),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.auto_awesome_rounded,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text(
+                            'Policy Simulator AI (DeepSeek)',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Simulasi skenario kebijakan, proyeksi anggaran & penurunan risiko wilayah.',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
 
             // Statistics Grid (2x2)
             GridView.count(
@@ -152,17 +225,17 @@ class CommandCenterDashboard extends StatelessWidget {
                 Text(
                   value,
                   style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                    color: color,
-                    fontSize: 24,
-                  ),
+                        color: color,
+                        fontSize: 24,
+                      ),
                 ),
               ],
             ),
             Text(
               title,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+                    fontWeight: FontWeight.w600,
+                  ),
             ),
           ],
         ),
@@ -189,7 +262,8 @@ class CommandCenterDashboard extends StatelessWidget {
           ),
           child: Icon(Icons.report_problem_outlined, color: statusColor),
         ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        title:
+            Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
