@@ -15,9 +15,14 @@ import 'presentation/citizen/camera/ai_verification_screen.dart';
 import 'presentation/citizen/camera/report_success_screen.dart';
 import 'presentation/citizen/camera/new_report_form_screen.dart';
 import 'presentation/command_center/dashboard/dashboard_screen.dart';
+import 'presentation/command_center/dashboard/government_dashboard_screen.dart';
+import 'presentation/command_center/dashboard/operator_dashboard_screen.dart';
+import 'presentation/command_center/dashboard/admin_dashboard_screen.dart';
 import 'presentation/command_center/policy_simulator/policy_simulator_screen.dart';
 import 'presentation/citizen/tracking/tracking_progress_screen.dart';
 import 'presentation/citizen/tracking/foto_progress_screen.dart';
+import 'presentation/citizen/validation/beri_validasi_screen.dart';
+import 'presentation/citizen/validation/validation_success_screen.dart';
 import 'presentation/auth/bloc/auth_bloc.dart';
 import 'presentation/reports/bloc/report_bloc.dart';
 import 'data/repositories/auth_repository.dart';
@@ -119,6 +124,12 @@ Widget? _resolveScreen(RouteSettings settings) {
       return const NewReportFormScreen();
     case '/command-center':
       return const CommandCenterDashboard();
+    case '/government-dashboard':
+      return const GovernmentDashboardScreen();
+    case '/operator-dashboard':
+      return const OperatorDashboardScreen();
+    case '/admin-dashboard':
+      return const AdminDashboardScreen();
     case '/policy-simulator':
       return const PolicySimulatorScreen();
     case '/tracking-progress':
@@ -135,6 +146,18 @@ Widget? _resolveScreen(RouteSettings settings) {
         fotoData = settings.arguments as Map<String, dynamic>;
       }
       return FotoProgressScreen(reportData: fotoData);
+    case '/give-validation':
+      Map<String, dynamic>? valData;
+      if (settings.arguments is Map<String, dynamic>) {
+        valData = settings.arguments as Map<String, dynamic>;
+      }
+      return BeriValidasiScreen(reportData: valData);
+    case '/validation-success':
+      Map<String, dynamic>? valSuccessData;
+      if (settings.arguments is Map<String, dynamic>) {
+        valSuccessData = settings.arguments as Map<String, dynamic>;
+      }
+      return ValidationSuccessScreen(reportData: valSuccessData);
     default:
       return null;
   }

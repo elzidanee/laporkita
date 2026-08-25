@@ -52,6 +52,8 @@ enum ReportStatus {
         return 'Diperdebatkan';
     }
   }
+
+  String get label => displayName;
 }
 
 class ReportMediaModel {

@@ -549,36 +549,26 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: () async {
-                final reportId = report?.id ??
-                    widget.reportData?['reportId'] as String? ??
-                    widget.reportData?['id'] as String? ??
-                    '';
-                if (reportId.isEmpty) return;
-                try {
-                  final repo = context.read<ReportRepository>();
-                  await repo.validateReport(reportId);
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content:
-                          Text('Konfirmasi validasi warga berhasil dikirim!'),
-                      backgroundColor: AppColors.greenPrimary,
-                    ),
-                  );
-                } catch (_) {
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Validasi warga berhasil dikonfirmasi.'),
-                      backgroundColor: AppColors.greenPrimary,
-                    ),
-                  );
-                }
+              onPressed: () {
+                final Map<String, dynamic> valData = report != null
+                    ? {
+                        'id': report.id,
+                        'reportCode': report.reportCode,
+                        'title': report.categoryName,
+                        'location': report.addressText,
+                        'photoUrl': report.formattedPhotoUrl,
+                        'imagePath': widget.reportData?['imagePath'],
+                      }
+                    : Map<String, dynamic>.from(widget.reportData ?? {});
+                Navigator.pushNamed(
+                  context,
+                  '/give-validation',
+                  arguments: valData,
+                );
               },
-              icon: const Icon(Icons.check_circle_outline, size: 18),
+              icon: const Icon(Icons.verified, size: 18),
               label: const Text(
-                'Konfirmasi Perbaikan Sesuai',
+                'Beri Validasi Perbaikan Foto',
                 style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
               ),
               style: ElevatedButton.styleFrom(
