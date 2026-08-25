@@ -132,8 +132,10 @@ class _AiVerificationScreenState extends State<AiVerificationScreen>
           arguments: {
             if (args != null) ...args,
             'similarReports': similarReports,
-            if (_verificationResult != null)
+            if (_verificationResult != null) ...{
               'aiVerification': _verificationResult,
+              'detectedCategory': _verificationResult!.detectedCategory,
+            },
           },
         );
       } else {
@@ -142,8 +144,10 @@ class _AiVerificationScreenState extends State<AiVerificationScreen>
           '/new-report-form',
           arguments: {
             if (args != null) ...args,
-            if (_verificationResult != null)
+            if (_verificationResult != null) ...{
               'aiVerification': _verificationResult,
+              'detectedCategory': _verificationResult!.detectedCategory,
+            },
           },
         );
       }
@@ -245,7 +249,7 @@ class _AiVerificationScreenState extends State<AiVerificationScreen>
                       title: 'Wilayah Kota Malang',
                       subtitle: location,
                       color: _verificationResult?.isWithinMalang == false
-                          ? const Color(0xFFE53935)
+                          ? AppColors.statusDanger
                           : AppColors.greenPrimary,
                       statusOverride: _verificationResult?.isWithinMalang == false
                           ? 'Di luar area'
@@ -290,7 +294,7 @@ class _AiVerificationScreenState extends State<AiVerificationScreen>
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           fontSize: 12,
-                          color: Color(0xFFE53935),
+                          color: AppColors.statusDanger,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -303,7 +307,7 @@ class _AiVerificationScreenState extends State<AiVerificationScreen>
                       backgroundColor: AppColors.greenPrimary,
                       foregroundColor: AppColors.white,
                       disabledBackgroundColor: isRejectedByAi
-                          ? const Color(0xFFE53935).withValues(alpha: 0.5)
+                          ? AppColors.statusDanger.withValues(alpha: 0.5)
                           : null,
                       minimumSize: const Size.fromHeight(54),
                       shape: RoundedRectangleBorder(
@@ -422,7 +426,7 @@ class _AiVerificationScreenState extends State<AiVerificationScreen>
 
   Widget _buildImageWidget(String? imagePath) {
     final placeholder = Container(
-      color: const Color(0xFFF0F4F8),
+      color: AppColors.neutral50,
       child: const Icon(Icons.image_not_supported_rounded,
           size: 48, color: AppColors.greenPrimary),
     );
@@ -464,7 +468,7 @@ class _AiVerificationScreenState extends State<AiVerificationScreen>
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE0DFDF)),
+        border: Border.all(color: AppColors.neutral200),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
@@ -500,7 +504,7 @@ class _AiVerificationScreenState extends State<AiVerificationScreen>
                   style: TextStyle(
                       fontSize: 11,
                       color: statusOverride != null
-                          ? const Color(0xFFE53935)
+                          ? AppColors.statusDanger
                           : AppColors.neutral500),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -513,7 +517,7 @@ class _AiVerificationScreenState extends State<AiVerificationScreen>
                 ? Icons.cancel_rounded
                 : Icons.check_circle_rounded,
             color: statusOverride != null
-                ? const Color(0xFFE53935)
+                ? AppColors.statusDanger
                 : AppColors.greenPrimary,
             size: 22,
           ),
@@ -530,10 +534,10 @@ class _AiVerificationScreenState extends State<AiVerificationScreen>
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: _verificationResult == null
-              ? const Color(0xFFE0DFDF)
+              ? AppColors.neutral200
               : _verificationResult!.isVerified
                   ? AppColors.greenPrimary.withValues(alpha: 0.4)
-                  : const Color(0xFFE53935).withValues(alpha: 0.4),
+                  : AppColors.statusDanger.withValues(alpha: 0.4),
         ),
         boxShadow: [
           BoxShadow(
@@ -554,7 +558,7 @@ class _AiVerificationScreenState extends State<AiVerificationScreen>
                 height: 52,
                 decoration: BoxDecoration(
                   color: _isRejectedByAi
-                      ? const Color(0xFFFFEBEB)
+                      ? AppColors.surfaceDanger
                       : _needsManualReview && !_isVerified
                           ? const Color(0xFFFFF8E7)
                           : AppColors.greenLight,
@@ -576,11 +580,11 @@ class _AiVerificationScreenState extends State<AiVerificationScreen>
                                     : Icons.psychology_rounded,
                         size: 30,
                         color: _isRejectedByAi
-                            ? const Color(0xFFE53935)
+                            ? AppColors.statusDanger
                             : _isVerified
                                 ? AppColors.greenPrimary
                                 : _needsManualReview
-                                    ? const Color(0xFFF5A623)
+                                    ? AppColors.statusPending
                                     : AppColors.greenPrimary,
                       ),
               ),
@@ -607,11 +611,11 @@ class _AiVerificationScreenState extends State<AiVerificationScreen>
                         color: _isVerifying || _verificationResult == null
                             ? AppColors.neutral900
                             : _isRejectedByAi
-                                ? const Color(0xFFE53935)
+                                ? AppColors.statusDanger
                                 : _isVerified
                                     ? AppColors.greenPrimary
                                     : _needsManualReview
-                                        ? const Color(0xFFF5A623)
+                                        ? AppColors.statusPending
                                         : AppColors.neutral900,
                       ),
                     ),
@@ -653,8 +657,8 @@ class _AiVerificationScreenState extends State<AiVerificationScreen>
                       color: _isVerified
                           ? AppColors.greenPrimary
                           : _needsManualReview
-                              ? const Color(0xFFF5A623)
-                              : const Color(0xFFE53935)),
+                              ? AppColors.statusPending
+                              : AppColors.statusDanger),
                 ),
               ],
             ),
@@ -664,12 +668,12 @@ class _AiVerificationScreenState extends State<AiVerificationScreen>
               child: LinearProgressIndicator(
                 value: _verificationResult!.confidence.clamp(0.0, 1.0),
                 minHeight: 8,
-                backgroundColor: const Color(0xFFE8E8E8),
+                backgroundColor: AppColors.borderLight,
                 color: _isVerified
                     ? AppColors.greenPrimary
                     : _needsManualReview
-                        ? const Color(0xFFF5A623)
-                        : const Color(0xFFE53935),
+                        ? AppColors.statusPending
+                        : AppColors.statusDanger,
               ),
             ),
             const SizedBox(height: 12),
@@ -686,7 +690,7 @@ class _AiVerificationScreenState extends State<AiVerificationScreen>
                   style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFFF5A623)),
+                      color: AppColors.statusPending),
                 ),
               ],
             ),
@@ -696,8 +700,8 @@ class _AiVerificationScreenState extends State<AiVerificationScreen>
               child: LinearProgressIndicator(
                 value: _verificationResult!.urgencyScore.clamp(0.0, 1.0),
                 minHeight: 8,
-                backgroundColor: const Color(0xFFE8E8E8),
-                color: const Color(0xFFF5A623),
+                backgroundColor: AppColors.borderLight,
+                color: AppColors.statusPending,
               ),
             ),
 
@@ -737,7 +741,7 @@ class _AiVerificationScreenState extends State<AiVerificationScreen>
               borderRadius: BorderRadius.circular(6),
               child: const LinearProgressIndicator(
                 minHeight: 6,
-                backgroundColor: Color(0xFFE8E8E8),
+                backgroundColor: AppColors.borderLight,
                 color: AppColors.greenPrimary,
               ),
             ),
@@ -751,15 +755,15 @@ class _AiVerificationScreenState extends State<AiVerificationScreen>
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFEBEB),
+        color: AppColors.surfaceDanger,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE53935).withValues(alpha: 0.4)),
+        border: Border.all(color: AppColors.statusDanger.withValues(alpha: 0.4)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Icon(Icons.warning_amber_rounded,
-              color: Color(0xFFE53935), size: 22),
+              color: AppColors.statusDanger, size: 22),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -768,7 +772,7 @@ class _AiVerificationScreenState extends State<AiVerificationScreen>
                 const Text('Verifikasi Ditolak',
                     style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFFE53935),
+                        color: AppColors.statusDanger,
                         fontSize: 14)),
                 const SizedBox(height: 4),
                 Text(reason,
@@ -789,7 +793,7 @@ class _AiVerificationScreenState extends State<AiVerificationScreen>
         color: const Color(0xFFFFF8E7),
         borderRadius: BorderRadius.circular(12),
         border:
-            Border.all(color: const Color(0xFFF5A623).withValues(alpha: 0.5)),
+            Border.all(color: AppColors.statusPending.withValues(alpha: 0.5)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

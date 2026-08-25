@@ -111,23 +111,12 @@ class ReportRemoteDatasource {
         filename: 'report_photo.jpg',
       );
     } else {
-      // Backend requires file 'photo' with optional: false.
-      // Send 1x1 JPG bytes fallback if no local file path was provided.
-      final dummyJpgBytes = <int>[
-        0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01,
-        0x01, 0x01, 0x00, 0x48, 0x00, 0x48, 0x00, 0x00, 0xFF, 0xDB, 0x00, 0x43,
-        0x00, 0xFF, 0xC0, 0x00, 0x0B, 0x08, 0x00, 0x01, 0x00, 0x01, 0x01, 0x01,
-        0x11, 0x00, 0xFF, 0xC4, 0x00, 0x14, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0xFF, 0xDA, 0x00, 0x08, 0x01, 0x01, 0x00, 0x00, 0x3F, 0x00, 0x37, 0xFF, 0xD9
-      ];
-      map['photo'] = MultipartFile.fromBytes(
-        dummyJpgBytes,
-        filename: 'report_photo.jpg',
+      // Foto wajib ada — lempar error agar UI dapat memblokir submit
+      // sebelum request dikirim (FE-07 fix: hapus dummy JPEG fallback).
+      throw ArgumentError(
+        'Foto laporan tidak valid atau tidak ditemukan. '
+        'Harap ambil foto terlebih dahulu sebelum mengirim laporan.',
       );
-      if (photoUrl != null && photoUrl.isNotEmpty) {
-        map['photo_url'] = photoUrl;
-      }
     }
 
     final formData = FormData.fromMap(map);
@@ -142,8 +131,7 @@ class ReportRemoteDatasource {
 
     // Pasang photoPath lokal hanya jika result tidak memiliki photoUrl dari backend
     bool isLocalFileValid = false;
-    if (photoPath != null &&
-        photoPath.isNotEmpty &&
+    if (photoPath.isNotEmpty &&
         !photoPath.startsWith('http')) {
       try {
         isLocalFileValid = File(photoPath).existsSync();
@@ -152,7 +140,7 @@ class ReportRemoteDatasource {
       }
     }
 
-    if (isLocalFileValid && photoPath != null) {
+    if (isLocalFileValid) {
       final String currentUrl = result.photoUrl ?? '';
       if (currentUrl.isEmpty) {
         return ReportModel(
@@ -235,6 +223,39 @@ class ReportRemoteDatasource {
       '/reports/$reportId/comments',
       fromJson: (json) => json as Map<String, dynamic>,
       data: {'content': content},
+    );
+    return response.data!;
+  }
+
+  // ── Validate Report (Citizen) ──────────────────────────────────────────────
+  // STATUS: FE-06 — POST /reports/:id/validate (auth required)
+  // Warga mengkonfirmasi laporan mereka sudah selesai ditangani.
+  Future<Map<String, dynamic>> validateReport(String reportId) async {
+    final response = await _dioClient.post<Map<String, dynamic>>(
+      '/reports/$reportId/validate',
+      fromJson: (json) => json as Map<String, dynamic>,
+      data: {},
+    );
+    return response.data!;
+  }
+
+  // ── Update Report Status (Operator) ───────────────────────────────────────
+  // STATUS: FE-06 — PATCH /reports/:id/status (auth required, operator role)
+  // Operator dinas mengubah status laporan (assigned, in_progress, completed, dll).
+  Future<ReportModel> updateReportStatus(
+    String reportId,
+    String newStatus, {
+    String? notes,
+    String? assignedAgencyId,
+  }) async {
+    final response = await _dioClient.patch<ReportModel>(
+      '/reports/$reportId/status',
+      fromJson: (json) => ReportModel.fromJson(json as Map<String, dynamic>),
+      data: {
+        'status': newStatus,
+        if (notes != null && notes.isNotEmpty) 'notes': notes,
+        if (assignedAgencyId != null) 'assigned_agency_id': assignedAgencyId,
+      },
     );
     return response.data!;
   }

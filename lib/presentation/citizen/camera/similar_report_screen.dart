@@ -62,7 +62,7 @@ class SimilarReportScreen extends StatelessWidget {
           color: Colors.amber.shade100,
           child: const Icon(
             Icons.alt_route_rounded,
-            color: Color(0xFFE68A00),
+            color: AppColors.statusWarning,
             size: 32,
           ),
         ),
@@ -77,7 +77,7 @@ class SimilarReportScreen extends StatelessWidget {
           color: Colors.amber.shade100,
           child: const Icon(
             Icons.alt_route_rounded,
-            color: Color(0xFFE68A00),
+            color: AppColors.statusWarning,
             size: 32,
           ),
         ),
@@ -90,7 +90,7 @@ class SimilarReportScreen extends StatelessWidget {
           color: Colors.amber.shade100,
           child: const Icon(
             Icons.alt_route_rounded,
-            color: Color(0xFFE68A00),
+            color: AppColors.statusWarning,
             size: 32,
           ),
         ),
@@ -100,7 +100,7 @@ class SimilarReportScreen extends StatelessWidget {
         color: Colors.amber.shade100,
         child: const Icon(
           Icons.alt_route_rounded,
-          color: Color(0xFFE68A00),
+          color: AppColors.statusWarning,
           size: 32,
         ),
       );
@@ -153,7 +153,7 @@ class SimilarReportScreen extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: const BoxDecoration(
-                              color: Color(0xFFF5A623),
+                              color: AppColors.statusPending,
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(
@@ -281,7 +281,7 @@ class SimilarReportScreen extends StatelessWidget {
                                           padding: const EdgeInsets.symmetric(
                                               horizontal: 8, vertical: 4),
                                           decoration: BoxDecoration(
-                                            color: const Color(0xFFFFF8E6),
+                                            color: AppColors.surfaceWarning,
                                             borderRadius:
                                                 BorderRadius.circular(8),
                                           ),
@@ -290,7 +290,7 @@ class SimilarReportScreen extends StatelessWidget {
                                             style: const TextStyle(
                                               fontSize: 10,
                                               fontWeight: FontWeight.w600,
-                                              color: Color(0xFFE68A00),
+                                              color: AppColors.statusWarning,
                                             ),
                                           ),
                                         ),
@@ -339,7 +339,7 @@ class SimilarReportScreen extends StatelessWidget {
                                 style: TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.bold,
-                                  color: Color(0xFFE68A00),
+                                  color: AppColors.statusWarning,
                                 ),
                               ),
                             ],
@@ -351,7 +351,7 @@ class SimilarReportScreen extends StatelessWidget {
                               value: 0.90,
                               minHeight: 8,
                               backgroundColor: AppColors.neutral100,
-                              color: Color(0xFFE68A00),
+                              color: AppColors.statusWarning,
                             ),
                           ),
                           const SizedBox(height: 12),

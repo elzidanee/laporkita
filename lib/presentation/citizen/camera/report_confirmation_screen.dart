@@ -338,10 +338,10 @@ class _ReportConfirmationScreenState extends State<ReportConfirmationScreen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFE8F3FF) : AppColors.white,
+          color: isSelected ? AppColors.surfaceInfo : AppColors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? const Color(0xFF2B82C4) : AppColors.border,
+            color: isSelected ? AppColors.statusInfo : AppColors.border,
             width: isSelected ? 1.5 : 1.0,
           ),
         ),
@@ -352,11 +352,11 @@ class _ReportConfirmationScreenState extends State<ReportConfirmationScreen> {
               width: 24,
               height: 24,
               decoration: BoxDecoration(
-                color: isSelected ? const Color(0xFF2B82C4) : AppColors.white,
+                color: isSelected ? AppColors.statusInfo : AppColors.white,
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(
                   color: isSelected
-                      ? const Color(0xFF2B82C4)
+                      ? AppColors.statusInfo
                       : AppColors.neutral500,
                   width: 1.5,
                 ),

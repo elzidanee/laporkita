@@ -137,6 +137,28 @@ class ReportRepository {
     return _datasource.addComment(reportId, content);
   }
 
+  // ── Validate Report (Citizen Confirmation) ─────────────────────────────────
+  // FE-06: Warga konfirmasi laporan sudah selesai — POST /reports/:id/validate
+  Future<Map<String, dynamic>> validateReport(String reportId) {
+    return _datasource.validateReport(reportId);
+  }
+
+  // ── Update Status Laporan (Operator) ───────────────────────────────────────
+  // FE-06: Operator dinas ubah status laporan — PATCH /reports/:id/status
+  Future<ReportModel> updateReportStatus(
+    String reportId,
+    String newStatus, {
+    String? notes,
+    String? assignedAgencyId,
+  }) {
+    return _datasource.updateReportStatus(
+      reportId,
+      newStatus,
+      notes: notes,
+      assignedAgencyId: assignedAgencyId,
+    );
+  }
+
   /// Check whether there are nearby/similar active reports at lat/lng
   Future<List<ReportModel>> checkSimilarReports({
     required double latitude,

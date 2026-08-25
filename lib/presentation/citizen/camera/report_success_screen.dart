@@ -207,7 +207,7 @@ class ReportSuccessScreen extends StatelessWidget {
                                   );
                                 } else {
                                   return Container(
-                                    color: const Color(0xFFF0F4F8),
+                                    color: AppColors.neutral50,
                                     child: const Icon(
                                       Icons.image_not_supported_rounded,
                                       color: AppColors.greenPrimary,
@@ -270,7 +270,7 @@ class ReportSuccessScreen extends StatelessWidget {
                                           padding: const EdgeInsets.symmetric(
                                               horizontal: 8, vertical: 4),
                                           decoration: BoxDecoration(
-                                            color: const Color(0xFFFFF8E6),
+                                            color: AppColors.surfaceWarning,
                                             borderRadius:
                                                 BorderRadius.circular(8),
                                           ),
@@ -279,7 +279,7 @@ class ReportSuccessScreen extends StatelessWidget {
                                             style: const TextStyle(
                                               fontSize: 10,
                                               fontWeight: FontWeight.w600,
-                                              color: Color(0xFFE68A00),
+                                              color: AppColors.statusWarning,
                                             ),
                                           ),
                                         ),

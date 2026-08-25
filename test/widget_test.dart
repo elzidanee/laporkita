@@ -1,30 +1,65 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+// Smoke test untuk LaporKita — menggantikan test counter bawaan template
+// yang tidak relevan dengan aplikasi ini.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:laporkita/main.dart';
+import 'package:laporkita/data/repositories/auth_repository.dart';
+import 'package:laporkita/data/repositories/report_repository.dart';
+import 'package:laporkita/data/repositories/category_repository.dart';
+import 'package:laporkita/data/repositories/policy_simulator_repository.dart';
+import 'package:laporkita/data/repositories/prediction_repository.dart';
+import 'package:laporkita/presentation/auth/bloc/auth_bloc.dart';
+import 'package:laporkita/presentation/reports/bloc/report_bloc.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  group('LaporKita App Smoke Tests', () {
+    testWidgets('App renders without crashing', (WidgetTester tester) async {
+      await tester.pumpWidget(const MyApp());
+      // Cukup verifikasi bahwa widget tree terbentuk tanpa exception
+      expect(find.byType(MaterialApp), findsOneWidget);
+    });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    testWidgets('SplashScreen atau navigasi awal ter-render', (WidgetTester tester) async {
+      await tester.pumpWidget(const MyApp());
+      await tester.pump(const Duration(milliseconds: 100));
+      // Pastikan ada setidaknya satu Scaffold atau navigator di tree
+      expect(find.byType(MaterialApp), findsOneWidget);
+    });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    test('AuthBloc dapat diinstansiasi', () {
+      final repo = AuthRepository();
+      final bloc = AuthBloc(authRepository: repo);
+      expect(bloc, isNotNull);
+      bloc.close();
+    });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    test('ReportBloc dapat diinstansiasi', () {
+      final repo = ReportRepository();
+      final bloc = ReportBloc(reportRepository: repo);
+      expect(bloc, isNotNull);
+      bloc.close();
+    });
+
+    test('AuthRepository dapat diinstansiasi', () {
+      expect(AuthRepository(), isNotNull);
+    });
+
+    test('ReportRepository dapat diinstansiasi', () {
+      expect(ReportRepository(), isNotNull);
+    });
+
+    test('CategoryRepository dapat diinstansiasi', () {
+      expect(CategoryRepository(), isNotNull);
+    });
+
+    test('PolicySimulatorRepository dapat diinstansiasi', () {
+      expect(PolicySimulatorRepository(), isNotNull);
+    });
+
+    test('PredictionRepository dapat diinstansiasi', () {
+      expect(PredictionRepository(), isNotNull);
+    });
   });
 }

@@ -5,6 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../shared_widgets/custom_alert.dart';
 import '../../reports/bloc/report_bloc.dart';
 import '../../../data/models/category_model.dart';
+import '../../../data/models/ai_verification_model.dart';
 
 class NewReportFormScreen extends StatefulWidget {
   const NewReportFormScreen({super.key});
@@ -25,6 +26,97 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
     CategoryModel(id: 'cat-fasilitas', name: 'Fasilitas Umum', isActive: true, createdAt: DateTime.now()),
     CategoryModel(id: 'cat-lain', name: 'Lainnya', isActive: true, createdAt: DateTime.now()),
   ];
+
+  static CategoryModel _matchCategory(
+      String detectedName, List<CategoryModel> categories) {
+    if (categories.isEmpty) {
+      return _defaultCategories.first;
+    }
+
+    final lower = detectedName.toLowerCase().trim();
+
+    // 1. Exact match by name or ID
+    for (final cat in categories) {
+      if (cat.name.toLowerCase() == lower || cat.id.toLowerCase() == lower) {
+        return cat;
+      }
+    }
+
+    // 2. Keyword mapping
+    if (lower.contains('jalan') ||
+        lower.contains('lubang') ||
+        lower.contains('berlubang') ||
+        lower.contains('pothole') ||
+        lower.contains('aspal') ||
+        lower.contains('trotoar')) {
+      return categories.firstWhere(
+        (c) => c.name.toLowerCase().contains('jalan') || c.id.contains('jalan'),
+        orElse: () => categories.first,
+      );
+    }
+
+    if (lower.contains('sampah') ||
+        lower.contains('bersih') ||
+        lower.contains('limbah') ||
+        lower.contains('kotor') ||
+        lower.contains('waste') ||
+        lower.contains('garbage')) {
+      return categories.firstWhere(
+        (c) => c.name.toLowerCase().contains('sampah') || c.id.contains('sampah'),
+        orElse: () => categories.first,
+      );
+    }
+
+    if (lower.contains('banjir') ||
+        lower.contains('drainase') ||
+        lower.contains('genangan') ||
+        lower.contains('got') ||
+        lower.contains('sungai') ||
+        lower.contains('flood')) {
+      return categories.firstWhere(
+        (c) =>
+            c.name.toLowerCase().contains('banjir') ||
+            c.name.toLowerCase().contains('drainase') ||
+            c.id.contains('banjir'),
+        orElse: () => categories.first,
+      );
+    }
+
+    if (lower.contains('lampu') ||
+        lower.contains('penerangan') ||
+        lower.contains('listrik') ||
+        lower.contains('gelap') ||
+        lower.contains('light')) {
+      return categories.firstWhere(
+        (c) =>
+            c.name.toLowerCase().contains('lampu') ||
+            c.name.toLowerCase().contains('penerangan') ||
+            c.id.contains('lampu'),
+        orElse: () => categories.first,
+      );
+    }
+
+    if (lower.contains('fasilitas') ||
+        lower.contains('taman') ||
+        lower.contains('halte') ||
+        lower.contains('jembatan') ||
+        lower.contains('bangunan')) {
+      return categories.firstWhere(
+        (c) =>
+            c.name.toLowerCase().contains('fasilitas') ||
+            c.id.contains('fasilitas'),
+        orElse: () => categories.first,
+      );
+    }
+
+    // 3. Partial substring match
+    return categories.firstWhere(
+      (c) =>
+          c.name.toLowerCase().contains(lower) ||
+          lower.contains(c.name.toLowerCase()),
+      orElse: () => categories.first,
+    );
+  }
 
   @override
   void initState() {
@@ -59,6 +151,22 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
       return;
     }
 
+    // FE-07: Validasi foto wajib ada sebelum request dikirim.
+    // Mencegah pengiriman foto dummy ke server produksi.
+    final bool hasValidPhoto = photoPath != null &&
+        photoPath.isNotEmpty &&
+        !photoPath.startsWith('http') &&
+        File(photoPath).existsSync();
+
+    if (!hasValidPhoto) {
+      AppAlert.warning(
+        context,
+        title: 'Foto Belum Diambil',
+        message: 'Laporan wajib disertai foto. Kembali dan ambil foto kerusakan terlebih dahulu.',
+      );
+      return;
+    }
+
     context.read<ReportBloc>().add(
           ReportSubmitRequested(
             categoryId: categoryId,
@@ -70,6 +178,7 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
           ),
         );
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -85,6 +194,10 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
             ? args!['coordinates']
             : '-7.9827,112.6304';
     final String? rawTimestamp = args?['timestamp'];
+    final aiResult = args?['aiVerification'] as AiVerificationResult?;
+    final String? aiCategoryStr = aiResult?.detectedCategory ??
+        (args?['detectedCategory'] as String?) ??
+        (args?['claimedCategory'] as String?);
 
     double lat = -7.9827;
     double lng = 112.6304;
@@ -197,7 +310,7 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
                           icon: Icons.location_on_outlined,
                           label: 'Lokasi',
                           tagText: '*tidak dapat diubah',
-                          tagColor: const Color(0xFFFF3D00),
+                          tagColor: AppColors.statusDanger,
                           valueText: location,
                         ),
                         const SizedBox(height: 10),
@@ -207,7 +320,7 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
                           icon: Icons.memory_outlined,
                           label: 'Koordinat',
                           tagText: '*tidak dapat diubah',
-                          tagColor: const Color(0xFFFF3D00),
+                          tagColor: AppColors.statusDanger,
                           valueText: coordinates,
                           trailingIcon: Icons.copy_rounded,
                           onTrailingTap: () {
@@ -226,7 +339,7 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
                           icon: Icons.calendar_today_outlined,
                           label: 'Tanggal',
                           tagText: '*tidak dapat diubah',
-                          tagColor: const Color(0xFFFF3D00),
+                          tagColor: AppColors.statusDanger,
                           valueText: dateStr,
                         ),
                         const SizedBox(height: 10),
@@ -236,7 +349,7 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
                           icon: Icons.access_time_outlined,
                           label: 'Jam',
                           tagText: '*tidak dapat diubah',
-                          tagColor: const Color(0xFFFF3D00),
+                          tagColor: AppColors.statusDanger,
                           valueText: timeStr,
                         ),
                         const SizedBox(height: 10),
@@ -250,9 +363,18 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
                               categories = catState.categories;
                             }
 
+                            final bool hasAiCategory = aiCategoryStr != null &&
+                                aiCategoryStr.isNotEmpty &&
+                                aiCategoryStr != 'Tidak Terdeteksi';
+
                             if (_selectedCategory == null &&
                                 categories.isNotEmpty) {
-                              _selectedCategory = categories.first;
+                              if (hasAiCategory) {
+                                _selectedCategory =
+                                    _matchCategory(aiCategoryStr, categories);
+                              } else {
+                                _selectedCategory = categories.first;
+                              }
                             } else if (_selectedCategory != null &&
                                 !categories.contains(_selectedCategory)) {
                               _selectedCategory = categories.firstWhere(
@@ -270,7 +392,7 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
                                 color: AppColors.white,
                                 borderRadius: BorderRadius.circular(12),
                                 border:
-                                    Border.all(color: const Color(0xFFE0DFDF)),
+                                    Border.all(color: AppColors.neutral200),
                                 boxShadow: [
                                   BoxShadow(
                                     color: Colors.black.withValues(alpha: 0.04),
@@ -293,8 +415,8 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
                                           CrossAxisAlignment.start,
                                       children: [
                                         Row(
-                                          children: const [
-                                            Text(
+                                          children: [
+                                            const Text(
                                               'Kategori',
                                               style: TextStyle(
                                                 fontSize: 13,
@@ -302,12 +424,19 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
                                                 color: AppColors.neutral900,
                                               ),
                                             ),
-                                            SizedBox(width: 6),
+                                            const SizedBox(width: 6),
                                             Text(
-                                              '*dapat diubah',
+                                              hasAiCategory
+                                                  ? '*rekomendasi AI'
+                                                  : '*dapat diubah',
                                               style: TextStyle(
                                                 fontSize: 11,
-                                                color: Color(0xFF8F8F8F),
+                                                color: hasAiCategory
+                                                    ? AppColors.greenPrimary
+                                                    : AppColors.neutral400,
+                                                fontWeight: hasAiCategory
+                                                    ? FontWeight.bold
+                                                    : FontWeight.normal,
                                               ),
                                             ),
                                           ],
@@ -322,7 +451,7 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
                                             borderRadius:
                                                 BorderRadius.circular(10),
                                             border: Border.all(
-                                                color: const Color(0xFFE0DFDF)),
+                                                color: AppColors.neutral200),
                                           ),
                                           child: catState is CategoryLoading
                                               ? const Center(
@@ -386,7 +515,7 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
                           decoration: BoxDecoration(
                             color: AppColors.white,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFFE0DFDF)),
+                            border: Border.all(color: AppColors.neutral200),
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withValues(alpha: 0.04),
@@ -424,7 +553,7 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
                                           '*opsional',
                                           style: TextStyle(
                                             fontSize: 11,
-                                            color: Color(0xFF8F8F8F),
+                                            color: AppColors.neutral400,
                                           ),
                                         ),
                                       ],
@@ -438,7 +567,7 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
                                         borderRadius:
                                             BorderRadius.circular(10),
                                         border: Border.all(
-                                            color: const Color(0xFFE0DFDF)),
+                                            color: AppColors.neutral200),
                                       ),
                                       child: TextField(
                                         controller: _notesController,
@@ -529,7 +658,7 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE0DFDF)),
+        border: Border.all(color: AppColors.neutral200),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -572,7 +701,7 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
                   );
                 } else {
                   return Container(
-                    color: const Color(0xFFF0F4F8),
+                    color: AppColors.neutral50,
                     child: const Icon(
                       Icons.image_not_supported_rounded,
                       color: AppColors.greenPrimary,
@@ -647,7 +776,7 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE0DFDF)),
+        border: Border.all(color: AppColors.neutral200),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),

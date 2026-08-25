@@ -258,7 +258,7 @@ class _FotoProgressScreenState extends State<FotoProgressScreen> {
                 decoration: BoxDecoration(
                   color: const Color(0xFFF5F5F5),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE0DFDF)),
+                  border: Border.all(color: AppColors.neutral200),
                 ),
                 child: const Center(
                   child: Column(
@@ -291,7 +291,7 @@ class _FotoProgressScreenState extends State<FotoProgressScreen> {
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE0DFDF)),
+        border: Border.all(color: AppColors.neutral200),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -351,7 +351,7 @@ class _FotoProgressScreenState extends State<FotoProgressScreen> {
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE0DFDF)),
+        border: Border.all(color: AppColors.neutral200),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -441,7 +441,7 @@ class _FotoProgressScreenState extends State<FotoProgressScreen> {
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE0DFDF)),
+        border: Border.all(color: AppColors.neutral200),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -519,7 +519,7 @@ class _FotoProgressScreenState extends State<FotoProgressScreen> {
       errorBuilder: (context, error, stackTrace) => Container(
         width: 100,
         height: 80,
-        color: const Color(0xFFF0F4F8),
+        color: AppColors.neutral50,
         child: const Icon(
           Icons.image_not_supported_rounded,
           color: AppColors.greenPrimary,

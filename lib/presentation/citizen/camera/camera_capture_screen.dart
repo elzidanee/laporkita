@@ -391,7 +391,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen>
                       const SizedBox(height: 10),
                       _infoRow(
                         icon: Icons.access_time_outlined,
-                        color: const Color(0xFFE68A00),
+                        color: AppColors.statusWarning,
                         text: _timestamp.isEmpty
                             ? 'Mendeteksi waktu...'
                             : _timestamp,

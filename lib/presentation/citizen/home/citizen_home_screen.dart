@@ -453,7 +453,7 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
         decoration: BoxDecoration(
           color: AppColors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE0DFDF)),
+          border: Border.all(color: AppColors.neutral200),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.04),
@@ -489,7 +489,7 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
         decoration: BoxDecoration(
           color: AppColors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE0DFDF)),
+          border: Border.all(color: AppColors.neutral200),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.04),
@@ -504,11 +504,11 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: const Color(0xFFF5A623).withValues(alpha: 0.15),
+                color: AppColors.statusPending.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(Icons.cloud_off_rounded,
-                  color: Color(0xFFF5A623), size: 20),
+                  color: AppColors.statusPending, size: 20),
             ),
             const SizedBox(width: 12),
             const Expanded(
@@ -550,9 +550,9 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
 
     final result = _riskResult!;
     final Color riskColor = result.isHighRisk
-        ? const Color(0xFFE53935)
+        ? AppColors.statusDanger
         : result.isMediumRisk
-            ? const Color(0xFFF5A623)
+            ? AppColors.statusPending
             : AppColors.greenPrimary;
     final String riskLabel = result.isHighRisk
         ? 'TINGGI'
@@ -655,13 +655,13 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
               _riskInfoChip(
                 icon: weatherIcon,
                 label: result.weatherCondition,
-                color: const Color(0xFF2B82C4),
+                color: AppColors.statusInfo,
               ),
               const SizedBox(width: 8),
               _riskInfoChip(
                 icon: Icons.thermostat_rounded,
                 label: '${result.temperatureC.toStringAsFixed(0)}°C',
-                color: const Color(0xFFF5A623),
+                color: AppColors.statusPending,
               ),
               const SizedBox(width: 8),
               _riskInfoChip(
@@ -684,7 +684,7 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Icon(Icons.lightbulb_outline_rounded,
-                    size: 15, color: Color(0xFFF5A623)),
+                    size: 15, color: AppColors.statusPending),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -784,11 +784,11 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
 
         if (score < 50) {
           statusText = 'Status : Perlu Penanganan Segera';
-          statusColor = const Color(0xFFFF3D00);
+          statusColor = AppColors.statusDanger;
           statusIcon = Icons.error_outline_rounded;
         } else if (score < 75) {
           statusText = 'Status : Waspada & Dalam Perbaikan';
-          statusColor = const Color(0xFFE68A00);
+          statusColor = AppColors.statusWarning;
           statusIcon = Icons.warning_amber_rounded;
         }
 
@@ -950,7 +950,7 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
               child: _buildStatItem(
                 value: '$totalReports',
                 label: 'Laporan Saya',
-                color: const Color(0xFF2B82C4),
+                color: AppColors.statusInfo,
               ),
             ),
             const SizedBox(width: 8),
@@ -960,7 +960,7 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
               child: _buildStatItem(
                 value: '$inProgressCount',
                 label: 'Sedang diproses',
-                color: const Color(0xFFE68A00),
+                color: AppColors.statusWarning,
               ),
             ),
             const SizedBox(width: 8),
@@ -1234,19 +1234,19 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
 
   Widget _buildReportListItemFromModel(ReportModel report) {
     try {
-      Color statusBgColor = const Color(0xFFFFF8E6);
-      Color statusTextColor = const Color(0xFFE68A00);
+      Color statusBgColor = AppColors.surfaceWarning;
+      Color statusTextColor = AppColors.statusWarning;
 
       if (report.status == ReportStatus.resolved ||
           report.status == ReportStatus.completed) {
-        statusBgColor = const Color(0xFFE6F7ED);
+        statusBgColor = AppColors.surfaceSuccess;
         statusTextColor = AppColors.greenPrimary;
       } else if (report.status == ReportStatus.pendingVerification) {
         statusBgColor = const Color(0xFFE6F2FF);
-        statusTextColor = const Color(0xFF2B82C4);
+        statusTextColor = AppColors.statusInfo;
       } else if (report.status == ReportStatus.rejected) {
         statusBgColor = const Color(0xFFFFEFEB);
-        statusTextColor = const Color(0xFFFF3D00);
+        statusTextColor = AppColors.statusDanger;
       }
 
       final dateStr =
@@ -1455,7 +1455,7 @@ class UrbanHealthArcPainter extends CustomPainter {
 
     // 1. Background Arc (Light Grey)
     final bgPaint = Paint()
-      ..color = const Color(0xFFE2E8E4)
+      ..color = AppColors.border
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round;
@@ -1597,7 +1597,7 @@ class CitizenNotifikasiTab extends StatelessWidget {
               message: 'Laporan #LP_2026_002487 sedang dikerjakan oleh petugas.',
               time: '10.46',
               icon: Icons.notifications_active_outlined,
-              iconColor: const Color(0xFF1976D2),
+              iconColor: AppColors.statusInfo,
               bgColor: const Color(0xFFE4F2FF),
               borderColor: const Color(0xFFABD5FF),
               isUnread: true,
@@ -1612,7 +1612,7 @@ class CitizenNotifikasiTab extends StatelessWidget {
               icon: Icons.check_circle_outline_rounded,
               iconColor: AppColors.greenPrimary,
               bgColor: AppColors.white,
-              borderColor: const Color(0xFFE0DFDF),
+              borderColor: AppColors.neutral200,
               isUnread: false,
             ),
             const SizedBox(height: 12),
@@ -1625,7 +1625,7 @@ class CitizenNotifikasiTab extends StatelessWidget {
               icon: Icons.check_circle_outline_rounded,
               iconColor: AppColors.greenPrimary,
               bgColor: AppColors.white,
-              borderColor: const Color(0xFFE0DFDF),
+              borderColor: AppColors.neutral200,
               isUnread: false,
             ),
             const SizedBox(height: 12),
@@ -1636,9 +1636,9 @@ class CitizenNotifikasiTab extends StatelessWidget {
               message: 'Mohon lengkapi informasi pada laporan #LP_2026_002328',
               time: '3 hari lalu',
               icon: Icons.error_outline_rounded,
-              iconColor: const Color(0xFFE68A00),
+              iconColor: AppColors.statusWarning,
               bgColor: AppColors.white,
-              borderColor: const Color(0xFFE0DFDF),
+              borderColor: AppColors.neutral200,
               isUnread: false,
             ),
             const SizedBox(height: 80), // Padding for floating navbar
@@ -1712,7 +1712,7 @@ class CitizenNotifikasiTab extends StatelessWidget {
                       time,
                       style: const TextStyle(
                         fontSize: 10,
-                        color: Color(0xFF565657),
+                        color: AppColors.neutral700,
                       ),
                     ),
                   ],
@@ -1722,7 +1722,7 @@ class CitizenNotifikasiTab extends StatelessWidget {
                   message,
                   style: const TextStyle(
                     fontSize: 11,
-                    color: Color(0xFF565657),
+                    color: AppColors.neutral700,
                     height: 1.3,
                   ),
                 ),
@@ -1841,7 +1841,7 @@ class CitizenProfileTab extends StatelessWidget {
                           emailOrPhone,
                           style: const TextStyle(
                             fontSize: 13,
-                            color: Color(0xFF565657),
+                            color: AppColors.neutral700,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -1968,14 +1968,14 @@ class CitizenProfileTab extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: const Color(0xFFFFEFEB),
                         borderRadius: BorderRadius.circular(15),
-                        border: Border.all(color: const Color(0xFFFF3D00)),
+                        border: Border.all(color: AppColors.statusDanger),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: const [
                           Icon(
                             Icons.logout_rounded,
-                            color: Color(0xFFFF3D00),
+                            color: AppColors.statusDanger,
                             size: 22,
                           ),
                           SizedBox(width: 8),
@@ -1984,7 +1984,7 @@ class CitizenProfileTab extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFFFF3D00),
+                              color: AppColors.statusDanger,
                             ),
                           ),
                         ],
@@ -2013,7 +2013,7 @@ class CitizenProfileTab extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE0DFDF)),
+          border: Border.all(color: AppColors.neutral200),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.04),

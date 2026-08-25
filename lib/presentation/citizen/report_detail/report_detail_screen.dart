@@ -118,6 +118,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       final repository = context.read<ReportRepository>();
       await repository.addComment(reportId, text);
       _commentController.clear();
+      if (!mounted) return;
       FocusScope.of(context).unfocus();
       await _fetchComments();
       if (mounted) {
@@ -366,10 +367,10 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                     ),
                     child: TabBar(
                       controller: _tabController,
-                      indicatorColor: const Color(0xFF1976D2),
+                      indicatorColor: AppColors.statusInfo,
                       indicatorWeight: 3,
-                      labelColor: const Color(0xFF1976D2),
-                      unselectedLabelColor: const Color(0xFF8F8F8F),
+                      labelColor: AppColors.statusInfo,
+                      unselectedLabelColor: AppColors.neutral400,
                       labelStyle: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
@@ -564,7 +565,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE0DFDF)),
+        border: Border.all(color: AppColors.neutral200),
         boxShadow: const [
           BoxShadow(
             color: Color.fromRGBO(0, 0, 0, 0.05),
@@ -603,7 +604,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
           width: 24,
           height: 24,
           decoration: const BoxDecoration(
-            color: Color(0xFF1D9C51),
+            color: AppColors.greenPrimary,
             shape: BoxShape.circle,
           ),
           child: const Icon(Icons.check, size: 16, color: AppColors.white),
@@ -628,7 +629,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE0DFDF)),
+        border: Border.all(color: AppColors.neutral200),
         boxShadow: const [
           BoxShadow(
             color: Color.fromRGBO(0, 0, 0, 0.05),
@@ -655,7 +656,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1D9C51),
+                  color: AppColors.greenPrimary,
                 ),
               ),
             ],
@@ -668,7 +669,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
               minHeight: 6,
               backgroundColor: const Color(0xFFE0E0E0),
               valueColor:
-                  const AlwaysStoppedAnimation<Color>(Color(0xFF1D9C51)),
+                  const AlwaysStoppedAnimation<Color>(AppColors.greenPrimary),
             ),
           ),
         ],
@@ -695,7 +696,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE0DFDF)),
+        border: Border.all(color: AppColors.neutral200),
         boxShadow: const [
           BoxShadow(
             color: Color.fromRGBO(0, 0, 0, 0.05),
@@ -771,16 +772,16 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
             style: ElevatedButton.styleFrom(
               // Abu-abu jika sudah didukung, hijau jika belum
               backgroundColor:
-                  _isSupported ? const Color(0xFFBDBDBD) : const Color(0xFF1D9C51),
+                  _isSupported ? AppColors.neutral300 : AppColors.greenPrimary,
               foregroundColor: AppColors.white,
-              disabledBackgroundColor: const Color(0xFFBDBDBD),
+              disabledBackgroundColor: AppColors.neutral300,
               disabledForegroundColor: AppColors.white,
               minimumSize: const Size.fromHeight(44),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
                 side: BorderSide(
                   color: _isSupported
-                      ? const Color(0xFFBDBDBD)
+                      ? AppColors.neutral300
                       : const Color(0xFFBCFFC2),
                 ),
               ),
@@ -822,7 +823,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
             ),
             child: const Icon(
               Icons.chat_bubble_outline_rounded,
-              color: Color(0xFF1D9C51),
+              color: AppColors.greenPrimary,
               size: 26,
             ),
           ),
@@ -898,7 +899,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       desc: 'Laporan berhasil dibuat oleh masyarakat',
       isDone: isCreated,
       icon: Icons.check,
-      iconBgColor: const Color(0xFF1D9C51),
+      iconBgColor: AppColors.greenPrimary,
       isLast: !isVerified && !isAssigned && !isInProgress && !isCompleted,
     ));
 
@@ -919,7 +920,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
         desc: 'Laporan telah diverifikasi dan sesuai ketentuan.',
         isDone: true,
         icon: Icons.check,
-        iconBgColor: const Color(0xFF1D9C51),
+        iconBgColor: AppColors.greenPrimary,
         isLast: !isAssigned && !isInProgress && !isCompleted,
       ));
     }
@@ -941,7 +942,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
         desc: 'Laporan diteruskan ke $agencyName.',
         isDone: true,
         icon: Icons.shortcut_rounded,
-        iconBgColor: const Color(0xFF1976D2),
+        iconBgColor: AppColors.statusInfo,
         isLast: !isInProgress && !isCompleted,
       ));
     }
@@ -963,7 +964,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
         desc: 'Petugas $agencyName sedang menangani laporan ini.',
         isDone: true,
         icon: Icons.build_rounded,
-        iconBgColor: const Color(0xFF1976D2),
+        iconBgColor: AppColors.statusInfo,
         isLast: !isCompleted,
         customChild: progressPhotoUrl != null
             ? _buildProgressPhotoCard(
@@ -994,7 +995,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
         desc: 'Laporan telah selesai ditangani.',
         isDone: true,
         icon: Icons.check,
-        iconBgColor: const Color(0xFF1D9C51),
+        iconBgColor: AppColors.greenPrimary,
         isLast: true,
       ));
     }
@@ -1017,7 +1018,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE0DFDF)),
+        border: Border.all(color: AppColors.neutral200),
         boxShadow: const [
           BoxShadow(
             color: Color.fromRGBO(0, 0, 0, 0.05),
@@ -1036,7 +1037,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                 photoUrl,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) => Container(
-                  color: const Color(0xFFF0F4F8),
+                  color: AppColors.neutral50,
                   child: const Icon(
                     Icons.image_not_supported_rounded,
                     color: AppColors.greenPrimary,
@@ -1101,7 +1102,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                 Expanded(
                   child: Container(
                     width: 2,
-                    color: const Color(0xFFE0DFDF),
+                    color: AppColors.neutral200,
                   ),
                 ),
             ],
@@ -1191,7 +1192,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
           icon: Icons.flag_outlined,
           label: 'Prioritas',
           value: 'Tinggi',
-          valueColor: const Color(0xFFFF3D00),
+          valueColor: AppColors.statusDanger,
         ),
         _buildDetailCard(
           icon: Icons.warning_amber_rounded,
@@ -1245,7 +1246,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE0DFDF)),
+        border: Border.all(color: AppColors.neutral200),
         boxShadow: const [
           BoxShadow(
             color: Color.fromRGBO(0, 0, 0, 0.05),
@@ -1356,7 +1357,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
           decoration: BoxDecoration(
             color: AppColors.white,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFFE0DFDF)),
+            border: Border.all(color: AppColors.neutral200),
             boxShadow: const [
               BoxShadow(
                 color: Color.fromRGBO(0, 0, 0, 0.05),
@@ -1385,13 +1386,13 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                       height: 20,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Color(0xFF1D9C51),
+                        color: AppColors.greenPrimary,
                       ),
                     )
                   : IconButton(
                       icon: const Icon(
                         Icons.send_rounded,
-                        color: Color(0xFF1D9C51),
+                        color: AppColors.greenPrimary,
                       ),
                       onPressed: _sendComment,
                     ),
@@ -1415,7 +1416,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE0DFDF)),
+        border: Border.all(color: AppColors.neutral200),
         boxShadow: const [
           BoxShadow(
             color: Color.fromRGBO(0, 0, 0, 0.05),
@@ -1474,7 +1475,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                     const Icon(
                       Icons.thumb_up_alt_rounded,
                       size: 16,
-                      color: Color(0xFF1976D2),
+                      color: AppColors.statusInfo,
                     ),
                     const SizedBox(width: 4),
                     Text(
@@ -1482,7 +1483,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                       style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1976D2),
+                        color: AppColors.statusInfo,
                       ),
                     ),
                     const SizedBox(width: 26),
@@ -1490,7 +1491,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                       'Balas',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Color(0xFF8F8F8F),
+                        color: AppColors.neutral400,
                         fontWeight: FontWeight.w500,
                       ),
                     ),

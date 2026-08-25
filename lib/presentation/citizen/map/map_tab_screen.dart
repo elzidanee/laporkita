@@ -50,17 +50,17 @@ class _CitizenPetaTabState extends State<CitizenPetaTab> {
   Color _statusColor(ReportStatus status) {
     switch (status) {
       case ReportStatus.pendingVerification:
-        return const Color(0xFF2B82C4);  // Biru — menunggu verifikasi
+        return AppColors.statusInfo;  // Biru — menunggu verifikasi
       case ReportStatus.verified:
         return const Color(0xFF26A69A);  // Teal — terverifikasi
       case ReportStatus.rejected:
-        return const Color(0xFFE53935);  // Merah — ditolak
+        return AppColors.statusDanger;  // Merah — ditolak
       case ReportStatus.assigned:
         return const Color(0xFF7B1FA2);  // Ungu — ditugaskan
       case ReportStatus.inProgress:
-        return const Color(0xFFF5A623);  // Oranye — sedang diproses
+        return AppColors.statusPending;  // Oranye — sedang diproses
       case ReportStatus.completed:
-        return const Color(0xFF1D9C51);  // Hijau tua — selesai
+        return AppColors.greenPrimary;  // Hijau tua — selesai
       case ReportStatus.resolved:
         return const Color(0xFF388E3C);  // Hijau gelap — terselesaikan
       case ReportStatus.disputed:
@@ -197,7 +197,7 @@ class _CitizenPetaTabState extends State<CitizenPetaTab> {
                       decoration: BoxDecoration(
                         color: AppColors.white,
                         borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: const Color(0xFFE0DFDF)),
+                        border: Border.all(color: AppColors.neutral200),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withValues(alpha: 0.1),
@@ -267,7 +267,7 @@ class _CitizenPetaTabState extends State<CitizenPetaTab> {
                               side: BorderSide(
                                 color: isSelected
                                     ? AppColors.greenPrimary
-                                    : const Color(0xFFE0DFDF),
+                                    : AppColors.neutral200,
                               ),
                             ),
                             elevation: 2,
@@ -310,12 +310,12 @@ class _CitizenPetaTabState extends State<CitizenPetaTab> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      _buildLegendItem(const Color(0xFF2B82C4), 'Menunggu'),
+                      _buildLegendItem(AppColors.statusInfo, 'Menunggu'),
                       _buildLegendItem(const Color(0xFF26A69A), 'Terverifikasi'),
                       _buildLegendItem(const Color(0xFF7B1FA2), 'Ditugaskan'),
-                      _buildLegendItem(const Color(0xFFF5A623), 'Diproses'),
-                      _buildLegendItem(const Color(0xFF1D9C51), 'Selesai'),
-                      _buildLegendItem(const Color(0xFFE53935), 'Ditolak'),
+                      _buildLegendItem(AppColors.statusPending, 'Diproses'),
+                      _buildLegendItem(AppColors.greenPrimary, 'Selesai'),
+                      _buildLegendItem(AppColors.statusDanger, 'Ditolak'),
                     ],
                   ),
                 ),
@@ -533,7 +533,7 @@ class _CitizenPetaTabState extends State<CitizenPetaTab> {
           decoration: BoxDecoration(
             color: AppColors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE0DFDF)),
+            border: Border.all(color: AppColors.neutral200),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.04),

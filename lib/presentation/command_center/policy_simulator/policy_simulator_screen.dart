@@ -411,7 +411,7 @@ class _PolicySimulatorScreenState extends State<PolicySimulatorScreen>
 
   Widget _buildErrorCard(String msg) {
     return Card(
-      color: const Color(0xFFFFEBEB),
+      color: AppColors.surfaceDanger,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),

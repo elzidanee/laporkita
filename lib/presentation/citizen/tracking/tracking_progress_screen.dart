@@ -292,7 +292,7 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
                 ),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1976D2),
+                backgroundColor: AppColors.statusInfo,
                 foregroundColor: AppColors.white,
                 minimumSize: const Size.fromHeight(56),
                 shape: RoundedRectangleBorder(
@@ -442,7 +442,7 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
       ReportModel.getCategoryFallbackImage(categoryTitle),
       fit: BoxFit.cover,
       errorBuilder: (context, error, stackTrace) => Container(
-        color: const Color(0xFFF0F4F8),
+        color: AppColors.neutral50,
         child: const Center(
           child: Icon(
             Icons.image_not_supported_rounded,
@@ -508,7 +508,7 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
     if (status == ReportStatus.completed || status == ReportStatus.resolved) {
       statusColor = AppColors.greenPrimary;
     } else if (status == ReportStatus.rejected) {
-      statusColor = const Color(0xFFE53935);
+      statusColor = AppColors.statusDanger;
     } else {
       statusColor = const Color(0xFFF2AE01);
     }
@@ -518,7 +518,7 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE0DFDF)),
+        border: Border.all(color: AppColors.neutral200),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -560,7 +560,7 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE0DFDF)),
+        border: Border.all(color: AppColors.neutral200),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -640,7 +640,7 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE0DFDF)),
+        border: Border.all(color: AppColors.neutral200),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -711,7 +711,7 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE0DFDF)),
+        border: Border.all(color: AppColors.neutral200),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -849,7 +849,7 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
           decoration: BoxDecoration(
             color: AppColors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE0DFDF)),
+            border: Border.all(color: AppColors.neutral200),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.04),
@@ -943,7 +943,7 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF1976D2),
+                color: AppColors.statusInfo,
               ),
             ),
           ),
@@ -956,7 +956,7 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
     return Container(
       width: 100,
       height: 70,
-      color: const Color(0xFFF0F4F8),
+      color: AppColors.neutral50,
       child: const Icon(
         Icons.image_not_supported_rounded,
         color: AppColors.greenPrimary,
