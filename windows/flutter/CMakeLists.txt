@@ -82,6 +82,7 @@ target_include_directories(flutter_wrapper_app PUBLIC
   "${WRAPPER_ROOT}/include"
 )
 add_dependencies(flutter_wrapper_app flutter_assemble)
+add_dependencies(flutter_wrapper_app flutter_wrapper_plugin)
 
 # === Flutter tool backend ===
 # _phony_ is a non-existent file to force this command to run every time,

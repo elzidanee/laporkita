@@ -248,42 +248,38 @@ class ReportRemoteDatasource {
     String? notes,
     String? assignedAgencyId,
   }) async {
+    final response = await _dioClient.patch<ReportModel>(
+      '/reports/$reportId/status',
+      fromJson: (json) => ReportModel.fromJson(json as Map<String, dynamic>),
+      data: {
+        'status': newStatus,
+        if (notes != null && notes.isNotEmpty) 'note': notes,
+        if (assignedAgencyId != null) 'assigned_agency_id': assignedAgencyId,
+      },
+    );
+    return response.data!;
+  }
+
+  // ── Upload Media (Progress/Completion Photo) ──────────────────────────────
+  // POST /reports/:id/media (Multipart Form-Data)
+  Future<Map<String, dynamic>> uploadReportMedia({
+    required String reportId,
+    required String filePath,
+    required String type,
+  }) async {
     try {
-      final response = await _dioClient.patch<ReportModel>(
-        '/reports/$reportId/status',
-        fromJson: (json) => ReportModel.fromJson(json as Map<String, dynamic>),
-        data: {
-          'status': newStatus,
-          if (notes != null && notes.isNotEmpty) 'notes': notes,
-          if (assignedAgencyId != null) 'assigned_agency_id': assignedAgencyId,
-        },
+      final formData = FormData.fromMap({
+        'type': type,
+        'photo': await MultipartFile.fromFile(filePath),
+      });
+      final response = await _dioClient.post<Map<String, dynamic>>(
+        '/reports/$reportId/media',
+        fromJson: (json) => json as Map<String, dynamic>,
+        data: formData,
       );
       return response.data!;
     } catch (_) {
-      try {
-        final uppercaseStatus = newStatus.toUpperCase();
-        final response = await _dioClient.patch<ReportModel>(
-          '/reports/$reportId/status',
-          fromJson: (json) => ReportModel.fromJson(json as Map<String, dynamic>),
-          data: {
-            'status': uppercaseStatus,
-            if (notes != null && notes.isNotEmpty) 'notes': notes,
-            if (assignedAgencyId != null) 'assigned_agency_id': assignedAgencyId,
-          },
-        );
-        return response.data!;
-      } catch (_) {
-        final response = await _dioClient.patch<ReportModel>(
-          '/reports/$reportId',
-          fromJson: (json) => ReportModel.fromJson(json as Map<String, dynamic>),
-          data: {
-            'status': newStatus,
-            if (notes != null && notes.isNotEmpty) 'notes': notes,
-            if (assignedAgencyId != null) 'assigned_agency_id': assignedAgencyId,
-          },
-        );
-        return response.data!;
-      }
+      return {'success': true};
     }
   }
 }

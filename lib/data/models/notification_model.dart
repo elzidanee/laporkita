@@ -34,4 +34,21 @@ class NotificationModel {
           : DateTime.now(),
     );
   }
+
+  String get formattedTime {
+    final now = DateTime.now();
+    final diff = now.difference(createdAt);
+
+    if (diff.inDays == 0 && now.day == createdAt.day) {
+      final h = createdAt.hour.toString().padLeft(2, '0');
+      final m = createdAt.minute.toString().padLeft(2, '0');
+      return '$h.$m';
+    } else if (diff.inDays <= 1) {
+      return 'Kemarin';
+    } else if (diff.inDays < 7) {
+      return '${diff.inDays} hari lalu';
+    } else {
+      return '${createdAt.day}/${createdAt.month}/${createdAt.year}';
+    }
+  }
 }

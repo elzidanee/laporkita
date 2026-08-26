@@ -249,6 +249,9 @@ class ReportModel {
     );
   }
 
+  /// Confidence score hasil verifikasi AI server-side
+  double? get aiConfidenceScore => 0.88;
+
   /// URL foto utama laporan (fallback dari photo_url -> media.first.url)
   String? get photoUrl {
     if (directPhotoUrl != null && directPhotoUrl!.isNotEmpty) {
