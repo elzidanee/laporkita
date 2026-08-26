@@ -73,18 +73,10 @@ class _CitizenNotifikasiTabState extends State<CitizenNotifikasiTab> {
       _loadNotifications();
     } catch (e) {
       if (!mounted) return;
-      // Tetap jalankan notifikasi lokal sebagai simulasi jika backend dalam mode dev
-      await NotificationService().showNotification(
-        id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-        title: '⚠️ Route Alert: Peringatan Area Rute',
-        body: 'Terdapat laporan fasilitas publik rusak di rute Anda (Jl. Sawojajar).',
-      );
-
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Simulasi Route Alert & Push Notification aktif!'),
-          backgroundColor: AppColors.greenPrimary,
+        SnackBar(
+          content: Text('Gagal menghubungkan Route Alert ke server: $e'),
+          backgroundColor: AppColors.statusDanger,
         ),
       );
     } finally {
@@ -105,12 +97,12 @@ class _CitizenNotifikasiTabState extends State<CitizenNotifikasiTab> {
         ),
       );
       _loadNotifications();
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Berhasil memperbarui status notifikasi.'),
-          backgroundColor: AppColors.greenPrimary,
+        SnackBar(
+          content: Text('Gagal memperbarui status notifikasi: $e'),
+          backgroundColor: AppColors.statusDanger,
         ),
       );
     } finally {

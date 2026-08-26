@@ -92,13 +92,13 @@ class _BeriValidasiScreenState extends State<BeriValidasiScreen> {
         '/validation-success',
         arguments: widget.reportData,
       );
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
-      // Tetap ke layar sukses untuk UX warga
-      Navigator.pushReplacementNamed(
-        context,
-        '/validation-success',
-        arguments: widget.reportData,
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal mengirim validasi: ${e.toString()}'),
+          backgroundColor: AppColors.statusDanger,
+        ),
       );
     } finally {
       if (mounted) setState(() => _isSubmitting = false);

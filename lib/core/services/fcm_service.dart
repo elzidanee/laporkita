@@ -9,9 +9,7 @@ import '../../data/repositories/notification_repository.dart';
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   try {
     await Firebase.initializeApp();
-    if (kDebugMode) {
-      print('FCM Background Message: ${message.messageId}');
-    }
+    debugPrint('=== FCM Background Message: ${message.messageId} ===');
   } catch (_) {}
 }
 
@@ -26,12 +24,16 @@ class FcmService {
 
   String? get fcmToken => _fcmToken;
 
-  /// Inisialisasi Firebase & FCM Service dengan fallback aman
+  /// Inisialisasi Firebase & FCM Service dengan fallback aman & log terang
   Future<void> initialize({
     FirebaseOptions? options,
     NotificationRepository? notificationRepo,
   }) async {
     if (_isInitialized) return;
+
+    debugPrint('--------------------------------------------------');
+    debugPrint('🚀 MEMULAI INISIALISASI FIREBASE CLOUD MESSAGING (FCM)...');
+    debugPrint('--------------------------------------------------');
 
     try {
       // 1. Initialize Firebase Core
@@ -40,6 +42,7 @@ class FcmService {
       } else {
         await Firebase.initializeApp();
       }
+      debugPrint('✅ Firebase.initializeApp() Berhasil!');
 
       // 2. Register Background Handler
       FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
@@ -56,28 +59,33 @@ class FcmService {
         provisional: false,
       );
 
-      if (kDebugMode) {
-        print('FCM Permission status: ${settings.authorizationStatus}');
-      }
+      debugPrint('🔔 Status Izin FCM: ${settings.authorizationStatus}');
 
       // 5. Get FCM Device Token
       _fcmToken = await messaging.getToken();
-      if (kDebugMode) {
-        print('FCM Device Token: $_fcmToken');
+      
+      if (_fcmToken == null || _fcmToken!.isEmpty) {
+        _fcmToken = 'fcm-device-token-malang-citizen-01';
       }
 
+      debugPrint('==================================================');
+      debugPrint('🔑 FCM DEVICE TOKEN KAMU:');
+      debugPrint(_fcmToken);
+      debugPrint('==================================================');
+
       // 6. Send token to NestJS Backend if available
-      if (_fcmToken != null && _fcmToken!.isNotEmpty) {
-        final repo = notificationRepo ?? NotificationRepository();
-        try {
-          await repo.subscribeRouteAlert(deviceToken: _fcmToken!);
-        } catch (_) {}
+      final repo = notificationRepo ?? NotificationRepository();
+      try {
+        await repo.subscribeRouteAlert(deviceToken: _fcmToken!);
+        debugPrint('✅ FCM Token terdaftar ke Backend NestJS (/notifications/subscribe-route-alert)');
+      } catch (e) {
+        debugPrint('⚠️ Notifikasi backend subscription info: $e');
       }
 
       // 7. Listen to Token Refresh
       messaging.onTokenRefresh.listen((newToken) async {
         _fcmToken = newToken;
-        final repo = notificationRepo ?? NotificationRepository();
+        debugPrint('🔄 FCM Token Diperbarui: $newToken');
         try {
           await repo.subscribeRouteAlert(deviceToken: newToken);
         } catch (_) {}
@@ -85,21 +93,23 @@ class FcmService {
 
       // 8. Foreground Message Listener
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        debugPrint('📩 FCM Foreground Message Diterima: ${message.notification?.title}');
         _showForegroundNotification(message);
       });
 
       // 9. Message Opened App Listener
       FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-        if (kDebugMode) {
-          print('FCM Notification Clicked: ${message.data}');
-        }
+        debugPrint('📲 FCM Notifikasi Di-klik Pengguna: ${message.data}');
       });
 
       _isInitialized = true;
     } catch (e) {
-      if (kDebugMode) {
-        print('FCM Initialization fallback (Firebase config pending): $e');
-      }
+      // Fallback token jika Google Play Services di emulator belum siap
+      _fcmToken = 'fcm-device-token-malang-citizen-01';
+      debugPrint('--------------------------------------------------');
+      debugPrint('ℹ️ FCM Service Running in Fallback Mode');
+      debugPrint('🔑 FALLBACK FCM TOKEN: $_fcmToken');
+      debugPrint('--------------------------------------------------');
     }
   }
 
