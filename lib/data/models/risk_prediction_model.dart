@@ -110,23 +110,36 @@ class ZoneMetricsModel {
   });
 
   factory ZoneMetricsModel.fromJson(Map<String, dynamic> json) {
-    final weather = json['weather_context'] as Map<String, dynamic>? ?? {};
+    final metric = json['latest_metric'] as Map<String, dynamic>? ?? json;
+    final weather = metric['weather_context'] as Map<String, dynamic>? ??
+        json['weather_context'] as Map<String, dynamic>? ??
+        {};
     return ZoneMetricsModel(
       id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? json['zone_name'] as String? ?? 'Zona',
       code: json['code'] as String?,
-      reportDensity: (json['report_density'] as num?)?.toInt() ??
+      reportDensity: (metric['report_density'] as num?)?.toInt() ??
+          (metric['active_reports'] as num?)?.toInt() ??
+          (json['report_density'] as num?)?.toInt() ??
           (json['active_reports'] as num?)?.toInt() ??
           0,
-      trafficDensity: (json['traffic_density'] as num?)?.toDouble() ?? 0.0,
+      trafficDensity: (metric['traffic_density'] as num?)?.toDouble() ??
+          (json['traffic_density'] as num?)?.toDouble() ??
+          0.0,
       floodRiskProbability:
-          (json['flood_risk_probability'] as num?)?.toDouble() ?? 0.0,
-      stressLevel: json['stress_level'] as String? ?? 'low',
+          (metric['flood_risk_probability'] as num?)?.toDouble() ??
+              (json['flood_risk_probability'] as num?)?.toDouble() ??
+              0.0,
+      stressLevel: json['stress_level'] as String? ??
+          metric['stress_level'] as String? ??
+          'low',
       weatherCondition: weather['condition'] as String? ?? 'Berawan',
       rainfallMm: (weather['rainfall_mm'] as num?)?.toDouble() ?? 0.0,
       updatedAt: json['updated_at'] != null
           ? DateTime.tryParse(json['updated_at'].toString())
-          : null,
+          : (metric['recorded_at'] != null
+              ? DateTime.tryParse(metric['recorded_at'].toString())
+              : null),
     );
   }
 

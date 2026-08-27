@@ -1,52 +1,22 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/report_model.dart';
-import '../../../data/repositories/report_repository.dart';
 
-enum ValidationOption {
-  sudahSesuai,
-  belumSesuai,
-  tidakSesuai;
-
-  String get title {
-    switch (this) {
-      case ValidationOption.sudahSesuai:
-        return 'Sudah sesuai';
-      case ValidationOption.belumSesuai:
-        return 'Belum sesuai';
-      case ValidationOption.tidakSesuai:
-        return 'Tidak sesuai';
-    }
-  }
-
-  String get description {
-    switch (this) {
-      case ValidationOption.sudahSesuai:
-        return 'Perbaikan sudah sesuai kriteria';
-      case ValidationOption.belumSesuai:
-        return 'masih ada perbaikan yang belum sesuai';
-      case ValidationOption.tidakSesuai:
-        return 'Perbaikan tidak sesuai dengan kriteria';
-    }
-  }
-}
-
-/// Layar Pemberian Validasi Status Perbaikan — Presisi Sesuai Figma (Node 234:1214)
-class BeriValidasiScreen extends StatefulWidget {
+/// Layar Pemilihan Pengambilan Foto Validasi — Presisi Sesuai Figma (Node 230:849)
+class ValidasiLaporanScreen extends StatefulWidget {
   final Map<String, dynamic>? reportData;
 
-  const BeriValidasiScreen({super.key, this.reportData});
+  const ValidasiLaporanScreen({super.key, this.reportData});
 
   @override
-  State<BeriValidasiScreen> createState() => _BeriValidasiScreenState();
+  State<ValidasiLaporanScreen> createState() => _ValidasiLaporanScreenState();
 }
 
-class _BeriValidasiScreenState extends State<BeriValidasiScreen> {
-  ValidationOption _selectedOption = ValidationOption.sudahSesuai;
-  late TextEditingController _notesController;
-  bool _isSubmitting = false;
+class _ValidasiLaporanScreenState extends State<ValidasiLaporanScreen> {
+  final ImagePicker _picker = ImagePicker();
+  bool _isPicking = false;
 
   ReportModel? get _reportModel =>
       widget.reportData?['reportModel'] as ReportModel?;
@@ -77,55 +47,64 @@ class _BeriValidasiScreenState extends State<BeriValidasiScreen> {
       _reportModel?.photoUrl ??
       widget.reportData?['photoUrl'] as String?;
 
-  String? get _capturedPhotoPath =>
-      widget.reportData?['capturedPhotoPath'] as String? ??
+  String? get _imagePath =>
       widget.reportData?['imagePath'] as String? ??
       _reportModel?.directPhotoUrl;
 
-  @override
-  void initState() {
-    super.initState();
-    _notesController = TextEditingController();
-  }
-
-  @override
-  void dispose() {
-    _notesController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _handleSubmit() async {
-    if (_isSubmitting) return;
-    setState(() => _isSubmitting = true);
-
-    final reportId = widget.reportData?['reportId'] as String? ??
-        widget.reportData?['id'] as String? ??
-        _reportModel?.id ??
-        '';
+  Future<void> _handlePickFromGallery() async {
+    if (_isPicking) return;
+    setState(() => _isPicking = true);
 
     try {
-      if (reportId.isNotEmpty) {
-        final repository = context.read<ReportRepository>();
-        await repository.validateReport(reportId);
-      }
+      final XFile? pickedFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+      );
 
-      if (!mounted) return;
-      Navigator.pushReplacementNamed(
-        context,
-        '/validation-success',
-        arguments: widget.reportData,
-      );
+      if (pickedFile != null && mounted) {
+        final forwardData = Map<String, dynamic>.from(widget.reportData ?? {});
+        forwardData['imagePath'] = pickedFile.path;
+        forwardData['capturedPhotoPath'] = pickedFile.path;
+        forwardData['reportCode'] = _reportCode;
+        forwardData['title'] = _title;
+        forwardData['address'] = _address;
+        forwardData['supports'] = _supportCount;
+        forwardData['photoUrl'] = _photoUrl;
+
+        Navigator.pushNamed(
+          context,
+          '/beri-validasi',
+          arguments: forwardData,
+        );
+      }
     } catch (e) {
-      if (!mounted) return;
-      // Jika offline / mock fallback, tetap arahkan ke sukses dengan banner info
-      Navigator.pushReplacementNamed(
-        context,
-        '/validation-success',
-        arguments: widget.reportData,
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal memilih foto dari galeri: $e'),
+            backgroundColor: AppColors.statusDanger,
+          ),
+        );
+      }
     } finally {
-      if (mounted) setState(() => _isSubmitting = false);
+      if (mounted) setState(() => _isPicking = false);
     }
+  }
+
+  void _handleOpenCamera() {
+    final forwardData = Map<String, dynamic>.from(widget.reportData ?? {});
+    forwardData['reportCode'] = _reportCode;
+    forwardData['title'] = _title;
+    forwardData['address'] = _address;
+    forwardData['supports'] = _supportCount;
+    forwardData['photoUrl'] = _photoUrl;
+    forwardData['imagePath'] = _imagePath;
+
+    Navigator.pushNamed(
+      context,
+      '/camera-validasi',
+      arguments: forwardData,
+    );
   }
 
   @override
@@ -175,7 +154,7 @@ class _BeriValidasiScreenState extends State<BeriValidasiScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. Informasi Laporan Section (Figma node 234:1263)
+            // 1. Header: Informasi Laporan (Figma node 230:1038)
             const Text(
               'Informasi Laporan',
               style: TextStyle(
@@ -186,13 +165,13 @@ class _BeriValidasiScreenState extends State<BeriValidasiScreen> {
             ),
             const SizedBox(height: 12),
 
-            // 2. Report Card with Latest Photo (Figma node 234:1220)
+            // 2. Report Information Card (Figma node 230:986)
             _buildReportInfoCard(),
             const SizedBox(height: 24),
 
-            // 3. Section: Berikan Validasi (Figma node 234:1265)
+            // 3. Section Title & Subtitle (Figma node 230:1041)
             const Text(
-              'Berikan Validasi',
+              'Ambil foto kondisi terbaru',
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
@@ -201,24 +180,37 @@ class _BeriValidasiScreenState extends State<BeriValidasiScreen> {
             ),
             const SizedBox(height: 4),
             const Text(
-              'Apakah perbaikan sudah sesuai dengan kondisi dilapangan',
+              'Foto ini akan digunakan untuk validasi perbaikan.',
               style: TextStyle(
                 fontSize: 12,
                 color: AppColors.neutral500,
               ),
             ),
+            const SizedBox(height: 20),
+
+            // 4. Option 1: Green Dashed Camera Card (Figma node 230:1047)
+            Center(
+              child: _buildDashedCameraCard(),
+            ),
+            const SizedBox(height: 22),
+
+            // 5. Divider Text "Atau masuk dengan" (Figma node 230:1068)
+            const Center(
+              child: Text(
+                'Atau masuk dengan',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF8F8F8F),
+                ),
+              ),
+            ),
             const SizedBox(height: 16),
 
-            // 4. 3 Validation Option Cards (Figma node 234:1350)
-            _buildOptionCardsRow(),
-            const SizedBox(height: 24),
-
-            // 5. Catatan Section (Figma node 234:1351)
-            _buildNotesSection(),
-            const SizedBox(height: 36),
-
-            // 6. Action Button: Lanjut (Figma node 234:1283)
-            _buildSubmitButton(),
+            // 6. Option 2: Gallery Button Card (Figma node 230:1069)
+            Center(
+              child: _buildGalleryButtonCard(),
+            ),
             const SizedBox(height: 24),
           ],
         ),
@@ -226,23 +218,23 @@ class _BeriValidasiScreenState extends State<BeriValidasiScreen> {
     );
   }
 
-  // ── Report Info Card (Figma node 234:1220) ────────────────────────────────
+  // ── Report Information Card with Camera Metadata Overlay (Figma node 230:986) ──
   Widget _buildReportInfoCard() {
     bool isLocalValid = false;
-    if (_capturedPhotoPath != null &&
-        _capturedPhotoPath!.isNotEmpty &&
-        !_capturedPhotoPath!.startsWith('http')) {
+    if (_imagePath != null &&
+        _imagePath!.isNotEmpty &&
+        !_imagePath!.startsWith('http')) {
       try {
-        isLocalValid = File(_capturedPhotoPath!).existsSync();
+        isLocalValid = File(_imagePath!).existsSync();
       } catch (_) {
         isLocalValid = false;
       }
     }
 
     Widget imgWidget;
-    if (isLocalValid && _capturedPhotoPath != null) {
+    if (isLocalValid && _imagePath != null) {
       imgWidget = Image.file(
-        File(_capturedPhotoPath!),
+        File(_imagePath!),
         fit: BoxFit.cover,
       );
     } else if (_photoUrl != null && _photoUrl!.isNotEmpty) {
@@ -291,7 +283,7 @@ class _BeriValidasiScreenState extends State<BeriValidasiScreen> {
       ),
       child: Row(
         children: [
-          // Left Thumbnail with Camera Metadata Stamp
+          // Left: Image Thumbnail (164.5px x 112px)
           Container(
             width: 154,
             height: 112,
@@ -305,6 +297,7 @@ class _BeriValidasiScreenState extends State<BeriValidasiScreen> {
                 fit: StackFit.expand,
                 children: [
                   imgWidget,
+                  // Camera stamp overlay
                   Positioned(
                     left: 4,
                     bottom: 4,
@@ -373,7 +366,7 @@ class _BeriValidasiScreenState extends State<BeriValidasiScreen> {
           ),
           const SizedBox(width: 12),
 
-          // Right Info Text
+          // Right: Content Column
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -426,120 +419,46 @@ class _BeriValidasiScreenState extends State<BeriValidasiScreen> {
     );
   }
 
-  // ── 3 Option Cards Row (Figma node 234:1350) ──────────────────────────────
-  Widget _buildOptionCardsRow() {
-    return Row(
-      children: [
-        // 1. Sudah Sesuai (Figma node 234:1301)
-        Expanded(
-          child: _buildChoiceCard(
-            option: ValidationOption.sudahSesuai,
-            icon: Icons.check_circle_outline_rounded,
-            iconColor: AppColors.greenPrimary,
-            selectedBgColor: const Color(0xFFD2FFD6),
-            selectedBorderColor: AppColors.greenPrimary,
-            textColor: AppColors.greenPrimary,
-          ),
-        ),
-        const SizedBox(width: 10),
-
-        // 2. Belum Sesuai (Figma node 234:1325)
-        Expanded(
-          child: _buildChoiceCard(
-            option: ValidationOption.belumSesuai,
-            icon: Icons.warning_amber_rounded,
-            iconColor: const Color(0xFFF2AE01),
-            selectedBgColor: const Color(0xFFFFF9E9),
-            selectedBorderColor: const Color(0xFFF2AE01),
-            textColor: const Color(0xFFF2AE01),
-          ),
-        ),
-        const SizedBox(width: 10),
-
-        // 3. Tidak Sesuai (Figma node 234:1342)
-        Expanded(
-          child: _buildChoiceCard(
-            option: ValidationOption.tidakSesuai,
-            icon: Icons.error_outline_rounded,
-            iconColor: const Color(0xFFFF3D00),
-            selectedBgColor: const Color(0xFFFFE9E9),
-            selectedBorderColor: const Color(0xFFFF3D00),
-            textColor: const Color(0xFFFF3D00),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildChoiceCard({
-    required ValidationOption option,
-    required IconData icon,
-    required Color iconColor,
-    required Color selectedBgColor,
-    required Color selectedBorderColor,
-    required Color textColor,
-  }) {
-    final isSelected = _selectedOption == option;
-
+  // ── Option 1: Green Dashed Camera Card (Figma node 230:1047) ───────────────
+  Widget _buildDashedCameraCard() {
     return GestureDetector(
-      onTap: () {
-        setState(() => _selectedOption = option);
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        height: 152,
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 14),
+      onTap: _handleOpenCamera,
+      child: Container(
+        width: 308,
+        height: 167,
         decoration: BoxDecoration(
-          color: isSelected ? selectedBgColor : AppColors.white,
-          borderRadius: BorderRadius.circular(13.5),
+          color: const Color(0xFFD2FFD6),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? selectedBorderColor : const Color(0xFFE0DFDF),
-            width: isSelected ? 2.5 : 1,
+            color: AppColors.greenPrimary,
+            width: 1.8,
+            style: BorderStyle.solid,
           ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: selectedBorderColor.withValues(alpha: 0.18),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : const [
-                  BoxShadow(
-                    color: Color.fromRGBO(0, 0, 0, 0.03),
-                    blurRadius: 4,
-                  ),
-                ],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [
+          children: const [
             Icon(
-              icon,
-              size: 32,
-              color: iconColor,
+              Icons.camera_alt_rounded,
+              size: 52,
+              color: AppColors.greenPrimary,
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 8),
             Text(
-              option.title,
+              'Ambil Foto',
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 15,
                 fontWeight: FontWeight.bold,
-                color: isSelected ? textColor : AppColors.neutral900,
+                color: AppColors.greenPrimary,
               ),
-              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: 2),
             Text(
-              option.description,
-              style: const TextStyle(
-                fontSize: 9,
+              'Gunakan camera',
+              style: TextStyle(
+                fontSize: 12,
                 color: Color(0xFF515151),
-                height: 1.25,
               ),
-              textAlign: TextAlign.center,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
@@ -547,106 +466,47 @@ class _BeriValidasiScreenState extends State<BeriValidasiScreen> {
     );
   }
 
-  // ── Catatan Section (Figma node 234:1351) ──────────────────────────────────
-  Widget _buildNotesSection() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE0DFDF)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color.fromRGBO(0, 0, 0, 0.05),
-            blurRadius: 5,
-            offset: Offset(0, 0),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: const [
-              Text(
-                'Catatan',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.neutral900,
-                ),
-              ),
-              SizedBox(width: 6),
-              Text(
-                '(opsional)',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Color(0xFF8F8F8F),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _notesController,
-            maxLength: 200,
-            maxLines: 3,
-            onChanged: (_) => setState(() {}),
-            style: const TextStyle(fontSize: 12, color: AppColors.neutral900),
-            decoration: InputDecoration(
-              hintText: 'Tambahkan catatan laporan.....',
-              hintStyle: const TextStyle(
-                fontSize: 11,
-                color: Color(0xFF8F8F8F),
-              ),
-              counterText: '${_notesController.text.length}/200',
-              counterStyle: const TextStyle(
-                fontSize: 10,
-                color: Color(0xFFBBBBBB),
-              ),
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.zero,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Submit Button: Lanjut (Figma node 234:1283) ────────────────────────────
-  Widget _buildSubmitButton() {
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: ElevatedButton(
-        onPressed: _isSubmitting ? null : _handleSubmit,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.greenPrimary,
-          foregroundColor: AppColors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-            side: const BorderSide(color: Color(0xFFB9D19E)),
-          ),
+  // ── Option 2: Gallery Button Card (Figma node 230:1069) ────────────────────
+  Widget _buildGalleryButtonCard() {
+    return GestureDetector(
+      onTap: _isPicking ? null : _handlePickFromGallery,
+      child: Container(
+        width: 309,
+        height: 55,
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFF515151), width: 1),
         ),
-        child: _isSubmitting
-            ? const SizedBox(
-                width: 24,
-                height: 24,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (_isPicking)
+              const SizedBox(
+                width: 20,
+                height: 20,
                 child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  color: Colors.white,
+                  strokeWidth: 2,
+                  color: AppColors.greenPrimary,
                 ),
               )
-            : const Text(
-                'Lanjut',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
+            else
+              const Icon(
+                Icons.photo_library_outlined,
+                size: 28,
+                color: Color(0xFF515151),
               ),
+            const SizedBox(width: 14),
+            const Text(
+              'Pilih dari Galeri',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF515151),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

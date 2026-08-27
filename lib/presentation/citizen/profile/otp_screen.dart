@@ -104,11 +104,6 @@ class _OtpScreenState extends State<OtpScreen> {
     return BlocConsumer<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthAuthenticated) {
-          AppAlert.success(
-            context,
-            title: 'Verifikasi Berhasil',
-            message: 'Akun Anda berhasil diverifikasi! Selamat datang.',
-          );
           if (state.user.role.isCommandCenter || role == 'CommandCenter') {
             Navigator.pushNamedAndRemoveUntil(
               context,

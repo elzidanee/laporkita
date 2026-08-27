@@ -52,8 +52,14 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     super.dispose();
   }
 
+  String? get _resolvedReportId =>
+      widget.reportData?['id'] as String? ??
+      widget.reportData?['reportId'] as String? ??
+      _report?.id ??
+      (widget.reportData?['reportModel'] as ReportModel?)?.id;
+
   Future<void> _fetchLatestReportDetail() async {
-    final String? reportId = widget.reportData?['id'] as String?;
+    final String? reportId = _resolvedReportId;
     if (reportId == null || reportId.isEmpty) return;
 
     setState(() => _isLoading = true);
@@ -76,7 +82,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
   }
 
   Future<void> _fetchComments() async {
-    final String? reportId = widget.reportData?['id'] as String?;
+    final String? reportId = _resolvedReportId;
     if (reportId == null || reportId.isEmpty) return;
 
     setState(() => _isLoadingComments = true);
@@ -101,7 +107,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     final text = _commentController.text.trim();
     if (text.isEmpty) return;
 
-    final String? reportId = widget.reportData?['id'] as String?;
+    final String? reportId = _resolvedReportId;
     if (reportId == null || reportId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -734,9 +740,9 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     );
   }
 
-  // ── Action Buttons Row (Figma node 65:649) ────────────────────────────────
+  // ── Action Buttons Row (Figma node 65:649 & 230:559) ─────────────────────
   Widget _buildActionButtonsRow(int currentSupports) {
-    final reportId = _report?.id ?? widget.reportData?['id'] as String?;
+    final reportId = _resolvedReportId;
 
     return Row(
       children: [
@@ -756,7 +762,6 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                         final repo = context.read<ReportRepository>();
                         await repo.supportReport(reportId);
                       } catch (_) {
-                        // Jika gagal, kembalikan state lokal
                         if (mounted) {
                           setState(() {
                             _isSupported = false;
@@ -777,8 +782,9 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                   },
             style: ElevatedButton.styleFrom(
               // Abu-abu jika sudah didukung, hijau jika belum
-              backgroundColor:
-                  _isSupported ? AppColors.neutral300 : AppColors.greenPrimary,
+              backgroundColor: _isSupported
+                  ? AppColors.neutral300
+                  : AppColors.greenPrimary,
               foregroundColor: AppColors.white,
               disabledBackgroundColor: AppColors.neutral300,
               disabledForegroundColor: AppColors.white,
@@ -817,7 +823,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
         const SizedBox(width: 20),
         GestureDetector(
           onTap: () {
-            _tabController.animateTo(2);
+            _tabController.animateTo(2); // Pindah ke tab Komentar
           },
           child: Container(
             width: 63,
@@ -839,7 +845,8 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
   }
 
   // ===========================================================================
-  // TAB 1 CONTENT: TIMELINE TAB (Exact Figma node 62:576)
+  // ===========================================================================
+  // TAB 1 CONTENT: TIMELINE TAB (Exact Figma node 62:576 & 230:559)
   // ===========================================================================
   Widget _buildTimelineTab({
     ReportModel? report,
@@ -863,7 +870,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
         status == ReportStatus.completed || status == ReportStatus.resolved;
 
     final agencyName =
-        report?.assignedAgency?['name'] as String? ?? 'Dinas PUPR';
+        report?.assignedAgency?['name'] as String? ?? 'Dinas PUPR Malang';
 
     // Ambil foto progres dari media backend (type: progress_photo)
     final progressPhotos = report?.media
@@ -873,7 +880,6 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     final latestProgressPhoto =
         progressPhotos.isNotEmpty ? progressPhotos.last : null;
 
-    // Format tanggal untuk foto progres
     String progressPhotoDateStr = dateStr;
     String progressPhotoTimeStr = timeStr;
     if (latestProgressPhoto != null) {
@@ -884,21 +890,50 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
           '${d.hour.toString().padLeft(2, '0')}.${d.minute.toString().padLeft(2, '0')} WIB';
     }
 
-    // Resolving foto progres URL
     String? progressPhotoUrl;
     if (latestProgressPhoto != null) {
       final raw = latestProgressPhoto.url;
       if (raw.startsWith('http://') || raw.startsWith('https://')) {
         progressPhotoUrl = raw;
       } else {
-        progressPhotoUrl = report?.formattedPhotoUrl;
+        progressPhotoUrl = report?.formattedPhotoUrl ?? raw;
+      }
+    }
+
+    // Ambil foto validasi / penyelesaian (type: validation_photo atau completion_photo)
+    final validationPhotos = report?.media
+            .where((m) =>
+                m.type == 'validation_photo' ||
+                m.type == 'completion_photo')
+            .toList() ??
+        [];
+    final latestValidationPhoto =
+        validationPhotos.isNotEmpty ? validationPhotos.last : null;
+
+    String validationPhotoDateStr = dateStr;
+    String validationPhotoTimeStr = timeStr;
+    if (latestValidationPhoto != null) {
+      final d = latestValidationPhoto.createdAt;
+      validationPhotoDateStr =
+          '${d.day} ${_monthName(d.month)} ${d.year}';
+      validationPhotoTimeStr =
+          '${d.hour.toString().padLeft(2, '0')}.${d.minute.toString().padLeft(2, '0')} WIB';
+    }
+
+    String? validationPhotoUrl;
+    if (latestValidationPhoto != null) {
+      final raw = latestValidationPhoto.url;
+      if (raw.startsWith('http://') || raw.startsWith('https://')) {
+        validationPhotoUrl = raw;
+      } else {
+        validationPhotoUrl = report?.formattedPhotoUrl ?? raw;
       }
     }
 
     // Kumpulkan item timeline yang sudah terjadi
     final timelineItems = <Widget>[];
 
-    // 1. Laporan dibuat — selalu tampil
+    // 1. Laporan dibuat — selalu tampil (Figma node 230:597)
     timelineItems.add(_buildTimelineItem(
       title: 'Laporan dibuat',
       time: '$dateStr | $timeStr',
@@ -909,7 +944,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       isLast: !isVerified && !isAssigned && !isInProgress && !isCompleted,
     ));
 
-    // 2. Diverifikasi — hanya jika sudah verified
+    // 2. Diverifikasi Admin — hanya jika sudah verified (Figma node 230:631)
     if (isVerified) {
       final verifiedAt = report?.statusHistory
           .where((h) => h.targetStatus == ReportStatus.verified)
@@ -931,7 +966,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       ));
     }
 
-    // 3. Diteruskan — hanya jika sudah assigned
+    // 3. Diteruskan ke Dinas — hanya jika sudah assigned (Figma node 230:647)
     if (isAssigned) {
       final assignedAt = report?.statusHistory
           .where((h) => h.targetStatus == ReportStatus.assigned)
@@ -953,7 +988,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       ));
     }
 
-    // 4. Sedang Diproses — hanya jika in_progress atau lebih
+    // 4. Sedang Diproses — hanya jika in_progress atau lebih (Figma node 230:659)
     if (isInProgress) {
       final inProgressAt = report?.statusHistory
           .where((h) => h.targetStatus == ReportStatus.inProgress)
@@ -975,6 +1010,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
         customChild: progressPhotoUrl != null
             ? _buildProgressPhotoCard(
                 photoUrl: progressPhotoUrl,
+                title: 'Foto Progres',
                 dateStr: progressPhotoDateStr,
                 timeStr: progressPhotoTimeStr,
               )
@@ -982,7 +1018,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       ));
     }
 
-    // 5. Selesai — hanya jika sudah completed/resolved
+    // 5. Selesai — jika sudah completed/resolved (Figma node 230:620)
     if (isCompleted) {
       final completedAt = report?.statusHistory
           .where((h) =>
@@ -992,18 +1028,38 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       final completedTime = completedAt?.isNotEmpty == true
           ? () {
               final d = completedAt!.first.createdAt;
-              return '${d.day} ${_monthName(d.month)} ${d.year}';
+              return '${d.day} ${_monthName(d.month)} ${d.year} | ${d.hour.toString().padLeft(2, '0')}.${d.minute.toString().padLeft(2, '0')}';
             }()
           : dateStr;
+
+      final bool hasValidated = latestValidationPhoto != null ||
+          (report?.statusHistory.any(
+                  (h) => h.note?.toLowerCase().contains('pelapor') == true) ??
+              false);
+
       timelineItems.add(_buildTimelineItem(
         title: 'Selesai',
         time: completedTime,
-        desc: 'Laporan telah selesai ditangani.',
+        desc: hasValidated
+            ? 'Laporan telah tervalidasi dan selesai ditangani.'
+            : 'Menunggu konfirmasi validasi pelapor',
         isDone: true,
         icon: Icons.check,
         iconBgColor: AppColors.greenPrimary,
         isLast: true,
+        customChild: validationPhotoUrl != null
+            ? _buildProgressPhotoCard(
+                photoUrl: validationPhotoUrl,
+                title: 'Foto Validasi',
+                dateStr: validationPhotoDateStr,
+                timeStr: validationPhotoTimeStr,
+              )
+            : null,
       ));
+
+      // Card Validasi Perbaikan di bawah Timeline (Figma node 230:766)
+      timelineItems.add(const SizedBox(height: 12));
+      timelineItems.add(_buildValidationPromptCard(report));
     }
 
     return ListView(
@@ -1013,11 +1069,143 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     );
   }
 
+  // ── Card Validasi Perbaikan (Figma node 230:766) ──────────────────────────
+  Widget _buildValidationPromptCard(ReportModel? report) {
+    final reportId = _resolvedReportId;
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 8, bottom: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFD2FFD6),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.greenPrimary,
+          width: 1.8,
+          style: BorderStyle.solid,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Validasi Perbaikan',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: AppColors.neutral900,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Apakah perbaikan sudah sesuai dengan kondisi dilapangan?',
+            style: TextStyle(
+              fontSize: 12,
+              color: AppColors.neutral900,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.pushNamed(
+                  context,
+                  '/validasi-laporan',
+                  arguments: {
+                    'id': reportId,
+                    'reportId': reportId,
+                    'reportCode': report?.reportCode ??
+                        widget.reportData?['reportCode'] ??
+                        '#LP-2026-002267',
+                    'title': report?.categoryName ??
+                        widget.reportData?['title'] ??
+                        'Kursi Tidak Layak',
+                    'address': report?.addressText ??
+                        widget.reportData?['address'] ??
+                        'Jl. simpang ibrahim',
+                    'fullAddress': report?.addressText ??
+                        widget.reportData?['fullAddress'] ??
+                        'Jl. simpang ibrahim',
+                    'date': widget.reportData?['date'] ?? '31 Maret 2026',
+                    'supports': report?.supportCount ?? _supportCount,
+                    'photoUrl': report?.formattedPhotoUrl ??
+                        report?.photoUrl ??
+                        widget.reportData?['photoUrl'],
+                    'imagePath': widget.reportData?['imagePath'] ??
+                        report?.directPhotoUrl,
+                    'reportModel': report,
+                  },
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.greenPrimary,
+                foregroundColor: AppColors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  side: const BorderSide(color: Color(0xFFB9D19E)),
+                ),
+              ),
+              child: const Text(
+                'Lakukan Validasi sekarang',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Foto Progres / Foto Validasi Media Card ───────────────────────────────
   Widget _buildProgressPhotoCard({
     required String photoUrl,
+    String title = 'Foto Progres',
     required String dateStr,
     required String timeStr,
   }) {
+    bool isLocalValid = false;
+    if (!photoUrl.startsWith('http')) {
+      try {
+        isLocalValid = File(photoUrl).existsSync();
+      } catch (_) {
+        isLocalValid = false;
+      }
+    }
+
+    Widget img;
+    if (isLocalValid) {
+      img = Image.file(File(photoUrl), fit: BoxFit.cover);
+    } else if (photoUrl.startsWith('http')) {
+      img = Image.network(
+        photoUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Container(
+          color: AppColors.neutral50,
+          child: const Icon(
+            Icons.image_not_supported_rounded,
+            color: AppColors.greenPrimary,
+          ),
+        ),
+      );
+    } else {
+      img = Container(
+        color: AppColors.greenLight,
+        child: const Icon(
+          Icons.image_outlined,
+          color: AppColors.greenPrimary,
+        ),
+      );
+    }
+
     return Container(
       margin: const EdgeInsets.only(top: 10),
       padding: const EdgeInsets.all(7),
@@ -1039,46 +1227,42 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
             child: SizedBox(
               width: 104,
               height: 64,
-              child: Image.network(
-                photoUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  color: AppColors.neutral50,
-                  child: const Icon(
-                    Icons.image_not_supported_rounded,
-                    color: AppColors.greenPrimary,
-                  ),
-                ),
-              ),
+              child: img,
             ),
           ),
           const SizedBox(width: 13),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Foto Progres',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.neutral900,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.neutral900,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                '$dateStr. $timeStr',
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppColors.neutral500,
+                const SizedBox(height: 2),
+                Text(
+                  '$dateStr | $timeStr',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.neutral500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
+  // ── Timeline Milestone Item (Overflow-Safe) ──────────────────────────────
   Widget _buildTimelineItem({
     required String title,
     required String time,
@@ -1121,26 +1305,31 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        title,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: isDone
-                              ? AppColors.neutral900
-                              : AppColors.neutral500,
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: isDone
+                                ? AppColors.neutral900
+                                : AppColors.neutral500,
+                          ),
                         ),
                       ),
-                      if (time.isNotEmpty)
+                      if (time.isNotEmpty) ...[
+                        const SizedBox(width: 8),
                         Text(
                           time,
                           style: const TextStyle(
-                            fontSize: 13,
+                            fontSize: 12,
                             color: AppColors.neutral500,
                           ),
+                          textAlign: TextAlign.right,
                         ),
+                      ],
                     ],
                   ),
                   if (desc.isNotEmpty) ...[

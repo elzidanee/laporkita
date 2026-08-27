@@ -47,11 +47,6 @@ class _LoginScreenState extends State<LoginScreen> {
     return BlocConsumer<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthAuthenticated) {
-          AppAlert.success(
-            context,
-            title: 'Berhasil Masuk',
-            message: 'Selamat datang kembali, ${state.user.fullName}!',
-          );
           if (state.user.role.isCommandCenter || argsRole == 'CommandCenter') {
             Navigator.pushNamedAndRemoveUntil(
                 context, '/command-center', (route) => false);

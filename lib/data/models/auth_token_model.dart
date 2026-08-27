@@ -21,11 +21,18 @@ class AuthTokenModel {
 
   factory AuthTokenModel.fromJson(Map<String, dynamic> json) {
     return AuthTokenModel(
-      accessToken: json['access_token'] as String,
-      refreshToken: json['refresh_token'] as String,
-      expiresIn: json['expires_in'] as String? ?? '15m',
-      tokenType: json['token_type'] as String? ?? 'Bearer',
-      user: UserModel.fromJson(json['user'] as Map<String, dynamic>),
+      accessToken: json['access_token']?.toString() ?? '',
+      refreshToken: json['refresh_token']?.toString() ?? '',
+      expiresIn: json['expires_in']?.toString() ?? '15m',
+      tokenType: json['token_type']?.toString() ?? 'Bearer',
+      user: json['user'] is Map<String, dynamic>
+          ? UserModel.fromJson(json['user'] as Map<String, dynamic>)
+          : UserModel(
+              id: json['user_id']?.toString() ?? '',
+              fullName: json['full_name']?.toString() ?? 'Warga',
+              role: UserRole.citizen,
+              contributionPoints: 0,
+            ),
     );
   }
 

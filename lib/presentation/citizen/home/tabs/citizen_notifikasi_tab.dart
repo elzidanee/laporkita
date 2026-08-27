@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -43,30 +44,34 @@ class _CitizenNotifikasiTabState extends State<CitizenNotifikasiTab> {
   /// Menengarkan notifikasi FCM real-time secara live saat aplikasi terbuka
   void _listenRealtimeFcm() {
     try {
-      _fcmSubscription = FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-        if (!mounted) return;
-        final notif = message.notification;
-        if (notif != null) {
-          final newModel = NotificationModel(
-            id: message.messageId ?? DateTime.now().millisecondsSinceEpoch.toString(),
-            userId: 'me',
-            title: notif.title ?? 'Notifikasi Baru',
-            message: notif.body ?? '',
-            isRead: false,
-            createdAt: DateTime.now(),
-          );
+      if (Firebase.apps.isNotEmpty) {
+        _fcmSubscription =
+            FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+          if (!mounted) return;
+          final notif = message.notification;
+          if (notif != null) {
+            final newModel = NotificationModel(
+              id: message.messageId ??
+                  DateTime.now().millisecondsSinceEpoch.toString(),
+              userId: 'me',
+              title: notif.title ?? 'Notifikasi Baru',
+              message: notif.body ?? '',
+              isRead: false,
+              createdAt: DateTime.now(),
+            );
 
-          setState(() {
-            _notifications.insert(0, newModel);
-          });
+            setState(() {
+              _notifications.insert(0, newModel);
+            });
 
-          NotificationService().showNotification(
-            id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-            title: notif.title ?? 'LaporKita Update',
-            body: notif.body ?? '',
-          );
-        }
-      });
+            NotificationService().showNotification(
+              id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+              title: notif.title ?? 'LaporKita Update',
+              body: notif.body ?? '',
+            );
+          }
+        });
+      }
     } catch (_) {}
   }
 
@@ -141,29 +146,41 @@ class _CitizenNotifikasiTabState extends State<CitizenNotifikasiTab> {
   }
 
   Future<void> _handleMarkSingleRead(NotificationModel item) async {
-    if (item.isRead) return;
-    try {
-      final repository = context.read<NotificationRepository>();
-      await repository.markAsRead(item.id);
-    } catch (_) {}
+    if (!item.isRead) {
+      try {
+        final repository = context.read<NotificationRepository>();
+        await repository.markAsRead(item.id);
+      } catch (_) {}
 
-    if (!mounted) return;
-    setState(() {
-      final idx = _notifications.indexWhere((n) => n.id == item.id);
-      if (idx != -1) {
-        final old = _notifications[idx];
-        _notifications[idx] = NotificationModel(
-          id: old.id,
-          userId: old.userId,
-          title: old.title,
-          message: old.message,
-          isRead: true,
-          type: old.type,
-          data: old.data,
-          createdAt: old.createdAt,
-        );
+      if (mounted) {
+        setState(() {
+          final idx = _notifications.indexWhere((n) => n.id == item.id);
+          if (idx != -1) {
+            final old = _notifications[idx];
+            _notifications[idx] = NotificationModel(
+              id: old.id,
+              userId: old.userId,
+              title: old.title,
+              message: old.message,
+              isRead: true,
+              type: old.type,
+              data: old.data,
+              createdAt: old.createdAt,
+            );
+          }
+        });
       }
-    });
+    }
+
+    final reportId = item.data?['report_id'] as String? ??
+        item.data?['id'] as String?;
+    if (reportId != null && reportId.isNotEmpty && mounted) {
+      Navigator.pushNamed(
+        context,
+        '/tracking-progress',
+        arguments: {'reportId': reportId, 'id': reportId},
+      );
+    }
   }
 
   Future<void> _handleMarkAllRead() async {

@@ -88,6 +88,17 @@ class ReportMediaModel {
           DateTime.now(),
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'report_id': reportId,
+      'type': type,
+      'url': url,
+      if (uploadedBy != null) 'uploaded_by': uploadedBy,
+      'created_at': createdAt.toIso8601String(),
+    };
+  }
 }
 
 class ReportStatusHistoryModel {
@@ -123,6 +134,18 @@ class ReportStatusHistoryModel {
           DateTime.now(),
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'report_id': reportId,
+      'target_status': targetStatus.apiValue,
+      if (note != null) 'note': note,
+      if (actorId != null) 'actor_id': actorId,
+      if (actorName != null) 'changer': {'full_name': actorName},
+      'created_at': createdAt.toIso8601String(),
+    };
+  }
 }
 
 class ReportModel {
@@ -142,6 +165,10 @@ class ReportModel {
   final bool needsManualReview;
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  final double? rawAiConfidenceScore;
+  final double? damageSeverity;
+  final DateTime? estimatedCompletionAt;
 
   // Relations
   final Map<String, dynamic>? category;
@@ -168,6 +195,9 @@ class ReportModel {
     required this.needsManualReview,
     required this.createdAt,
     required this.updatedAt,
+    this.rawAiConfidenceScore,
+    this.damageSeverity,
+    this.estimatedCompletionAt,
     this.category,
     this.reporter,
     this.assignedAgency,
@@ -228,6 +258,15 @@ class ReportModel {
           DateTime.now(),
       updatedAt: DateTime.tryParse(json['updated_at']?.toString() ?? '') ??
           DateTime.now(),
+      rawAiConfidenceScore: json['ai_confidence_score'] != null
+          ? double.tryParse(json['ai_confidence_score'].toString())
+          : null,
+      damageSeverity: json['damage_severity'] != null
+          ? double.tryParse(json['damage_severity'].toString())
+          : null,
+      estimatedCompletionAt: json['estimated_completion_at'] != null
+          ? DateTime.tryParse(json['estimated_completion_at'].toString())
+          : null,
       category: json['category'] is Map<String, dynamic>
           ? json['category'] as Map<String, dynamic>
           : null,
@@ -249,8 +288,39 @@ class ReportModel {
     );
   }
 
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'report_code': reportCode,
+      'reporter_id': reporterId,
+      'category_id': categoryId,
+      'status': status.apiValue,
+      'latitude': latitude,
+      'longitude': longitude,
+      'address_text': addressText,
+      'description': description,
+      if (directPhotoUrl != null) 'photo_url': directPhotoUrl,
+      'support_count': supportCount,
+      'view_count': viewCount,
+      if (urgencyScore != null) 'urgency_score': urgencyScore,
+      'needs_manual_review': needsManualReview,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
+      if (rawAiConfidenceScore != null) 'ai_confidence_score': rawAiConfidenceScore,
+      if (damageSeverity != null) 'damage_severity': damageSeverity,
+      if (estimatedCompletionAt != null)
+        'estimated_completion_at': estimatedCompletionAt!.toIso8601String(),
+      if (category != null) 'category': category,
+      if (reporter != null) 'reporter': reporter,
+      if (assignedAgency != null) 'assigned_agency': assignedAgency,
+      'media': media.map((m) => m.toJson()).toList(),
+      'status_history': statusHistory.map((h) => h.toJson()).toList(),
+      if (count != null) '_count': count,
+    };
+  }
+
   /// Confidence score hasil verifikasi AI server-side
-  double? get aiConfidenceScore => 0.88;
+  double? get aiConfidenceScore => rawAiConfidenceScore ?? 0.88;
 
   /// URL foto utama laporan (fallback dari photo_url -> media.first.url)
   String? get photoUrl {

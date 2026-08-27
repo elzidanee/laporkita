@@ -35,6 +35,19 @@ class NotificationModel {
     );
   }
 
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'user_id': userId,
+      'title': title,
+      'message': message,
+      'is_read': isRead,
+      if (type != null) 'type': type,
+      if (data != null) 'data': data,
+      'created_at': createdAt.toIso8601String(),
+    };
+  }
+
   String get formattedTime {
     final now = DateTime.now();
     final diff = now.difference(createdAt);

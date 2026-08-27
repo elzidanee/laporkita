@@ -734,7 +734,7 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
             reportList = repo.localSubmittedReports;
           }
 
-          final authState = context.watch<AuthBloc>().state;
+          final authState = context.read<AuthBloc>().state;
           List<ReportModel> myReports = [];
 
           if (authState is AuthAuthenticated) {

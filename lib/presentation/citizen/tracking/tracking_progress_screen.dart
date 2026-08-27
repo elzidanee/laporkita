@@ -290,42 +290,90 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
           // Bottom Action Button
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-            child: ElevatedButton.icon(
-              onPressed: () {
-                final Map<String, dynamic> detailArgs = report != null
-                    ? {
-                        'id': report.id,
-                        'reportCode': report.reportCode,
-                        'reportModel': report,
-                        'imagePath': imagePath,
-                      }
-                    : Map<String, dynamic>.from(widget.reportData ?? {});
-                if (imagePath != null && imagePath.isNotEmpty) {
-                  detailArgs['imagePath'] = imagePath;
-                }
-                Navigator.pushNamed(
-                  context,
-                  '/report-detail',
-                  arguments: detailArgs,
-                );
-              },
-              icon: const Icon(Icons.remove_red_eye_rounded, size: 22),
-              label: const Text(
-                'Lihat Detail Progress',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+            child: Column(
+              children: [
+                if (status == ReportStatus.completed ||
+                    status == ReportStatus.resolved) ...[
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      final Map<String, dynamic> valArgs = report != null
+                          ? {
+                              'id': report.id,
+                              'reportCode': report.reportCode,
+                              'title': report.categoryName,
+                              'address': report.addressText ?? 'Malang',
+                              'fullAddress':
+                                  report.addressText ?? 'Kota Malang',
+                              'supports': report.supportCount,
+                              'photoUrl': report.formattedPhotoUrl,
+                              'imagePath': imagePath,
+                              'reportModel': report,
+                            }
+                          : Map<String, dynamic>.from(widget.reportData ?? {});
+                      Navigator.pushNamed(
+                        context,
+                        '/validasi-laporan',
+                        arguments: valArgs,
+                      );
+                    },
+                    icon: const Icon(Icons.verified_rounded, size: 22),
+                    label: const Text(
+                      'Validasi Perbaikan',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.greenPrimary,
+                      foregroundColor: AppColors.white,
+                      minimumSize: const Size.fromHeight(56),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      elevation: 0,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                ElevatedButton.icon(
+                  onPressed: () {
+                    final Map<String, dynamic> detailArgs = report != null
+                        ? {
+                            'id': report.id,
+                            'reportCode': report.reportCode,
+                            'reportModel': report,
+                            'imagePath': imagePath,
+                          }
+                        : Map<String, dynamic>.from(widget.reportData ?? {});
+                    if (imagePath != null && imagePath.isNotEmpty) {
+                      detailArgs['imagePath'] = imagePath;
+                    }
+                    Navigator.pushNamed(
+                      context,
+                      '/report-detail',
+                      arguments: detailArgs,
+                    );
+                  },
+                  icon: const Icon(Icons.remove_red_eye_rounded, size: 22),
+                  label: const Text(
+                    'Lihat Detail Progress',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.statusInfo,
+                    foregroundColor: AppColors.white,
+                    minimumSize: const Size.fromHeight(56),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 0,
+                  ),
                 ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.statusInfo,
-                foregroundColor: AppColors.white,
-                minimumSize: const Size.fromHeight(56),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                elevation: 0,
-              ),
+              ],
             ),
           ),
         ],

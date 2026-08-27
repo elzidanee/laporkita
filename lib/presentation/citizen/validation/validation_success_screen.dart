@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 
+/// Layar Berhasil Kirim Validasi — Presisi Sesuai Figma (Node 234:1368)
 class ValidationSuccessScreen extends StatelessWidget {
   final Map<String, dynamic>? reportData;
 
@@ -10,102 +11,126 @@ class ValidationSuccessScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.white,
-      appBar: AppBar(
-        backgroundColor: AppColors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: AppColors.neutral900,
-            size: 20,
-          ),
-          onPressed: () {
-            Navigator.pushNamedAndRemoveUntil(
-              context,
-              '/citizen',
-              (route) => false,
-            );
-          },
-        ),
-      ),
       body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: AppColors.greenPrimary.withValues(alpha: 0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: Column(
+            children: [
+              // 1. Back button in top-left
+              Align(
+                alignment: Alignment.centerLeft,
+                child: IconButton(
+                  icon: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    color: AppColors.neutral900,
+                    size: 20,
+                  ),
+                  onPressed: () {
+                    Navigator.pushNamedAndRemoveUntil(
+                      context,
+                      '/citizen',
+                      (route) => false,
+                    );
+                  },
+                ),
+              ),
+
+              const Spacer(),
+
+              // 2. Center Content: Success Icon (126px) + Title + Subtitle
+              Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Large Success Icon (Figma node 234:1440)
+                    Container(
+                      width: 126,
+                      height: 126,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFD2FFD6),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.greenPrimary.withValues(alpha: 0.2),
+                            blurRadius: 20,
+                            spreadRadius: 4,
+                          ),
+                        ],
+                      ),
+                      child: const Center(
+                        child: Icon(
                           Icons.check_circle_rounded,
-                          size: 100,
                           color: AppColors.greenPrimary,
+                          size: 96,
                         ),
                       ),
-                      const SizedBox(height: 32),
-                      const Text(
-                        'Terimakasih!',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.neutral900,
-                          letterSpacing: 0.5,
-                        ),
+                    ),
+                    const SizedBox(height: 36),
+
+                    // Title: Terimakasih! (Figma node 234:1380)
+                    const Text(
+                      'Terimakasih!',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.neutral900,
+                        letterSpacing: 0.46,
                       ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Validasi perbaikan Anda telah berhasil terkirim ke sistem LaporKita. Terima kasih telah berpartisipasi menjaga fasilitas publik Kota Malang.',
-                        textAlign: TextAlign.center,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Description Subtitle (Figma node 234:1381)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        'Validasi Anda telah berhasil dikirim dan tersimpan di sistem LaporKita untuk memastikan kualitas fasilitas publik di Kota Malang.',
                         style: TextStyle(
                           fontSize: 14,
-                          color: AppColors.neutral700,
-                          height: 1.4,
+                          color: Color(0xFF515151),
+                          height: 1.45,
                         ),
+                        textAlign: TextAlign.center,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-            ),
 
-            // Bottom Action Button: Kembali ke Beranda (Figma Node 234:1374)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-              child: OutlinedButton(
-                onPressed: () {
-                  Navigator.pushNamedAndRemoveUntil(
-                    context,
-                    '/citizen',
-                    (route) => false,
-                  );
-                },
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.neutral900,
-                  side: const BorderSide(color: AppColors.neutral500),
-                  minimumSize: const Size.fromHeight(54),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+              const Spacer(),
+
+              // 3. Bottom Button: Kembali ke Beranda (Figma node 234:1374)
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: OutlinedButton(
+                  onPressed: () {
+                    Navigator.pushNamedAndRemoveUntil(
+                      context,
+                      '/citizen',
+                      (route) => false,
+                    );
+                  },
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Color(0xFF565657), width: 1.2),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    foregroundColor: AppColors.neutral900,
                   ),
-                ),
-                child: const Text(
-                  'Kembali ke Beranda',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                  child: const Text(
+                    'Kembali ke Beranda',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.neutral900,
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 16),
+            ],
+          ),
         ),
       ),
     );

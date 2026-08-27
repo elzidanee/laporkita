@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:laporkita/core/network/api_response.dart';
 import 'package:laporkita/data/datasources/remote/notification_remote_datasource.dart';
 import 'package:laporkita/data/models/notification_model.dart';
@@ -5,10 +8,49 @@ import 'package:laporkita/data/models/report_model.dart';
 
 class NotificationRepository {
   final NotificationRemoteDatasource _datasource;
+  final FlutterSecureStorage _storage;
   static final List<NotificationModel> _inMemoryNotifications = [];
+  bool _isStorageLoaded = false;
 
-  NotificationRepository({NotificationRemoteDatasource? datasource})
-      : _datasource = datasource ?? NotificationRemoteDatasource();
+  static const String _kPersistedNotificationsKey = 'laporkita_notifications_list';
+
+  NotificationRepository({
+    NotificationRemoteDatasource? datasource,
+    FlutterSecureStorage? storage,
+  })  : _datasource = datasource ?? NotificationRemoteDatasource(),
+        _storage = storage ?? const FlutterSecureStorage();
+
+  Future<void> _ensureStorageLoaded() async {
+    if (_isStorageLoaded) return;
+    try {
+      final notifsJson = await _storage.read(key: _kPersistedNotificationsKey);
+      if (notifsJson != null && notifsJson.isNotEmpty) {
+        final list = jsonDecode(notifsJson) as List<dynamic>;
+        _inMemoryNotifications.clear();
+        for (final item in list) {
+          if (item is Map<String, dynamic>) {
+            _inMemoryNotifications.add(NotificationModel.fromJson(item));
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('⚠️ [NotificationRepository] _ensureStorageLoaded error: $e');
+    } finally {
+      _isStorageLoaded = true;
+    }
+  }
+
+  Future<void> _savePersistedState() async {
+    try {
+      final notifsList = _inMemoryNotifications.map((n) => n.toJson()).toList();
+      await _storage.write(
+        key: _kPersistedNotificationsKey,
+        value: jsonEncode(notifsList),
+      );
+    } catch (e) {
+      debugPrint('⚠️ [NotificationRepository] _savePersistedState error: $e');
+    }
+  }
 
   /// Menambahkan notifikasi otomatis saat ada perubahan status dari Operator
   void addStatusUpdateNotification({
@@ -57,12 +99,15 @@ class NotificationRepository {
     );
 
     _inMemoryNotifications.insert(0, newNotif);
+    _savePersistedState();
   }
 
   Future<ApiResponse<List<NotificationModel>>> getNotifications({
     int limit = 20,
     String? cursor,
   }) async {
+    await _ensureStorageLoaded();
+
     List<NotificationModel> remoteData = [];
     ApiResponse<List<NotificationModel>>? response;
 
@@ -101,6 +146,7 @@ class NotificationRepository {
   }
 
   Future<Map<String, dynamic>> markAsRead(String id) async {
+    await _ensureStorageLoaded();
     final idx = _inMemoryNotifications.indexWhere((n) => n.id == id);
     if (idx != -1) {
       final old = _inMemoryNotifications[idx];
@@ -114,6 +160,7 @@ class NotificationRepository {
         data: old.data,
         createdAt: old.createdAt,
       );
+      _savePersistedState();
     }
     try {
       return await _datasource.markAsRead(id);
@@ -123,6 +170,7 @@ class NotificationRepository {
   }
 
   Future<Map<String, dynamic>> markAllAsRead() async {
+    await _ensureStorageLoaded();
     for (int i = 0; i < _inMemoryNotifications.length; i++) {
       final old = _inMemoryNotifications[i];
       _inMemoryNotifications[i] = NotificationModel(
@@ -136,6 +184,7 @@ class NotificationRepository {
         createdAt: old.createdAt,
       );
     }
+    _savePersistedState();
     try {
       return await _datasource.markAllAsRead();
     } catch (_) {

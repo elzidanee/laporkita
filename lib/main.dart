@@ -21,6 +21,8 @@ import 'presentation/command_center/dashboard/admin_dashboard_screen.dart';
 import 'presentation/command_center/policy_simulator/policy_simulator_screen.dart';
 import 'presentation/citizen/tracking/tracking_progress_screen.dart';
 import 'presentation/citizen/tracking/foto_progress_screen.dart';
+import 'presentation/citizen/validation/validasi_laporan_screen.dart';
+import 'presentation/citizen/validation/camera_validasi_screen.dart';
 import 'presentation/citizen/validation/beri_validasi_screen.dart';
 import 'presentation/citizen/validation/validation_success_screen.dart';
 import 'presentation/auth/bloc/auth_bloc.dart';
@@ -149,6 +151,21 @@ Widget? _resolveScreen(RouteSettings settings) {
         fotoData = settings.arguments as Map<String, dynamic>;
       }
       return FotoProgressScreen(reportData: fotoData);
+    case '/validasi-laporan':
+      Map<String, dynamic>? valLaporanData;
+      if (settings.arguments is Map<String, dynamic>) {
+        valLaporanData = settings.arguments as Map<String, dynamic>;
+      } else if (settings.arguments is ReportModel) {
+        valLaporanData = {'reportModel': settings.arguments};
+      }
+      return ValidasiLaporanScreen(reportData: valLaporanData);
+    case '/camera-validasi':
+      Map<String, dynamic>? camValData;
+      if (settings.arguments is Map<String, dynamic>) {
+        camValData = settings.arguments as Map<String, dynamic>;
+      }
+      return CameraValidasiScreen(reportData: camValData);
+    case '/beri-validasi':
     case '/give-validation':
       Map<String, dynamic>? valData;
       if (settings.arguments is Map<String, dynamic>) {

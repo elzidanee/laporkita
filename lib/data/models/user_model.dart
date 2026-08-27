@@ -50,14 +50,14 @@ class UserModel {
   // STATUS: VERIFIED — field names dari auth.service.ts generateTokens()
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
-      id: json['id'] as String,
-      fullName: json['full_name'] as String,
-      email: json['email'] as String?,
-      phoneNumber: json['phone_number'] as String?,
-      role: UserRole.fromString(json['role'] as String? ?? 'citizen'),
-      agencyId: json['agency_id'] as String?,
-      contributionPoints: json['contribution_points'] as int? ?? 0,
-      avatarUrl: json['avatar_url'] as String?,
+      id: json['id']?.toString() ?? '',
+      fullName: json['full_name']?.toString() ?? json['name']?.toString() ?? 'Warga',
+      email: json['email']?.toString(),
+      phoneNumber: json['phone_number']?.toString(),
+      role: UserRole.fromString(json['role']?.toString() ?? 'citizen'),
+      agencyId: json['agency_id']?.toString(),
+      contributionPoints: (json['contribution_points'] as num?)?.toInt() ?? 0,
+      avatarUrl: json['avatar_url']?.toString(),
     );
   }
 
