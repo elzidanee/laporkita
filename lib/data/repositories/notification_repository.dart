@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:laporkita/core/network/api_response.dart';
+import 'package:laporkita/core/services/notification_service.dart';
 import 'package:laporkita/data/datasources/remote/notification_remote_datasource.dart';
 import 'package:laporkita/data/models/notification_model.dart';
 import 'package:laporkita/data/models/report_model.dart';
@@ -52,37 +53,47 @@ class NotificationRepository {
     }
   }
 
-  /// Menambahkan notifikasi otomatis saat ada perubahan status dari Operator
-  void addStatusUpdateNotification({
+  /// Menambahkan notifikasi otomatis saat ada perubahan status dan memicu push notification di HP
+  Future<void> addStatusUpdateNotification({
     required String reportCode,
     required ReportStatus newStatus,
     String? note,
-  }) {
+    String? reportId,
+  }) async {
+    await _ensureStorageLoaded();
     String title = 'Pembaruan Status Laporan';
     String message = 'Status laporan #$reportCode telah diperbarui.';
     String type = newStatus.name;
 
     switch (newStatus) {
       case ReportStatus.verified:
-        title = 'Laporan anda diverifikasi';
-        message = 'Laporan #$reportCode telah diverifikasi.';
+        title = 'Laporan Anda Diverifikasi';
+        message = 'Laporan #$reportCode telah diverifikasi oleh petugas.';
         break;
       case ReportStatus.assigned:
+        title = 'Laporan Ditugaskan';
+        message = 'Laporan #$reportCode telah ditugaskan ke tim dinas terkait.';
+        break;
       case ReportStatus.inProgress:
-        title = 'Perbaikan dimulai';
-        message = 'Laporan #$reportCode sedang dikerjakan oleh petugas.';
+        title = 'Perbaikan Dimulai';
+        message = 'Laporan #$reportCode sedang dikerjakan oleh petugas di lokasi.';
         break;
       case ReportStatus.completed:
       case ReportStatus.resolved:
-        title = 'Perbaikan selesai';
-        message = 'Laporan #$reportCode telah selesai diperbaiki';
+        title = 'Perbaikan Selesai';
+        message = 'Laporan #$reportCode telah selesai diperbaiki. Silakan cek dan beri validasi.';
         break;
       case ReportStatus.rejected:
-      case ReportStatus.disputed:
-        title = 'Permintaan informasi tambahan';
+        title = 'Laporan Ditolak / Dibatalkan';
         message = note != null && note.isNotEmpty
             ? 'Catatan petugas pada laporan #$reportCode: $note'
-            : 'Mohon lengkapi informasi pada laporan #$reportCode';
+            : 'Laporan #$reportCode tidak dapat diproses lebih lanjut.';
+        break;
+      case ReportStatus.disputed:
+        title = 'Hasil Perbaikan Belum Sesuai';
+        message = note != null && note.isNotEmpty
+            ? 'Catatan pada laporan #$reportCode: $note'
+            : 'Hasil perbaikan laporan #$reportCode memerlukan peninjauan ulang.';
         break;
       default:
         break;
@@ -95,11 +106,27 @@ class NotificationRepository {
       message: message,
       isRead: false,
       type: type,
+      data: {
+        'report_code': reportCode,
+        if (reportId != null) 'report_id': reportId,
+      },
       createdAt: DateTime.now(),
     );
 
     _inMemoryNotifications.insert(0, newNotif);
-    _savePersistedState();
+    await _savePersistedState();
+
+    // Munculkan notifikasi pop-up di system tray perangkat secara instan
+    try {
+      await NotificationService().showNotification(
+        id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        title: title,
+        body: message,
+        payload: reportCode,
+      );
+    } catch (e) {
+      debugPrint('⚠️ [NotificationRepository] showNotification error: $e');
+    }
   }
 
   Future<ApiResponse<List<NotificationModel>>> getNotifications({

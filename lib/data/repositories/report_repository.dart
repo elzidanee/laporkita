@@ -4,10 +4,12 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../core/network/api_response.dart';
 import '../datasources/remote/report_remote_datasource.dart';
 import '../models/report_model.dart';
+import 'notification_repository.dart';
 
 class ReportRepository {
   final ReportRemoteDatasource _datasource;
   final FlutterSecureStorage _storage;
+  final NotificationRepository _notificationRepository;
   final List<ReportModel> _submittedReports = [];
   final Map<String, Map<String, dynamic>> _statusOverrides = {};
   bool _isStorageLoaded = false;
@@ -18,8 +20,11 @@ class ReportRepository {
   ReportRepository({
     ReportRemoteDatasource? datasource,
     FlutterSecureStorage? storage,
+    NotificationRepository? notificationRepository,
   })  : _datasource = datasource ?? ReportRemoteDatasource(),
-        _storage = storage ?? const FlutterSecureStorage();
+        _storage = storage ?? const FlutterSecureStorage(),
+        _notificationRepository =
+            notificationRepository ?? NotificationRepository();
 
   List<ReportModel> get localSubmittedReports =>
       List.unmodifiable(_submittedReports);

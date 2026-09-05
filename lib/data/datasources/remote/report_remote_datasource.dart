@@ -230,10 +230,10 @@ class ReportRemoteDatasource {
     String? notes,
     String? assignedAgencyId,
   }) async {
-    final payload = {
+    // Backend NestJS DTO strictly requires only status and optional note
+    final payload = <String, dynamic>{
       'status': newStatus,
       if (notes != null && notes.isNotEmpty) 'note': notes,
-      if (assignedAgencyId != null) 'assigned_agency_id': assignedAgencyId,
     };
 
     try {

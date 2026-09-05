@@ -456,9 +456,19 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
                                 final messenger = ScaffoldMessenger.of(modalContext);
 
                                 try {
-                                  // Upload completion photo if status is completed and photo selected
-                                  if (targetStatus == ReportStatus.completed &&
-                                      completionPhotoPath != null) {
+                                  // Upload completion photo if status is completed (Wajib)
+                                  if (targetStatus == ReportStatus.completed) {
+                                    if (completionPhotoPath == null) {
+                                      setModalState(() => isSaving = false);
+                                      messenger.showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                              'Foto bukti penyelesaian wajib dilampirkan sebelum menyelesaikan laporan!'),
+                                          backgroundColor: AppColors.statusDanger,
+                                        ),
+                                      );
+                                      return;
+                                    }
                                     await repo.uploadReportMedia(
                                       reportId: report.id,
                                       filePath: completionPhotoPath!,

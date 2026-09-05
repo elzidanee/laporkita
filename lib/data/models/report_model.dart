@@ -126,9 +126,14 @@ class ReportStatusHistoryModel {
       id: json['id'] as String? ?? '',
       reportId: json['report_id'] as String? ?? '',
       targetStatus: ReportStatus.fromString(
-          json['target_status'] as String? ?? json['to_status'] as String? ?? ''),
+          json['status'] as String? ??
+          json['target_status'] as String? ??
+          json['to_status'] as String? ??
+          ''),
       note: json['note'] as String?,
-      actorId: json['actor_id'] as String? ?? json['changer_id'] as String?,
+      actorId: json['changed_by'] as String? ??
+          json['actor_id'] as String? ??
+          json['changer_id'] as String?,
       actorName: changer?['full_name'] as String?,
       createdAt: DateTime.tryParse(json['created_at'] as String? ?? '') ??
           DateTime.now(),
@@ -241,7 +246,8 @@ class ReportModel {
       longitude: double.tryParse(json['longitude']?.toString() ?? '0') ?? 0.0,
       addressText: json['address_text']?.toString(),
       description: json['description']?.toString(),
-      directPhotoUrl: json['photo_url']?.toString(),
+      directPhotoUrl: json['photo_url']?.toString() ??
+          (mediaList.isNotEmpty ? mediaList.first.url : null),
       supportCount: json['support_count'] is int
           ? json['support_count'] as int
           : (countData?['supports'] is int
@@ -383,7 +389,11 @@ class ReportModel {
     if (directPhotoUrl != null && directPhotoUrl!.isNotEmpty) {
       return directPhotoUrl;
     }
-    if (media.isNotEmpty) return media.first.url;
+    if (media.isNotEmpty) {
+      for (final m in media) {
+        if (m.url.isNotEmpty) return m.url;
+      }
+    }
     return null;
   }
 
@@ -418,7 +428,7 @@ class ReportModel {
     }
     // Domain dummy test suite QA
     if (raw.contains('storage.example.com')) {
-      return getCategoryFallbackImage(categoryName);
+      return null;
     }
     // Sudah absolute URL
     if (raw.startsWith('http://') || raw.startsWith('https://')) {
