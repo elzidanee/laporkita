@@ -1232,7 +1232,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
     }
 
-    if (image != null) {
+    if (image != null && mounted) {
       try {
         final repo = context.read<ReportRepository>();
         await repo.uploadReportMedia(
@@ -1243,6 +1243,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       } catch (_) {}
     }
 
+    if (!mounted) return;
     await _handleUpdateStatus(
       reportId: report.id,
       newStatus: ReportStatus.completed,

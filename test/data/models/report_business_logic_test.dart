@@ -61,5 +61,47 @@ void main() {
       expect(report.status, equals(ReportStatus.disputed));
       expect(report.statusHistory.any((h) => h.note?.contains('belum sesuai') == true), isTrue);
     });
+
+    test('ReportModel.fromJson extracts real photo from media when photo_url is null', () {
+      final json = {
+        'id': 'real-db-1',
+        'report_code': '#LP-2026-000002',
+        'status': 'in_progress',
+        'photo_url': null,
+        'media': [
+          {
+            'id': 'm-1',
+            'report_id': 'real-db-1',
+            'type': 'initial_photo',
+            'url': 'https://yfiuannpkwwutbasxgxb.supabase.co/storage/v1/object/public/laporkita-reports/reports/123.jpg',
+            'created_at': '2026-09-05T08:18:08.807Z',
+          }
+        ],
+      };
+
+      final model = ReportModel.fromJson(json);
+      expect(model.directPhotoUrl, equals('https://yfiuannpkwwutbasxgxb.supabase.co/storage/v1/object/public/laporkita-reports/reports/123.jpg'));
+      expect(model.photoUrl, equals('https://yfiuannpkwwutbasxgxb.supabase.co/storage/v1/object/public/laporkita-reports/reports/123.jpg'));
+    });
+
+    test('ReportStatusHistoryModel.fromJson parses backend status and changed_by fields', () {
+      final json = {
+        'id': 'hist-1',
+        'report_id': 'real-db-1',
+        'status': 'verified',
+        'note': 'Foto & GPS valid',
+        'changed_by': 'admin-uuid-1',
+        'created_at': '2026-09-05T08:18:08.807Z',
+        'changer': {
+          'full_name': 'Admin LaporKita Kota Malang',
+        }
+      };
+
+      final history = ReportStatusHistoryModel.fromJson(json);
+      expect(history.targetStatus, equals(ReportStatus.verified));
+      expect(history.note, equals('Foto & GPS valid'));
+      expect(history.actorId, equals('admin-uuid-1'));
+      expect(history.actorName, equals('Admin LaporKita Kota Malang'));
+    });
   });
 }

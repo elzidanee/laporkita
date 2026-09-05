@@ -756,7 +756,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       return Image.file(
         File(localPath),
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => buildCleanPlaceholder(),
+        errorBuilder: (context, error, stackTrace) => buildCleanPlaceholder(),
       );
     }
 
@@ -765,7 +765,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       return Image.network(
         photoUrl,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => buildCleanPlaceholder(),
+        errorBuilder: (context, error, stackTrace) => buildCleanPlaceholder(),
       );
     }
 
