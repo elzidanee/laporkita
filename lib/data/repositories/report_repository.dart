@@ -593,6 +593,19 @@ class ReportRepository {
     };
 
     await _savePersistedState();
+
+    // Trigger notifikasi otomatis & push banner ke perangkat
+    try {
+      await _notificationRepository.addStatusUpdateNotification(
+        reportCode: finalReport.reportCode,
+        newStatus: newStatusEnum,
+        note: notes,
+        reportId: finalReport.id,
+      );
+    } catch (e) {
+      debugPrint('ℹ️ [ReportRepository] addStatusUpdateNotification notice: $e');
+    }
+
     return finalReport;
   }
 
