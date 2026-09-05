@@ -121,53 +121,25 @@ class ReportRepository {
     final merged = <ReportModel>[];
     final seenIds = <String>{};
 
-    for (final r in _submittedReports) {
+    // 1. Prioritaskan data riil dari backend database
+    for (final r in remoteData) {
       if (!seenIds.contains(r.id)) {
         seenIds.add(r.id);
         merged.add(r);
       }
     }
 
-    for (final r in remoteData) {
-      final idx = merged.indexWhere((item) => item.id == r.id);
-      if (idx != -1) {
-        final localItem = merged[idx];
-        final isLocalNewer = localItem.updatedAt.isAfter(r.updatedAt) ||
-            localItem.updatedAt.isAtSameMomentAs(r.updatedAt);
-        final effectiveStatus = isLocalNewer ? localItem.status : r.status;
-        final updatedMerged = ReportModel(
-          id: r.id,
-          reportCode: r.reportCode,
-          reporterId: r.reporterId,
-          categoryId: r.categoryId,
-          status: effectiveStatus,
-          latitude: r.latitude,
-          longitude: r.longitude,
-          addressText: r.addressText,
-          description: r.description,
-          directPhotoUrl: localItem.directPhotoUrl ?? r.photoUrl,
-          supportCount: r.supportCount,
-          viewCount: r.viewCount,
-          urgencyScore: r.urgencyScore,
-          needsManualReview: r.needsManualReview,
-          createdAt: r.createdAt,
-          updatedAt: isLocalNewer ? localItem.updatedAt : r.updatedAt,
-          category: r.category,
-          reporter: r.reporter,
-          assignedAgency: r.assignedAgency,
-          media: r.media,
-          statusHistory: r.statusHistory,
-          count: r.count,
-        );
-        merged[idx] = updatedMerged;
-        final subIdx = _submittedReports.indexWhere((item) => item.id == r.id);
-        if (subIdx != -1) {
-          _submittedReports[subIdx] = updatedMerged;
-        }
-      } else {
+    // 2. Sertakan laporan lokal yang baru di-submit (bukan mock)
+    for (final r in _submittedReports) {
+      if (!seenIds.contains(r.id) && !r.id.startsWith('mock-')) {
         seenIds.add(r.id);
-        merged.add(r);
+        merged.insert(0, r);
       }
+    }
+
+    // 3. Hanya tampilkan fallback jika benar-benar belum ada data
+    if (merged.isEmpty) {
+      merged.addAll(_getFallbackMockReports());
     }
 
     // Apply persistent status overrides across all loaded reports
