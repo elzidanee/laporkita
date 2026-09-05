@@ -344,7 +344,7 @@ class ReportModel {
       return 'https://images.unsplash.com/photo-1513694203232-719a280e022f?q=80&w=800&auto=format&fit=crop';
     } else {
       // Jalan Berlubang / Umum
-      return 'https://images.unsplash.com/photo-1584463699966-224424368146?q=80&w=800&auto=format&fit=crop';
+      return 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?q=80&w=800&auto=format&fit=crop';
     }
   }
 

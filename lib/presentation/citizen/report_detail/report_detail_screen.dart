@@ -449,30 +449,56 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       }
     }
 
+    Widget buildLocalPlaceholder() {
+      return Container(
+        color: AppColors.neutral100,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.image_outlined,
+                size: 44,
+                color: AppColors.neutral400,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.neutral600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    Widget buildNetworkFallback() {
+      return Image.network(
+        ReportModel.getCategoryFallbackImage(title),
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => buildLocalPlaceholder(),
+      );
+    }
+
     Widget imgWidget;
     if (isLocalValid && localPath != null) {
       imgWidget = Image.file(
         File(localPath),
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => Image.network(
-          ReportModel.getCategoryFallbackImage(title),
-          fit: BoxFit.cover,
-        ),
+        errorBuilder: (context, error, stackTrace) => buildNetworkFallback(),
       );
-    } else if (photoUrl.isNotEmpty) {
+    } else if (photoUrl.isNotEmpty && photoUrl.startsWith('http')) {
       imgWidget = Image.network(
         photoUrl,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => Image.network(
-          ReportModel.getCategoryFallbackImage(title),
-          fit: BoxFit.cover,
-        ),
+        errorBuilder: (context, error, stackTrace) => buildNetworkFallback(),
       );
     } else {
-      imgWidget = Image.network(
-        ReportModel.getCategoryFallbackImage(title),
-        fit: BoxFit.cover,
-      );
+      imgWidget = buildNetworkFallback();
     }
 
     return Container(

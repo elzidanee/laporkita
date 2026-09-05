@@ -1185,20 +1185,35 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
 
   Widget _buildReportImageThumbnail(ReportModel r) {
     final photoUrl = r.formattedPhotoUrl ?? r.photoUrl ?? '';
-    if (photoUrl.isNotEmpty) {
-      return Image.network(
-        photoUrl,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => Image.network(
-          ReportModel.getCategoryFallbackImage(r.categoryName),
-          fit: BoxFit.cover,
+    Widget buildLocalPlaceholder() {
+      return Container(
+        color: AppColors.neutral100,
+        child: const Center(
+          child: Icon(
+            Icons.image_outlined,
+            size: 20,
+            color: AppColors.neutral400,
+          ),
         ),
       );
     }
-    return Image.network(
-      ReportModel.getCategoryFallbackImage(r.categoryName),
-      fit: BoxFit.cover,
-    );
+
+    Widget buildFallback() {
+      return Image.network(
+        ReportModel.getCategoryFallbackImage(r.categoryName),
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => buildLocalPlaceholder(),
+      );
+    }
+
+    if (photoUrl.isNotEmpty && photoUrl.startsWith('http')) {
+      return Image.network(
+        photoUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => buildFallback(),
+      );
+    }
+    return buildFallback();
   }
 
   Widget _buildStatusBadge(ReportStatus status) {
