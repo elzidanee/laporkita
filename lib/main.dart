@@ -25,6 +25,7 @@ import 'presentation/citizen/validation/validasi_laporan_screen.dart';
 import 'presentation/citizen/validation/camera_validasi_screen.dart';
 import 'presentation/citizen/validation/beri_validasi_screen.dart';
 import 'presentation/citizen/validation/validation_success_screen.dart';
+import 'presentation/citizen/navigation/route_picker_screen.dart';
 import 'presentation/auth/bloc/auth_bloc.dart';
 import 'presentation/reports/bloc/report_bloc.dart';
 import 'data/repositories/auth_repository.dart';
@@ -33,6 +34,7 @@ import 'data/repositories/category_repository.dart';
 import 'data/repositories/policy_simulator_repository.dart';
 import 'data/repositories/prediction_repository.dart';
 import 'data/repositories/notification_repository.dart';
+import 'data/repositories/routing_repository.dart';
 import 'data/models/report_model.dart';
 import 'core/services/fcm_service.dart';
 
@@ -55,6 +57,7 @@ class MyApp extends StatelessWidget {
         RepositoryProvider(create: (_) => PolicySimulatorRepository()),
         RepositoryProvider(create: (_) => PredictionRepository()),
         RepositoryProvider(create: (_) => NotificationRepository()),
+        RepositoryProvider(create: (_) => RoutingRepository()),
       ],
       child: MultiBlocProvider(
         providers: [
@@ -178,6 +181,8 @@ Widget? _resolveScreen(RouteSettings settings) {
         valSuccessData = settings.arguments as Map<String, dynamic>;
       }
       return ValidationSuccessScreen(reportData: valSuccessData);
+    case '/route-picker':
+      return const RoutePickerScreen();
     default:
       return null;
   }

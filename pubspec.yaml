@@ -41,6 +41,7 @@ dependencies:
   geocoding: ^5.0.0
   flutter_map: ^8.3.1
   latlong2: ^0.10.1
+  flutter_polyline_points: ^2.1.0
   flutter_svg: ^2.3.0
 
   # Network & API Integration

@@ -321,6 +321,46 @@ class _CitizenPetaTabState extends State<CitizenPetaTab> {
                 ),
               ),
 
+              // 2c. Navigation / Route A->B Floating Action Button (bottom-right)
+              Positioned(
+                right: 16,
+                bottom: MediaQuery.of(context).size.height * 0.38,
+                child: Material(
+                  color: AppColors.greenPrimary,
+                  borderRadius: BorderRadius.circular(28),
+                  elevation: 4,
+                  shadowColor: Colors.black.withValues(alpha: 0.25),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(28),
+                    onTap: () {
+                      Navigator.of(context).pushNamed('/route-picker');
+                    },
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.directions_rounded,
+                            color: AppColors.white,
+                            size: 20,
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'Rute A → B',
+                            style: TextStyle(
+                              color: AppColors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
               // 3. DraggableScrollableSheet for Pull-Up Menu
               DraggableScrollableSheet(
                 controller: _sheetController,

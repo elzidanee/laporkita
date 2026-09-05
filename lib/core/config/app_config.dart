@@ -27,6 +27,12 @@ class AppConfig {
     defaultValue: 'laporkita-a0de63d362f6bb7e9b7fa125a0452196',
   );
 
+  /// URL OSRM Demo Server (Open Source Routing Machine)
+  static const String osrmBaseUrl = String.fromEnvironment(
+    'OSRM_BASE_URL',
+    defaultValue: 'https://router.project-osrm.org',
+  );
+
   // Token storage keys
   static const String accessTokenKey = 'access_token';
   static const String refreshTokenKey = 'refresh_token';
