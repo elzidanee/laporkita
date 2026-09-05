@@ -248,16 +248,27 @@ class ReportRemoteDatasource {
     String? notes,
     String? assignedAgencyId,
   }) async {
-    final response = await _dioClient.patch<ReportModel>(
-      '/reports/$reportId/status',
-      fromJson: (json) => ReportModel.fromJson(json as Map<String, dynamic>),
-      data: {
-        'status': newStatus,
-        if (notes != null && notes.isNotEmpty) 'note': notes,
-        if (assignedAgencyId != null) 'assigned_agency_id': assignedAgencyId,
-      },
-    );
-    return response.data!;
+    final payload = {
+      'status': newStatus,
+      if (notes != null && notes.isNotEmpty) 'note': notes,
+      if (assignedAgencyId != null) 'assigned_agency_id': assignedAgencyId,
+    };
+
+    try {
+      final response = await _dioClient.patch<ReportModel>(
+        '/reports/$reportId/status',
+        fromJson: (json) => ReportModel.fromJson(json as Map<String, dynamic>),
+        data: payload,
+      );
+      return response.data!;
+    } catch (_) {
+      final response = await _dioClient.patch<ReportModel>(
+        '/reports/$reportId',
+        fromJson: (json) => ReportModel.fromJson(json as Map<String, dynamic>),
+        data: payload,
+      );
+      return response.data!;
+    }
   }
 
   // ── Upload Media (Progress/Completion Photo) ──────────────────────────────

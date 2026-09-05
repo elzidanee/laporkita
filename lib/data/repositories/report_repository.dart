@@ -29,25 +29,38 @@ class ReportRepository {
     try {
       final overridesJson = await _storage.read(key: _kPersistedOverridesKey);
       if (overridesJson != null && overridesJson.isNotEmpty) {
-        final decoded = jsonDecode(overridesJson) as Map<String, dynamic>;
+        final dynamic decoded = jsonDecode(overridesJson);
         _statusOverrides.clear();
-        decoded.forEach((key, value) {
-          if (value is Map<String, dynamic>) {
-            _statusOverrides[key] = value;
-          }
-        });
+        if (decoded is Map) {
+          decoded.forEach((key, value) {
+            if (value is Map) {
+              _statusOverrides[key.toString()] =
+                  Map<String, dynamic>.from(value);
+            }
+          });
+        }
       }
 
       final submittedJson = await _storage.read(key: _kPersistedSubmittedKey);
       if (submittedJson != null && submittedJson.isNotEmpty) {
-        final list = jsonDecode(submittedJson) as List<dynamic>;
+        final dynamic list = jsonDecode(submittedJson);
         _submittedReports.clear();
-        for (final item in list) {
-          if (item is Map<String, dynamic>) {
-            _submittedReports.add(ReportModel.fromJson(item));
+        if (list is List) {
+          for (final item in list) {
+            if (item is Map) {
+              try {
+                _submittedReports.add(
+                  ReportModel.fromJson(Map<String, dynamic>.from(item)),
+                );
+              } catch (err) {
+                debugPrint('⚠️ [ReportRepository] item parse error: $err');
+              }
+            }
           }
         }
       }
+      debugPrint(
+          '✅ [ReportRepository] Storage loaded: ${_statusOverrides.length} status overrides, ${_submittedReports.length} submitted reports');
     } catch (e) {
       debugPrint('⚠️ [ReportRepository] _ensureStorageLoaded error: $e');
     } finally {
@@ -66,6 +79,8 @@ class ReportRepository {
         key: _kPersistedSubmittedKey,
         value: jsonEncode(submittedList),
       );
+      debugPrint(
+          '💾 [ReportRepository] Persisted state saved: ${_statusOverrides.length} overrides');
     } catch (e) {
       debugPrint('⚠️ [ReportRepository] _savePersistedState error: $e');
     }
@@ -164,46 +179,45 @@ class ReportRepository {
           final overrideUpdatedAt =
               DateTime.tryParse(overrideUpdatedAtStr ?? '') ?? DateTime.now();
 
-          if (overrideUpdatedAt.isAfter(r.updatedAt) ||
-              overrideUpdatedAt.isAtSameMomentAs(r.updatedAt)) {
-            final currentHistory =
-                List<ReportStatusHistoryModel>.from(r.statusHistory);
-            if (!currentHistory.any((h) => h.targetStatus == overrideStatus)) {
-              currentHistory.add(ReportStatusHistoryModel(
-                id: 'history-${r.id}-${overrideStatus.apiValue}',
-                reportId: r.id,
-                targetStatus: overrideStatus,
-                note: overrideNote,
-                actorName: 'Operator',
-                createdAt: overrideUpdatedAt,
-              ));
-            }
-
-            merged[i] = ReportModel(
-              id: r.id,
-              reportCode: r.reportCode,
-              reporterId: r.reporterId,
-              categoryId: r.categoryId,
-              status: overrideStatus,
-              latitude: r.latitude,
-              longitude: r.longitude,
-              addressText: r.addressText,
-              description: r.description,
-              directPhotoUrl: r.directPhotoUrl,
-              supportCount: r.supportCount,
-              viewCount: r.viewCount,
-              urgencyScore: r.urgencyScore,
-              needsManualReview: r.needsManualReview,
-              createdAt: r.createdAt,
-              updatedAt: overrideUpdatedAt,
-              category: r.category,
-              reporter: r.reporter,
-              assignedAgency: r.assignedAgency,
-              media: r.media,
-              statusHistory: currentHistory,
-              count: r.count,
-            );
+          final currentHistory =
+              List<ReportStatusHistoryModel>.from(r.statusHistory);
+          if (!currentHistory.any((h) => h.targetStatus == overrideStatus)) {
+            currentHistory.add(ReportStatusHistoryModel(
+              id: 'history-${r.id}-${overrideStatus.apiValue}',
+              reportId: r.id,
+              targetStatus: overrideStatus,
+              note: overrideNote,
+              actorName: 'Operator',
+              createdAt: overrideUpdatedAt,
+            ));
           }
+
+          final isPending = overrideStatus == ReportStatus.pendingVerification;
+
+          merged[i] = ReportModel(
+            id: r.id,
+            reportCode: r.reportCode,
+            reporterId: r.reporterId,
+            categoryId: r.categoryId,
+            status: overrideStatus,
+            latitude: r.latitude,
+            longitude: r.longitude,
+            addressText: r.addressText,
+            description: r.description,
+            directPhotoUrl: r.directPhotoUrl,
+            supportCount: r.supportCount,
+            viewCount: r.viewCount,
+            urgencyScore: r.urgencyScore,
+            needsManualReview: isPending ? r.needsManualReview : false,
+            createdAt: r.createdAt,
+            updatedAt: overrideUpdatedAt,
+            category: r.category,
+            reporter: r.reporter,
+            assignedAgency: r.assignedAgency,
+            media: r.media,
+            statusHistory: currentHistory,
+            count: r.count,
+          );
         }
       }
     }
@@ -333,7 +347,9 @@ class ReportRepository {
           supportCount: result.supportCount,
           viewCount: result.viewCount,
           urgencyScore: result.urgencyScore,
-          needsManualReview: result.needsManualReview,
+          needsManualReview: overrideStatus == ReportStatus.pendingVerification
+              ? result.needsManualReview
+              : false,
           createdAt: result.createdAt,
           updatedAt: overrideUpdatedAt,
           category: result.category,
