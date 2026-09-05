@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/route_model.dart';
 import '../../../data/repositories/routing_repository.dart';
 import '../../reports/bloc/report_bloc.dart';
+import 'widgets/location_picker_sheet.dart';
 import 'widgets/navigation_active_bottom_bar.dart';
 import 'widgets/navigation_active_top_banner.dart';
 import 'widgets/navigation_floating_tools.dart';
@@ -20,10 +23,26 @@ enum NavigationScreenMode {
   hazardPassed,
 }
 
-/// Layar Navigasi lengkap yang terhubung ke backend OSRM secara live
-/// dan mengimplementasikan 5 desain Figma (454:2, 471:4186, 462:126, 464:837, 471:1467).
+enum MapPickingTarget {
+  none,
+  origin,
+  destination,
+}
+
+/// Layar Navigasi lengkap dengan kustomisasi Lokasi A dan B (Live OSRM).
 class RoutePickerScreen extends StatefulWidget {
-  const RoutePickerScreen({super.key});
+  final LatLng? initialOrigin;
+  final String? initialOriginName;
+  final LatLng? initialDestination;
+  final String? initialDestinationName;
+
+  const RoutePickerScreen({
+    super.key,
+    this.initialOrigin,
+    this.initialOriginName,
+    this.initialDestination,
+    this.initialDestinationName,
+  });
 
   @override
   State<RoutePickerScreen> createState() => _RoutePickerScreenState();
@@ -33,16 +52,18 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
   final MapController _mapController = MapController();
 
   NavigationScreenMode _currentMode = NavigationScreenMode.routePlanning;
+  MapPickingTarget _mapPickingTarget = MapPickingTarget.none;
   int _selectedRouteIndex = 0;
   bool _isSoundMuted = false;
   bool _isLoadingRoute = false;
+  bool _isLocatingUser = false;
 
-  // Koordinat Asal & Tujuan default di Kota Malang
-  LatLng _origin = const LatLng(-7.9443, 112.6156);
-  LatLng _destination = const LatLng(-7.9827, 112.6304);
+  // Koordinat Asal (Titik A) & Tujuan (Titik B)
+  late LatLng _origin;
+  late LatLng _destination;
 
-  String _originName = 'Lokasi Anda (Jl. Soekarno Hatta)';
-  String _destinationName = 'Alun Alun Malang';
+  late String _originName;
+  late String _destinationName;
 
   List<RouteModel> _routes = [];
   RouteModel? _activeRoute;
@@ -57,10 +78,145 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
   @override
   void initState() {
     super.initState();
+    _origin = widget.initialOrigin ?? const LatLng(-7.9443, 112.6156);
+    _destination = widget.initialDestination ?? const LatLng(-7.9827, 112.6304);
+    _originName = widget.initialOriginName ??
+        (widget.initialOrigin != null ? 'Titik Awal' : 'Mendeteksi lokasi Anda...');
+    _destinationName = widget.initialDestinationName ?? 'Alun Alun Malang';
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ReportBloc>().add(const ReportLoadRequested());
-      _fetchRoutesFromOsrm();
+      if (widget.initialOrigin == null) {
+        _detectDefaultUserLocation();
+      } else {
+        _fetchRoutesFromOsrm();
+      }
     });
+  }
+
+  /// Mendeteksi posisi GPS pengguna sebagai titik awal default saat pertama kali dibuka
+  Future<void> _detectDefaultUserLocation() async {
+    setState(() => _isLocatingUser = true);
+
+    // Muat rute awal terlebih dahulu dengan koordinat default agar layar tidak kosong
+    _fetchRoutesFromOsrm();
+
+    try {
+      LocationPermission perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+
+      if (perm == LocationPermission.denied ||
+          perm == LocationPermission.deniedForever) {
+        if (mounted) {
+          setState(() {
+            _originName = 'Lokasi Anda (Jl. Soekarno Hatta)';
+            _isLocatingUser = false;
+          });
+        }
+        return;
+      }
+
+      final isEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!isEnabled) {
+        if (mounted) {
+          setState(() {
+            _originName = 'Lokasi Anda (Jl. Soekarno Hatta)';
+            _isLocatingUser = false;
+          });
+        }
+        return;
+      }
+
+      // Cek posisi terakhir (last known) untuk update instan jika ada
+      final lastKnown = await Geolocator.getLastKnownPosition();
+      if (lastKnown != null && mounted) {
+        final lastPoint = LatLng(lastKnown.latitude, lastKnown.longitude);
+        setState(() {
+          _origin = lastPoint;
+        });
+        _fetchRoutesFromOsrm();
+      }
+
+      // Ambil posisi akurat real-time
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 6),
+        ),
+      );
+
+      if (!mounted) return;
+
+      final currentPoint = LatLng(pos.latitude, pos.longitude);
+      final placeName = await _reverseGeocode(currentPoint);
+      final displayOrigin = placeName.startsWith('Titik Peta')
+          ? 'Lokasi Anda Saat Ini'
+          : 'Lokasi Anda ($placeName)';
+
+      setState(() {
+        _origin = currentPoint;
+        _originName = displayOrigin;
+        _isLocatingUser = false;
+      });
+
+      _fetchRoutesFromOsrm();
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          if (_originName == 'Mendeteksi lokasi Anda...') {
+            _originName = 'Lokasi Anda (Jl. Soekarno Hatta)';
+          }
+          _isLocatingUser = false;
+        });
+      }
+    }
+  }
+
+  /// Menengahkan kamera dan memperbarui titik awal ke lokasi GPS terkini
+  Future<void> _recenterToCurrentLocation() async {
+    setState(() => _isLocatingUser = true);
+    try {
+      LocationPermission perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 5),
+        ),
+      );
+
+      if (!mounted) return;
+
+      final currentPoint = LatLng(pos.latitude, pos.longitude);
+      final placeName = await _reverseGeocode(currentPoint);
+      final displayOrigin = placeName.startsWith('Titik Peta')
+          ? 'Lokasi Anda Saat Ini'
+          : 'Lokasi Anda ($placeName)';
+
+      setState(() {
+        _origin = currentPoint;
+        _originName = displayOrigin;
+        _isLocatingUser = false;
+      });
+
+      _mapController.move(currentPoint, 15.0);
+      _fetchRoutesFromOsrm();
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLocatingUser = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Tidak dapat memperoleh koordinat GPS terkini'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
   }
 
   /// Memanggil endpoint live backend OSRM untuk mendapatkan rute utama dan alternatif
@@ -89,18 +245,12 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
       });
 
       _fitCameraToRoute();
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
 
-      // Fallback jika demo server OSRM sedang throttling/offline
+      // Fallback jika demo server OSRM sedang offline
       final fallbackRoute = RouteModel(
-        points: [
-          _origin,
-          const LatLng(-7.9520, 112.6180),
-          const LatLng(-7.9620, 112.6230),
-          const LatLng(-7.9720, 112.6270),
-          _destination,
-        ],
+        points: [_origin, _destination],
         distanceMeters: 4600.0,
         durationSeconds: 720.0,
         summary: 'Jl. Soekarno Hatta, Jl. Ahmad Yani',
@@ -130,17 +280,6 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
       });
 
       _fitCameraToRoute();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'OSRM demo server merespons: $e. Menggunakan rute estimasi jalan Malang.',
-            style: const TextStyle(fontSize: 12),
-          ),
-          backgroundColor: AppColors.neutral900,
-          duration: const Duration(seconds: 3),
-        ),
-      );
     }
   }
 
@@ -159,7 +298,7 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
         CameraFit.bounds(
           bounds: bounds,
           padding: const EdgeInsets.only(
-            top: 170,
+            top: 180,
             bottom: 300,
             left: 48,
             right: 48,
@@ -169,14 +308,76 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
     } catch (_) {}
   }
 
-  /// Menangani interaksi tap peta untuk memilih tujuan baru dan kalkulasi ulang rute live
-  void _handleMapTap(LatLng point) {
+  /// Buka dialog kustomisasi lokasi A atau B
+  void _openLocationPicker(bool isOrigin) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return LocationPickerSheet(
+          title: isOrigin ? 'Pilih Titik Asal (A)' : 'Pilih Titik Tujuan (B)',
+          isOrigin: isOrigin,
+          onPlaceSelected: (place) {
+            setState(() {
+              if (isOrigin) {
+                _origin = place.location;
+                _originName = place.name;
+              } else {
+                _destination = place.location;
+                _destinationName = place.name;
+              }
+              _mapPickingTarget = MapPickingTarget.none;
+            });
+            _fetchRoutesFromOsrm();
+          },
+          onPickOnMap: () {
+            setState(() {
+              _mapPickingTarget = isOrigin
+                  ? MapPickingTarget.origin
+                  : MapPickingTarget.destination;
+            });
+          },
+        );
+      },
+    );
+  }
+
+  /// Reverse geocoding koordinat ke nama jalan/tempat
+  Future<String> _reverseGeocode(LatLng point) async {
+    try {
+      final marks = await Geocoding().placemarkFromCoordinates(
+        point.latitude,
+        point.longitude,
+      );
+      if (marks.isNotEmpty) {
+        final p = marks.first;
+        final parts = [p.street, p.subLocality, p.locality]
+            .where((s) => s != null && s.trim().isNotEmpty)
+            .toList();
+        if (parts.isNotEmpty) return parts.first!;
+      }
+    } catch (_) {}
+    return 'Titik Peta (${point.latitude.toStringAsFixed(3)}, ${point.longitude.toStringAsFixed(3)})';
+  }
+
+  /// Menangani interaksi tap peta untuk memilih titik asal/tujuan baru
+  void _handleMapTap(LatLng point) async {
     if (_currentMode != NavigationScreenMode.routePlanning) return;
 
+    final placeName = await _reverseGeocode(point);
+
     setState(() {
-      _destination = point;
-      _destinationName =
-          'Titik Dipilih (${point.latitude.toStringAsFixed(3)}, ${point.longitude.toStringAsFixed(3)})';
+      if (_mapPickingTarget == MapPickingTarget.origin) {
+        _origin = point;
+        _originName = placeName;
+        _mapPickingTarget = MapPickingTarget.none;
+      } else {
+        // Default tap mengubah tujuan (Titik B)
+        _destination = point;
+        _destinationName = placeName;
+        _mapPickingTarget = MapPickingTarget.none;
+      }
     });
 
     _fetchRoutesFromOsrm();
@@ -192,6 +393,7 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
       final tempName = _originName;
       _originName = _destinationName;
       _destinationName = tempName;
+      _mapPickingTarget = MapPickingTarget.none;
     });
     _fetchRoutesFromOsrm();
   }
@@ -239,6 +441,7 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
   void _startNavigation() {
     setState(() {
       _currentMode = NavigationScreenMode.activeNavigation;
+      _mapPickingTarget = MapPickingTarget.none;
     });
     _mapController.move(_origin, 16.5);
   }
@@ -284,7 +487,6 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
       );
     }
 
-    // Puck navigasi aktif dengan panah arah (Figma 462:126)
     return Container(
       width: 44,
       height: 44,
@@ -378,7 +580,7 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
               // Marker Layer: User Puck, Pin Tujuan & Segitiga Bahaya
               MarkerLayer(
                 markers: [
-                  // Posisi User
+                  // Posisi Asal (Titik A)
                   Marker(
                     point: _currentMode == NavigationScreenMode.hazardPassed
                         ? (_activeRoute?.points.length ?? 0) > 3
@@ -390,7 +592,7 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
                     child: _buildUserPuck(),
                   ),
 
-                  // Pin Tujuan Merah (Figma 454:2)
+                  // Pin Tujuan Merah (Titik B)
                   Marker(
                     point: _destination,
                     width: 40,
@@ -403,7 +605,7 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
                     ),
                   ),
 
-                  // Marker Peringatan Bahaya (Figma 462:126 & 464:837)
+                  // Marker Peringatan Bahaya Jalan Rusak
                   ..._hazardPoints.map(
                     (point) => Marker(
                       point: point,
@@ -444,8 +646,13 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
               child: NavigationTopBar(
                 originText: _originName,
                 destinationText: _destinationName,
+                isPickingOrigin: _mapPickingTarget == MapPickingTarget.origin,
+                isPickingDestination:
+                    _mapPickingTarget == MapPickingTarget.destination,
                 onBack: () => Navigator.of(context).maybePop(),
                 onSwap: _swapLocations,
+                onTapOrigin: () => _openLocationPicker(true),
+                onTapDestination: () => _openLocationPicker(false),
               ),
             )
           else if (_currentMode == NavigationScreenMode.activeNavigation)
@@ -493,17 +700,72 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
               ),
             ),
 
+          // 2b. Pill Panduan jika sedang mode "Pilih di Peta"
+          if (_mapPickingTarget != MapPickingTarget.none &&
+              _currentMode == NavigationScreenMode.routePlanning)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 130,
+              left: 20,
+              right: 20,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppColors.neutral900.withValues(alpha: 0.9),
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.2),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      _mapPickingTarget == MapPickingTarget.origin
+                          ? Icons.my_location_rounded
+                          : Icons.location_on_rounded,
+                      color: _mapPickingTarget == MapPickingTarget.origin
+                          ? AppColors.statusInfo
+                          : AppColors.statusDanger,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _mapPickingTarget == MapPickingTarget.origin
+                            ? 'Ketuk peta untuk menentukan Titik Asal (A)'
+                            : 'Ketuk peta untuk menentukan Titik Tujuan (B)',
+                        style: const TextStyle(
+                          color: AppColors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        setState(() => _mapPickingTarget = MapPickingTarget.none);
+                      },
+                      child: const Icon(
+                        Icons.close_rounded,
+                        color: AppColors.white,
+                        size: 18,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
           // 3. Kolom Tombol Mengapung di Sisi Kanan (Figma 454:2)
           Positioned(
             right: 16,
             top: MediaQuery.of(context).size.height * 0.22,
             child: NavigationFloatingTools(
               isSoundMuted: _isSoundMuted,
-              onSearch: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Pencarian rute OSRM...')),
-                );
-              },
+              onSearch: () => _openLocationPicker(false),
               onToggleSound: () {
                 setState(() => _isSoundMuted = !_isSoundMuted);
               },
@@ -520,6 +782,7 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
               onCompass: () {
                 _mapController.rotate(0);
               },
+              onMyLocation: _recenterToCurrentLocation,
             ),
           ),
 

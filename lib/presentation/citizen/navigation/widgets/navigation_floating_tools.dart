@@ -7,6 +7,7 @@ class NavigationFloatingTools extends StatelessWidget {
   final VoidCallback onToggleSound;
   final VoidCallback onToggleLayers;
   final VoidCallback onCompass;
+  final VoidCallback? onMyLocation;
   final bool isSoundMuted;
 
   const NavigationFloatingTools({
@@ -15,6 +16,7 @@ class NavigationFloatingTools extends StatelessWidget {
     required this.onToggleSound,
     required this.onToggleLayers,
     required this.onCompass,
+    this.onMyLocation,
     this.isSoundMuted = false,
   });
 
@@ -80,6 +82,13 @@ class NavigationFloatingTools extends StatelessWidget {
           icon: Icons.explore_rounded,
           onTap: onCompass,
         ),
+
+        // 5. My Location (GPS)
+        if (onMyLocation != null)
+          _buildCircleButton(
+            icon: Icons.my_location_rounded,
+            onTap: onMyLocation!,
+          ),
       ],
     );
   }

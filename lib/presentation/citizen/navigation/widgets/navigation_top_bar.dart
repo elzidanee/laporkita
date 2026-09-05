@@ -10,6 +10,8 @@ class NavigationTopBar extends StatelessWidget {
   final VoidCallback onSwap;
   final VoidCallback? onTapOrigin;
   final VoidCallback? onTapDestination;
+  final bool isPickingOrigin;
+  final bool isPickingDestination;
 
   const NavigationTopBar({
     super.key,
@@ -19,6 +21,8 @@ class NavigationTopBar extends StatelessWidget {
     required this.onSwap,
     this.onTapOrigin,
     this.onTapDestination,
+    this.isPickingOrigin = false,
+    this.isPickingDestination = false,
   });
 
   @override
@@ -84,9 +88,12 @@ class NavigationTopBar extends StatelessWidget {
                         height: 42,
                         padding: const EdgeInsets.symmetric(horizontal: 10),
                         decoration: BoxDecoration(
-                          color: AppColors.white,
+                          color: isPickingOrigin ? AppColors.surfaceInfo : AppColors.white,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.border),
+                          border: Border.all(
+                            color: isPickingOrigin ? AppColors.statusInfo : AppColors.border,
+                            width: isPickingOrigin ? 1.8 : 1.0,
+                          ),
                         ),
                         child: Row(
                           children: [
@@ -108,6 +115,12 @@ class NavigationTopBar extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
+                            if (isPickingOrigin)
+                              const Icon(
+                                Icons.edit_location_alt_rounded,
+                                color: AppColors.statusInfo,
+                                size: 16,
+                              ),
                           ],
                         ),
                       ),
@@ -121,15 +134,22 @@ class NavigationTopBar extends StatelessWidget {
                         height: 42,
                         padding: const EdgeInsets.symmetric(horizontal: 10),
                         decoration: BoxDecoration(
-                          color: AppColors.white,
+                          color: isPickingDestination
+                              ? AppColors.surfaceDanger
+                              : AppColors.white,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.border),
+                          border: Border.all(
+                            color: isPickingDestination
+                                ? AppColors.statusDanger
+                                : AppColors.border,
+                            width: isPickingDestination ? 1.8 : 1.0,
+                          ),
                         ),
                         child: Row(
                           children: [
                             const Icon(
                               Icons.location_on_outlined,
-                              color: AppColors.statusInfo,
+                              color: AppColors.statusDanger,
                               size: 18,
                             ),
                             const SizedBox(width: 12),
@@ -145,6 +165,12 @@ class NavigationTopBar extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
+                            if (isPickingDestination)
+                              const Icon(
+                                Icons.edit_location_alt_rounded,
+                                color: AppColors.statusDanger,
+                                size: 16,
+                              ),
                           ],
                         ),
                       ),
