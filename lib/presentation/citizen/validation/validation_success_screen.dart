@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../reports/bloc/report_bloc.dart';
 
 /// Layar Berhasil Kirim Validasi — Presisi Sesuai Figma (Node 234:1368)
 class ValidationSuccessScreen extends StatelessWidget {
@@ -26,6 +28,7 @@ class ValidationSuccessScreen extends StatelessWidget {
                     size: 20,
                   ),
                   onPressed: () {
+                    context.read<ReportBloc>().add(const ReportLoadRequested());
                     Navigator.pushNamedAndRemoveUntil(
                       context,
                       '/citizen',
@@ -105,6 +108,7 @@ class ValidationSuccessScreen extends StatelessWidget {
                 height: 56,
                 child: OutlinedButton(
                   onPressed: () {
+                    context.read<ReportBloc>().add(const ReportLoadRequested());
                     Navigator.pushNamedAndRemoveUntil(
                       context,
                       '/citizen',

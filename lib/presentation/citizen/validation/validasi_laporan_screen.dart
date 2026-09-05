@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/report_model.dart';
@@ -139,6 +140,10 @@ class _ValidasiLaporanScreenState extends State<ValidasiLaporanScreen> {
               size: 22,
             ),
             onPressed: () {
+              final code = _reportCode;
+              if (code.isNotEmpty) {
+                Clipboard.setData(ClipboardData(text: 'Validasi LaporKita: $code'));
+              }
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('Tautan validasi berhasil disalin!'),

@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/report_model.dart';
 import '../../../data/repositories/report_repository.dart';
+import '../../reports/bloc/report_bloc.dart';
 
 enum ValidationOption {
   sudahSesuai,
@@ -106,10 +107,17 @@ class _BeriValidasiScreenState extends State<BeriValidasiScreen> {
     try {
       if (reportId.isNotEmpty) {
         final repository = context.read<ReportRepository>();
-        await repository.validateReport(reportId);
+        final isApproved = _selectedOption == ValidationOption.sudahSesuai;
+        final notes = _notesController.text.trim();
+        await repository.validateReport(
+          reportId,
+          isApproved: isApproved,
+          feedback: notes.isNotEmpty ? notes : _selectedOption.title,
+        );
       }
 
       if (!mounted) return;
+      context.read<ReportBloc>().add(const ReportLoadRequested());
       Navigator.pushReplacementNamed(
         context,
         '/validation-success',
@@ -117,11 +125,11 @@ class _BeriValidasiScreenState extends State<BeriValidasiScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      // Jika offline / mock fallback, tetap arahkan ke sukses dengan banner info
-      Navigator.pushReplacementNamed(
-        context,
-        '/validation-success',
-        arguments: widget.reportData,
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal mengirim validasi: $e'),
+          backgroundColor: AppColors.statusDanger,
+        ),
       );
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
