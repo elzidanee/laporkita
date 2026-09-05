@@ -2,10 +2,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/report_model.dart';
+import '../../../data/models/user_model.dart';
 import '../../../data/repositories/report_repository.dart';
+import '../../auth/bloc/auth_bloc.dart';
 import '../../reports/bloc/report_bloc.dart';
 
 class ReportDetailScreen extends StatefulWidget {
@@ -26,6 +29,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
   bool _isLoading = false;
   bool _isSupported = false;
   int _supportCount = 360;
+  bool _isUpdatingStatus = false;
 
   List<Map<String, dynamic>> _comments = [];
   bool _isLoadingComments = false;
@@ -207,6 +211,10 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     final viewCount = report?.viewCount ?? 512;
     final commentCount = _comments.isNotEmpty ? _comments.length : 5;
 
+    final authState = context.watch<AuthBloc>().state;
+    final user = authState is AuthAuthenticated ? authState.user : null;
+    final isCommandCenter = user?.role.isCommandCenter == true;
+
     return Scaffold(
       backgroundColor: AppColors.white,
       appBar: AppBar(
@@ -366,6 +374,12 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                   // 6. 3 Stat Cards Row (Dukungan 360, Dilihat 512, Komentar 5) (Figma node 65:618)
                   _buildStatCardsRow(supportCount, viewCount, commentCount),
                   const SizedBox(height: 20),
+
+                  // Command Center Verification Action Panel (Admin & Operator B2G)
+                  if (isCommandCenter && report != null && user != null) ...[
+                    _buildCommandCenterActionPanel(report, user),
+                    const SizedBox(height: 16),
+                  ],
 
                   // 7. Action Buttons Row (Dukung + Chat) (Figma node 65:649)
                   _buildActionButtonsRow(supportCount),
@@ -883,6 +897,356 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
           ),
         ),
       ],
+    );
+  }
+
+  // ===========================================================================
+  // COMMAND CENTER ACTION PANEL (Admin & Operator B2G Control)
+  // ===========================================================================
+  Widget _buildCommandCenterActionPanel(ReportModel report, UserModel user) {
+    final status = report.status;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFCBD5E1)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E293B),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.admin_panel_settings_rounded,
+                  color: Colors.white,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Panel Kontrol ${user.role == UserRole.admin ? "Super Admin" : "Operator Dinas"}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                    const Text(
+                      'Kelola status verifikasi langsung ke database backend',
+                      style: TextStyle(fontSize: 11, color: AppColors.neutral500),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          const Divider(height: 1, color: AppColors.neutral200),
+          const SizedBox(height: 14),
+
+          if (status == ReportStatus.pendingVerification) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _isUpdatingStatus
+                        ? null
+                        : () => _handleUpdateStatus(
+                              reportId: report.id,
+                              newStatus: ReportStatus.verified,
+                              note: 'Laporan diverifikasi oleh ${user.fullName}',
+                            ),
+                    icon: _isUpdatingStatus
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.verified_rounded, size: 18),
+                    label: const Text(
+                      'Verifikasi Laporan',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.greenPrimary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                OutlinedButton.icon(
+                  onPressed: _isUpdatingStatus
+                      ? null
+                      : () => _showRejectReasonDialog(report, user),
+                  icon: const Icon(Icons.cancel_outlined, size: 18),
+                  label: const Text('Tolak', style: TextStyle(fontSize: 13)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.statusDanger,
+                    side: const BorderSide(color: AppColors.statusDanger),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+                  ),
+                ),
+              ],
+            ),
+          ] else if (status == ReportStatus.verified) ...[
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _isUpdatingStatus
+                    ? null
+                    : () => _handleUpdateStatus(
+                          reportId: report.id,
+                          newStatus: ReportStatus.assigned,
+                          note: 'Ditugaskan ke tim dinas oleh ${user.fullName}',
+                        ),
+                icon: const Icon(Icons.assignment_ind_rounded, size: 18),
+                label: const Text(
+                  'Tugaskan ke Dinas Lapangan',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFD97706),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+          ] else if (status == ReportStatus.assigned) ...[
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _isUpdatingStatus
+                    ? null
+                    : () => _handleUpdateStatus(
+                          reportId: report.id,
+                          newStatus: ReportStatus.inProgress,
+                          note: 'Penanganan dimulai oleh tim teknis',
+                        ),
+                icon: const Icon(Icons.play_arrow_rounded, size: 18),
+                label: const Text(
+                  'Mulai Pengerjaan Perbaikan',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2563EB),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+          ] else if (status == ReportStatus.inProgress) ...[
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _isUpdatingStatus
+                    ? null
+                    : () => _handlePromptCompletion(report, user),
+                icon: const Icon(Icons.task_alt_rounded, size: 18),
+                label: const Text(
+                  'Selesaikan Perbaikan',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.greenPrimary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+          ] else ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle_rounded,
+                      color: AppColors.greenPrimary, size: 18),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Status saat ini: ${status.displayName}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.greenPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleUpdateStatus({
+    required String reportId,
+    required ReportStatus newStatus,
+    String? note,
+  }) async {
+    setState(() => _isUpdatingStatus = true);
+    final messenger = ScaffoldMessenger.of(context);
+    final repo = context.read<ReportRepository>();
+    final reportBloc = context.read<ReportBloc>();
+
+    try {
+      final updated = await repo.updateReportStatus(
+        reportId,
+        newStatus.apiValue,
+        notes: note,
+        existingReport: _report,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _report = updated;
+        _isUpdatingStatus = false;
+      });
+
+      reportBloc.add(ReportUpdateStatusRequested(
+        reportId: reportId,
+        newStatus: newStatus.apiValue,
+        notes: note,
+      ));
+
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Status laporan berhasil diubah menjadi "${newStatus.displayName}" dan disimpan ke backend database!',
+          ),
+          backgroundColor: AppColors.greenPrimary,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isUpdatingStatus = false);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Gagal memperbarui status: $e'),
+          backgroundColor: AppColors.statusDanger,
+        ),
+      );
+    }
+  }
+
+  void _showRejectReasonDialog(ReportModel report, UserModel user) {
+    final reasonController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Tolak Laporan'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Masukkan alasan penolakan laporan untuk dicatat di database backend:',
+              style: TextStyle(fontSize: 12),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: reasonController,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                hintText: 'Misal: Foto tidak jelas, lokasi bukan fasilitas umum...',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.statusDanger,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () {
+              final reason = reasonController.text.trim();
+              Navigator.pop(ctx);
+              _handleUpdateStatus(
+                reportId: report.id,
+                newStatus: ReportStatus.rejected,
+                note: reason.isNotEmpty
+                    ? reason
+                    : 'Ditolak oleh petugas (${user.fullName})',
+              );
+            },
+            child: const Text('Tolak Laporan'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handlePromptCompletion(ReportModel report, UserModel user) async {
+    final picker = ImagePicker();
+    XFile? image;
+    try {
+      image = await picker.pickImage(source: ImageSource.camera, imageQuality: 80);
+    } catch (_) {
+      image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    }
+
+    if (image != null) {
+      try {
+        final repo = context.read<ReportRepository>();
+        await repo.uploadReportMedia(
+          reportId: report.id,
+          filePath: image.path,
+          type: 'completion_photo',
+        );
+      } catch (_) {}
+    }
+
+    await _handleUpdateStatus(
+      reportId: report.id,
+      newStatus: ReportStatus.completed,
+      note: 'Perbaikan diselesaikan oleh ${user.fullName}',
     );
   }
 

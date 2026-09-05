@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/theme/app_colors.dart';
@@ -689,6 +690,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           child: ListTile(
+            leading: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: SizedBox(
+                width: 46,
+                height: 46,
+                child: _buildReportImageThumbnail(r),
+              ),
+            ),
             title: Text(
               '${r.reportCode} — ${r.categoryName}',
               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
@@ -707,13 +716,60 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               backgroundColor: _getStatusColor(r.status),
               padding: EdgeInsets.zero,
             ),
-            onTap: () {
-              Navigator.pushNamed(context, '/report-detail', arguments: r);
+            onTap: () async {
+              await Navigator.pushNamed(context, '/report-detail', arguments: r);
+              if (mounted) {
+                _fetchLiveDashboardData();
+              }
             },
           ),
         );
       },
     );
+  }
+
+  Widget _buildReportImageThumbnail(ReportModel r) {
+    final localPath = r.directPhotoUrl;
+    bool isLocalValid = false;
+    if (localPath != null &&
+        localPath.isNotEmpty &&
+        !localPath.startsWith('http')) {
+      try {
+        isLocalValid = File(localPath).existsSync();
+      } catch (_) {}
+    }
+
+    Widget buildCleanPlaceholder() {
+      return Container(
+        color: const Color(0xFFF1F5F9),
+        child: const Center(
+          child: Icon(
+            Icons.image_outlined,
+            size: 20,
+            color: Color(0xFF94A3B8),
+          ),
+        ),
+      );
+    }
+
+    if (isLocalValid && localPath != null) {
+      return Image.file(
+        File(localPath),
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => buildCleanPlaceholder(),
+      );
+    }
+
+    final photoUrl = r.formattedPhotoUrl ?? r.photoUrl ?? '';
+    if (photoUrl.isNotEmpty && photoUrl.startsWith('http')) {
+      return Image.network(
+        photoUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => buildCleanPlaceholder(),
+      );
+    }
+
+    return buildCleanPlaceholder();
   }
 
   Color _getStatusColor(ReportStatus status) {

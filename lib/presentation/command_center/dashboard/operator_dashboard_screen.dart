@@ -485,10 +485,11 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
                                   );
 
                                   try {
-                                    notifRepo.addStatusUpdateNotification(
+                                    await notifRepo.addStatusUpdateNotification(
                                       reportCode: report.reportCode,
                                       newStatus: targetStatus,
                                       note: noteText.isNotEmpty ? noteText : null,
+                                      reportId: report.id,
                                     );
                                   } catch (_) {}
 
@@ -1194,36 +1195,49 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
   }
 
   Widget _buildReportImageThumbnail(ReportModel r) {
-    final photoUrl = r.formattedPhotoUrl ?? r.photoUrl ?? '';
-    Widget buildLocalPlaceholder() {
+    // 1. Cek berkas lokal kamera terlebih dahulu jika ada di perangkat
+    final localPath = r.directPhotoUrl;
+    bool isLocalValid = false;
+    if (localPath != null &&
+        localPath.isNotEmpty &&
+        !localPath.startsWith('http')) {
+      try {
+        isLocalValid = File(localPath).existsSync();
+      } catch (_) {}
+    }
+
+    Widget buildCleanPlaceholder() {
       return Container(
-        color: AppColors.neutral100,
+        color: const Color(0xFFF1F5F9),
         child: const Center(
           child: Icon(
             Icons.image_outlined,
-            size: 20,
-            color: AppColors.neutral400,
+            size: 22,
+            color: Color(0xFF94A3B8),
           ),
         ),
       );
     }
 
-    Widget buildFallback() {
-      return Image.network(
-        ReportModel.getCategoryFallbackImage(r.categoryName),
+    if (isLocalValid && localPath != null) {
+      return Image.file(
+        File(localPath),
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => buildLocalPlaceholder(),
+        errorBuilder: (context, error, stackTrace) => buildCleanPlaceholder(),
       );
     }
 
+    // 2. Tampilkan foto riil dari database (Supabase / media backend)
+    final photoUrl = r.formattedPhotoUrl ?? r.photoUrl ?? '';
     if (photoUrl.isNotEmpty && photoUrl.startsWith('http')) {
       return Image.network(
         photoUrl,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => buildFallback(),
+        errorBuilder: (context, error, stackTrace) => buildCleanPlaceholder(),
       );
     }
-    return buildFallback();
+
+    return buildCleanPlaceholder();
   }
 
   Widget _buildStatusBadge(ReportStatus status) {
