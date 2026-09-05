@@ -1,7 +1,6 @@
-import 'dart:convert';
-import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:laporkita/core/config/app_config.dart';
+import 'package:laporkita/core/utils/image_utils.dart';
 import 'package:laporkita/data/models/ai_verification_model.dart';
 import 'package:laporkita/data/models/risk_prediction_model.dart';
 
@@ -9,7 +8,7 @@ import 'package:laporkita/data/models/risk_prediction_model.dart';
 /// Menggunakan Dio instance terpisah karena:
 ///   1. Base URL berbeda dari backend NestJS
 ///   2. Autentikasi via X-API-Key (bukan Bearer token user)
-///   3. Timeout lebih panjang (inference bisa 5-10 detik)
+///   3. Timeout lebih panjang (inference bisa 5-10 detik, cold-start hingga 15s)
 class AiServiceDatasource {
   static AiServiceDatasource? _instance;
   late final Dio _dio;
@@ -19,14 +18,12 @@ class AiServiceDatasource {
       BaseOptions(
         baseUrl: AppConfig.aiServiceUrl,
         connectTimeout: const Duration(seconds: 4),
-        receiveTimeout: const Duration(seconds: 15),
+        receiveTimeout: const Duration(seconds: 25),
+        sendTimeout: const Duration(seconds: 30),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          // Wajib agar tidak diblokir Cloudflare WAF (error 1010)
           'User-Agent': 'LaporKita-MobileApp/1.0 (Flutter)',
-          // X-API-Key untuk autentikasi internal ke FastAPI AI Service.
-          // Kosong = server berjalan tanpa auth (dev mode), header tidak dikirim.
           if (AppConfig.aiApiKey.isNotEmpty) 'X-API-Key': AppConfig.aiApiKey,
         },
       ),
@@ -38,7 +35,6 @@ class AiServiceDatasource {
     return _instance!;
   }
 
-  // ── Health Check ─────────────────────────────────────────────────────────────
   Future<bool> isHealthy() async {
     try {
       final response = await _dio.get('/health');
@@ -48,9 +44,8 @@ class AiServiceDatasource {
     }
   }
 
-  // ── POST /v1/verify ───────────────────────────────────────────────────────────
   /// Verifikasi laporan menggunakan YOLOv11-cls.
-  /// Kirim foto via [imageBase64] (file lokal) atau [imageUrl] (URL publik).
+  /// [imagePath] dikompres & di-encode base64 di isolate agar tidak freeze UI.
   Future<AiVerificationResult> verifyReport({
     String? imagePath,
     String? imageUrl,
@@ -61,16 +56,12 @@ class AiServiceDatasource {
     String? deviceHintCategory,
     double? deviceHintConfidence,
   }) async {
-    // Konversi file lokal ke base64 jika ada
     String? imageBase64;
-    if (imagePath != null && imagePath.isNotEmpty && !imagePath.startsWith('http')) {
-      try {
-        final file = File(imagePath);
-        if (file.existsSync()) {
-          final bytes = await file.readAsBytes();
-          imageBase64 = base64Encode(bytes);
-        }
-      } catch (_) {}
+    if (imagePath != null &&
+        imagePath.isNotEmpty &&
+        !imagePath.startsWith('http')) {
+      // Encode di isolate — mencegah jank 200-800ms di main thread
+      imageBase64 = await ImageUtils.fileToBase64Isolate(imagePath);
     }
 
     final payload = <String, dynamic>{
@@ -81,7 +72,8 @@ class AiServiceDatasource {
       if (claimedCategory != null) 'claimed_category': claimedCategory,
       if (timestamp != null) 'timestamp': timestamp.toIso8601String(),
       if (deviceHintCategory != null) 'device_hint_category': deviceHintCategory,
-      if (deviceHintConfidence != null) 'device_hint_confidence': deviceHintConfidence,
+      if (deviceHintConfidence != null)
+        'device_hint_confidence': deviceHintConfidence,
     };
 
     final response = await _dio.post('/v1/verify', data: payload);
@@ -90,8 +82,6 @@ class AiServiceDatasource {
     );
   }
 
-  // ── POST /v1/predict-risk ──────────────────────────────────────────────────
-  /// Prediksi risiko banjir dan stres wilayah menggunakan XGBoost.
   Future<RiskPredictionResult> predictRisk({
     String? zoneId,
     required int reportDensity,
@@ -114,7 +104,6 @@ class AiServiceDatasource {
     };
 
     final response = await _dio.post('/v1/predict-risk', data: payload);
-    // Inject report density ke result agar bisa ditampilkan
     final data = response.data as Map<String, dynamic>;
     if (data['data'] is Map<String, dynamic>) {
       (data['data'] as Map<String, dynamic>)['report_density'] = reportDensity;

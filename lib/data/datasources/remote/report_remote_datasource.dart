@@ -2,18 +2,15 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:laporkita/core/network/api_response.dart';
 import 'package:laporkita/core/network/dio_client.dart';
+import 'package:laporkita/core/utils/image_utils.dart';
 import 'package:laporkita/data/models/report_model.dart';
 
-/// Report Remote Datasource
-/// STATUS: VERIFIED — endpoint dari backend/src/modules/reports/reports.controller.ts
 class ReportRemoteDatasource {
   final DioClient _dioClient;
 
   ReportRemoteDatasource({DioClient? dioClient})
       : _dioClient = dioClient ?? DioClient();
 
-  // ── Get List Reports ───────────────────────────────────────────────────────
-  // STATUS: VERIFIED — GET /reports (publik)
   Future<ApiResponse<List<ReportModel>>> getReports({
     int limit = 20,
     String? cursor,
@@ -62,19 +59,14 @@ class ReportRemoteDatasource {
     );
   }
 
-  // ── Get Report Detail ──────────────────────────────────────────────────────
-  // STATUS: VERIFIED — GET /reports/:id (publik)
   Future<ReportModel> getReportById(String id) async {
     final response = await _dioClient.get<ReportModel>(
       '/reports/$id',
-      fromJson: (json) =>
-          ReportModel.fromJson(json as Map<String, dynamic>),
+      fromJson: (json) => ReportModel.fromJson(json as Map<String, dynamic>),
     );
     return response.data!;
   }
 
-  // ── Submit Report ──────────────────────────────────────────────────────────
-  // STATUS: VERIFIED — POST /reports (auth required)
   Future<ReportModel> submitReport({
     required String categoryId,
     required double latitude,
@@ -106,13 +98,13 @@ class ReportRemoteDatasource {
     }
 
     if (isLocalValid && photoPath != null) {
+      // Kompres 5-10MB -> ~600KB sebelum upload (hemat 80% bandwidth & waktu)
+      final compressedPath = await ImageUtils.compressIfNeeded(photoPath);
       map['photo'] = await MultipartFile.fromFile(
-        photoPath,
+        compressedPath,
         filename: 'report_photo.jpg',
       );
     } else {
-      // Foto wajib ada — lempar error agar UI dapat memblokir submit
-      // sebelum request dikirim (FE-07 fix: hapus dummy JPEG fallback).
       throw ArgumentError(
         'Foto laporan tidak valid atau tidak ditemukan. '
         'Harap ambil foto terlebih dahulu sebelum mengirim laporan.',
@@ -123,16 +115,13 @@ class ReportRemoteDatasource {
 
     final response = await _dioClient.post<ReportModel>(
       '/reports',
-      fromJson: (json) =>
-          ReportModel.fromJson(json as Map<String, dynamic>),
+      fromJson: (json) => ReportModel.fromJson(json as Map<String, dynamic>),
       formData: formData,
     );
     final result = response.data!;
 
-    // Pasang photoPath lokal hanya jika result tidak memiliki photoUrl dari backend
     bool isLocalFileValid = false;
-    if (photoPath.isNotEmpty &&
-        !photoPath.startsWith('http')) {
+    if (photoPath.isNotEmpty && !photoPath.startsWith('http')) {
       try {
         isLocalFileValid = File(photoPath).existsSync();
       } catch (_) {
@@ -173,8 +162,6 @@ class ReportRemoteDatasource {
     return result;
   }
 
-  // ── Support Report (Upvote) ────────────────────────────────────────────────
-  // STATUS: VERIFIED — POST /reports/:id/support (auth required)
   Future<Map<String, dynamic>> supportReport(String reportId) async {
     final response = await _dioClient.post<Map<String, dynamic>>(
       '/reports/$reportId/support',
@@ -184,8 +171,6 @@ class ReportRemoteDatasource {
     return response.data!;
   }
 
-  // ── Cancel Support ─────────────────────────────────────────────────────────
-  // STATUS: VERIFIED — DELETE /reports/:id/support (auth required, grace 5 menit)
   Future<Map<String, dynamic>> cancelSupport(String reportId) async {
     final response = await _dioClient.delete<Map<String, dynamic>>(
       '/reports/$reportId/support',
@@ -194,8 +179,6 @@ class ReportRemoteDatasource {
     return response.data!;
   }
 
-  // ── Get Comments ───────────────────────────────────────────────────────────
-  // STATUS: VERIFIED — GET /reports/:id/comments (publik)
   Future<ApiResponse<List<Map<String, dynamic>>>> getComments(
     String reportId, {
     int limit = 20,
@@ -213,8 +196,6 @@ class ReportRemoteDatasource {
     );
   }
 
-  // ── Add Comment ────────────────────────────────────────────────────────────
-  // STATUS: VERIFIED — POST /reports/:id/comments (auth required)
   Future<Map<String, dynamic>> addComment(
     String reportId,
     String content,
@@ -227,9 +208,6 @@ class ReportRemoteDatasource {
     return response.data!;
   }
 
-  // ── Validate Report (Citizen) ──────────────────────────────────────────────
-  // STATUS: FE-06 — POST /reports/:id/validate (auth required)
-  // Warga mengkonfirmasi laporan mereka sudah selesai ditangani.
   Future<Map<String, dynamic>> validateReport(String reportId) async {
     final response = await _dioClient.post<Map<String, dynamic>>(
       '/reports/$reportId/validate',
@@ -239,9 +217,6 @@ class ReportRemoteDatasource {
     return response.data!;
   }
 
-  // ── Update Report Status (Operator) ───────────────────────────────────────
-  // STATUS: FE-06 — PATCH /reports/:id/status (auth required, operator role)
-  // Operator dinas mengubah status laporan (assigned, in_progress, completed, dll).
   Future<ReportModel> updateReportStatus(
     String reportId,
     String newStatus, {
@@ -271,17 +246,16 @@ class ReportRemoteDatasource {
     }
   }
 
-  // ── Upload Media (Progress/Completion Photo) ──────────────────────────────
-  // POST /reports/:id/media (Multipart Form-Data)
   Future<Map<String, dynamic>> uploadReportMedia({
     required String reportId,
     required String filePath,
     required String type,
   }) async {
     try {
+      final compressedPath = await ImageUtils.compressIfNeeded(filePath);
       final formData = FormData.fromMap({
         'type': type,
-        'photo': await MultipartFile.fromFile(filePath),
+        'photo': await MultipartFile.fromFile(compressedPath),
       });
       final response = await _dioClient.post<Map<String, dynamic>>(
         '/reports/$reportId/media',
