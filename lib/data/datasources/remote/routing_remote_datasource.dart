@@ -22,7 +22,7 @@ class RoutingRemoteDatasource {
 
   // Static agar cache survive antar instance Repository
   static final Map<String, _CachedRoute> _cache = {};
-  static final Map<String, Future<RouteModel>> _inFlight = {};
+  static final Map<String, Future<List<RouteModel>>> _inFlight = {};
 
   RoutingRemoteDatasource({Dio? dio}) : _dio = dio ?? DioClient().dio;
 
@@ -59,7 +59,22 @@ class RoutingRemoteDatasource {
     if (cached != null && !cached.isExpired) return [cached.route];
     if (cached != null && cached.isExpired) _cache.remove(key);
 
-    return _fetchRoutes(origin, destination, alternatives: alternatives);
+    // 2. Deduplikasi concurrent requests
+    final inflight = _inFlight[key];
+    if (inflight != null) return inflight;
+
+    final future = _fetchRoutes(origin, destination, alternatives: alternatives);
+    _inFlight[key] = future;
+
+    try {
+      final routes = await future;
+      if (routes.isNotEmpty) {
+        _cache[key] = _CachedRoute(routes.first);
+      }
+      return routes;
+    } finally {
+      _inFlight.remove(key);
+    }
   }
 
   Future<List<RouteModel>> _fetchRoutes(

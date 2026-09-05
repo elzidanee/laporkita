@@ -16,4 +16,17 @@ class RoutingRepository {
   }) {
     return _datasource.getRoute(origin: origin, destination: destination);
   }
+
+  /// Mendapatkan daftar rute (termasuk alternatif) dari [origin] ke [destination].
+  Future<List<RouteModel>> getRoutes({
+    required LatLng origin,
+    required LatLng destination,
+    bool alternatives = true,
+  }) {
+    return _datasource.getRoutes(
+      origin: origin,
+      destination: destination,
+      alternatives: alternatives,
+    );
+  }
 }

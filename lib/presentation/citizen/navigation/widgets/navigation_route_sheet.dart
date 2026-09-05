@@ -26,12 +26,14 @@ class NavigationRouteSheet extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onSelectRoute;
   final bool showRiskBadges;
+  final List<RouteOptionItem>? customRoutes;
 
   const NavigationRouteSheet({
     super.key,
     required this.selectedIndex,
     required this.onSelectRoute,
     this.showRiskBadges = true,
+    this.customRoutes,
   });
 
   static const List<RouteOptionItem> defaultRoutes = [
@@ -95,8 +97,8 @@ class NavigationRouteSheet extends StatelessWidget {
           ),
           const SizedBox(height: 14),
 
-          // Daftar 3 Kartu Rute
-          ...defaultRoutes.map((route) {
+          // Daftar Kartu Rute
+          ...(customRoutes ?? defaultRoutes).map((route) {
             final isSelected = selectedIndex == route.index;
 
             return Padding(

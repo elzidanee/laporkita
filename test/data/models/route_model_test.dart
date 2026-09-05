@@ -82,5 +82,66 @@ void main() {
       expect(route.durationMinutes, '< 1 menit');
       expect(route.distanceKm, '0.1 km');
     });
+
+    test('berhasil mem-parsing steps instruksi manuver jalan dan multi-routes', () {
+      final sampleMultiJson = {
+        "code": "Ok",
+        "routes": [
+          {
+            "geometry": {
+              "coordinates": [
+                [112.6304, -7.9827],
+                [112.6412, -7.9701]
+              ],
+              "type": "LineString"
+            },
+            "distance": 3450.2,
+            "duration": 236.7,
+            "summary": "Jalan Pasar Besar, Jalan Panglima Sudirman",
+            "legs": [
+              {
+                "steps": [
+                  {
+                    "distance": 150.0,
+                    "duration": 25.0,
+                    "name": "Jl. Ahmad Habibi",
+                    "maneuver": {"type": "turn", "modifier": "left"}
+                  },
+                  {
+                    "distance": 1200.0,
+                    "duration": 180.0,
+                    "name": "Jl. Soekarno Hatta",
+                    "maneuver": {"type": "new name", "modifier": "straight"}
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "geometry": {
+              "coordinates": [
+                [112.6304, -7.9827],
+                [112.6350, -7.9750],
+                [112.6412, -7.9701]
+              ],
+              "type": "LineString"
+            },
+            "distance": 4100.0,
+            "duration": 310.0,
+            "summary": "Jalan Hamid Rusdi",
+            "legs": []
+          }
+        ]
+      };
+
+      final routes = RouteModel.fromOsrmJsonList(sampleMultiJson);
+
+      expect(routes.length, 2);
+      expect(routes[0].distanceKm, '3.5 km');
+      expect(routes[0].steps.length, 2);
+      expect(routes[0].steps[0].name, 'Jl. Ahmad Habibi');
+      expect(routes[0].steps[0].instructionText, 'Belok kiri ke Jl. Ahmad Habibi');
+      expect(routes[1].distanceKm, '4.1 km');
+    });
   });
 }
