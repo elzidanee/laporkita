@@ -10,6 +10,7 @@ import '../../../data/models/report_model.dart';
 import '../../../data/models/route_model.dart';
 import '../../../data/repositories/routing_repository.dart';
 import '../../reports/bloc/report_bloc.dart';
+import 'utils/route_risk_evaluator.dart';
 import 'widgets/location_picker_sheet.dart';
 import 'widgets/navigation_active_bottom_bar.dart';
 import 'widgets/navigation_active_top_banner.dart';
@@ -54,6 +55,9 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
   final MapController _mapController = MapController();
   final TtsService _ttsService = TtsService();
 
+  // Cache in-memory geocoding untuk respon instan pada lokasi yang berulang
+  static final Map<String, String> _geocodeCache = {};
+
   NavigationScreenMode _currentMode = NavigationScreenMode.routePlanning;
   MapPickingTarget _mapPickingTarget = MapPickingTarget.none;
   int _selectedRouteIndex = 0;
@@ -61,6 +65,13 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
   bool _isLoadingRoute = false;
   bool _isLocatingUser = false;
   bool _hasTriggeredHazardVoice = false;
+
+  // Request sequencing counter untuk mencegah race condition request OSRM
+  int _routeRequestId = 0;
+
+  // Memoized route option items untuk menghindari loop O(N*M) di setiap frame build
+  List<RouteOptionItem>? _memoizedRouteOptions;
+  int _memoizedHazardLength = -1;
 
   // Koordinat Asal (Titik A) & Tujuan (Titik B)
   late LatLng _origin;
@@ -237,6 +248,7 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
 
   /// Memanggil endpoint live backend OSRM untuk mendapatkan rute utama dan alternatif
   Future<void> _fetchRoutesFromOsrm() async {
+    final currentRequestId = ++_routeRequestId;
     setState(() => _isLoadingRoute = true);
 
     try {
@@ -247,7 +259,7 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
         alternatives: true,
       );
 
-      if (!mounted) return;
+      if (!mounted || currentRequestId != _routeRequestId) return;
 
       setState(() {
         _routes = results;
@@ -258,11 +270,12 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
           _generateSyntheticAlternative(_activeRoute!.points);
         }
         _isLoadingRoute = false;
+        _memoizedRouteOptions = null; // Invalidate memoized route option items
       });
 
       _fitCameraToRoute();
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || currentRequestId != _routeRequestId) return;
 
       // Fallback jika demo server OSRM sedang offline
       final fallbackRoute = RouteModel(
@@ -293,6 +306,7 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
         _activeRoute = fallbackRoute;
         _generateSyntheticAlternative(fallbackRoute.points);
         _isLoadingRoute = false;
+        _memoizedRouteOptions = null;
       });
 
       _fitCameraToRoute();
@@ -359,8 +373,13 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
     );
   }
 
-  /// Reverse geocoding koordinat ke nama jalan/tempat
+  /// Reverse geocoding koordinat ke nama jalan/tempat dengan cache in-memory
   Future<String> _reverseGeocode(LatLng point) async {
+    final key =
+        '${point.latitude.toStringAsFixed(4)},${point.longitude.toStringAsFixed(4)}';
+    final cached = _geocodeCache[key];
+    if (cached != null) return cached;
+
     try {
       final marks = await Geocoding().placemarkFromCoordinates(
         point.latitude,
@@ -371,32 +390,55 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
         final parts = [p.street, p.subLocality, p.locality]
             .where((s) => s != null && s.trim().isNotEmpty)
             .toList();
-        if (parts.isNotEmpty) return parts.first!;
+        if (parts.isNotEmpty) {
+          final resolved = parts.first!;
+          _geocodeCache[key] = resolved;
+          return resolved;
+        }
       }
     } catch (_) {}
-    return 'Titik Peta (${point.latitude.toStringAsFixed(3)}, ${point.longitude.toStringAsFixed(3)})';
+    final fallback =
+        'Titik Peta (${point.latitude.toStringAsFixed(3)}, ${point.longitude.toStringAsFixed(3)})';
+    _geocodeCache[key] = fallback;
+    return fallback;
   }
 
-  /// Menangani interaksi tap peta untuk memilih titik asal/tujuan baru
-  void _handleMapTap(LatLng point) async {
+  /// Menangani interaksi tap peta untuk memilih titik asal/tujuan baru dengan Optimistic UI Update
+  void _handleMapTap(LatLng point) {
     if (_currentMode != NavigationScreenMode.routePlanning) return;
 
-    final placeName = await _reverseGeocode(point);
+    final isPickingOrigin = _mapPickingTarget == MapPickingTarget.origin;
+    final tempName = isPickingOrigin
+        ? 'Titik Asal (${point.latitude.toStringAsFixed(3)}, ${point.longitude.toStringAsFixed(3)})'
+        : 'Titik Tujuan (${point.latitude.toStringAsFixed(3)}, ${point.longitude.toStringAsFixed(3)})';
 
+    // 1. Respon instan tanpa latency: langsung update pin dan mulai routing
     setState(() {
-      if (_mapPickingTarget == MapPickingTarget.origin) {
+      if (isPickingOrigin) {
         _origin = point;
-        _originName = placeName;
-        _mapPickingTarget = MapPickingTarget.none;
+        _originName = tempName;
       } else {
-        // Default tap mengubah tujuan (Titik B)
         _destination = point;
-        _destinationName = placeName;
-        _mapPickingTarget = MapPickingTarget.none;
+        _destinationName = tempName;
       }
+      _mapPickingTarget = MapPickingTarget.none;
+      _memoizedRouteOptions = null;
     });
 
     _fetchRoutesFromOsrm();
+
+    // 2. Lookup nama tempat di background tanpa menghambat thread UI
+    _reverseGeocode(point).then((resolvedName) {
+      if (mounted) {
+        setState(() {
+          if (isPickingOrigin && _origin == point) {
+            _originName = resolvedName;
+          } else if (!isPickingOrigin && _destination == point) {
+            _destinationName = resolvedName;
+          }
+        });
+      }
+    });
   }
 
   /// Tukar lokasi asal dan tujuan
@@ -410,6 +452,7 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
       _originName = _destinationName;
       _destinationName = tempName;
       _mapPickingTarget = MapPickingTarget.none;
+      _memoizedRouteOptions = null;
     });
     _fetchRoutesFromOsrm();
   }
@@ -421,6 +464,7 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
       if (index < _routes.length) {
         _activeRoute = _routes[index];
       }
+      _memoizedRouteOptions = null;
     });
     _fitCameraToRoute();
   }
@@ -448,69 +492,18 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
     return filtered;
   }
 
-  /// Menghitung tingkat keparahan laporan untuk visual & suara
-  String _formatSeverity(ReportModel? report) {
-    if (report == null) return 'Sedang';
-    if (report.damageSeverity != null) {
-      if (report.damageSeverity! >= 0.7) return 'Berat';
-      if (report.damageSeverity! >= 0.4) return 'Sedang';
-      return 'Ringan';
+  /// Mengambil kartu opsi rute dengan memoization cerdas untuk menghindari kalkulasi ulang di setiap frame
+  List<RouteOptionItem> _getRouteOptions(List<ReportModel> roadHazards) {
+    if (_memoizedRouteOptions != null &&
+        _memoizedHazardLength == roadHazards.length) {
+      return _memoizedRouteOptions!;
     }
-    if (report.urgencyScore != null) {
-      if (report.urgencyScore! >= 4.0) return 'Berat';
-      if (report.urgencyScore! >= 3.0) return 'Sedang';
-      return 'Ringan';
-    }
-    return 'Sedang';
-  }
-
-  /// Menghitung jumlah laporan jalan rusak backend di koridor suatu rute
-  int _countHazardsNearRoute(RouteModel route, List<ReportModel> hazards) {
-    int count = 0;
-    for (final hazard in hazards) {
-      final hazardLoc = LatLng(hazard.latitude, hazard.longitude);
-      for (final pt in route.points) {
-        final d = Geolocator.distanceBetween(
-          pt.latitude,
-          pt.longitude,
-          hazardLoc.latitude,
-          hazardLoc.longitude,
-        );
-        if (d <= 150.0) {
-          count++;
-          break;
-        }
-      }
-    }
-    return count;
-  }
-
-  /// Menghasilkan item kartu rute dinamis dengan resiko dihitung dari laporan backend
-  List<RouteOptionItem> _buildRouteOptionItems(List<ReportModel> roadHazards) {
-    if (_routes.isEmpty) return NavigationRouteSheet.defaultRoutes;
-
-    return List.generate(_routes.length, (i) {
-      final route = _routes[i];
-      final isFirst = i == 0;
-      final warnings = _countHazardsNearRoute(route, roadHazards);
-      final riskColor = warnings >= 2
-          ? AppColors.statusDanger
-          : (warnings == 0 ? AppColors.greenPrimary : AppColors.statusPending);
-
-      return RouteOptionItem(
-        index: i,
-        title: isFirst ? 'Rute Tercepat' : 'Rute Alternatif $i',
-        riskTitle: isFirst
-            ? (warnings > 0 ? 'Rute awal ($warnings peringatan)' : 'Rute awal (Aman)')
-            : (warnings == 0
-                ? 'Rute Alternatif $i (lebih aman)'
-                : 'Hindari Alternatif $i ($warnings resiko)'),
-        durationKm: '${route.durationMinutes} - ${route.distanceKm}',
-        warningCountText: '$warnings peringatan',
-        riskColor: riskColor,
-        warnings: warnings,
-      );
-    });
+    _memoizedHazardLength = roadHazards.length;
+    _memoizedRouteOptions = RouteRiskEvaluator.buildRouteOptionItems(
+      routes: _routes,
+      roadHazards: roadHazards,
+    );
+    return _memoizedRouteOptions!;
   }
 
   /// Mulai navigasi aktif (Transisi ke Figma 462:126)
@@ -550,7 +543,7 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
     });
 
     if (!_isSoundMuted) {
-      final sev = _formatSeverity(report);
+      final sev = RouteRiskEvaluator.formatSeverity(report);
       final cat = report.categoryName.isNotEmpty ? report.categoryName : 'Jalan Berlubang';
       final street = (report.addressText != null && report.addressText!.isNotEmpty)
           ? report.addressText!
@@ -1051,7 +1044,7 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
                   bottom: 0,
                   child: NavigationRouteSheet(
                     selectedIndex: _selectedRouteIndex,
-                    customRoutes: _buildRouteOptionItems(roadHazards),
+                    customRoutes: _getRouteOptions(roadHazards),
                     showRiskBadges: true,
                     onSelectRoute: _selectRoute,
                   ),
@@ -1086,7 +1079,7 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
                     title: _activeHazardReport?.categoryName ?? 'Jalan Berlubang',
                     distanceRemaining: '$_activeHazardDistance meter lagi',
                     streetName: _activeHazardReport?.addressText ?? stepName,
-                    severityLevel: _formatSeverity(_activeHazardReport),
+                    severityLevel: RouteRiskEvaluator.formatSeverity(_activeHazardReport),
                     onDismiss: _triggerHazardPassed,
                     onViewDetail: () {
                       _triggerHazardPassed();

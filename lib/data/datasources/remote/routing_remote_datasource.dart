@@ -5,30 +5,31 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/network/dio_client.dart';
 import '../../models/route_model.dart';
 
-class _CachedRoute {
-  final RouteModel route;
+class _CachedRoutes {
+  final List<RouteModel> routes;
   final DateTime fetchedAt;
-  _CachedRoute(this.route) : fetchedAt = DateTime.now();
+  _CachedRoutes(this.routes) : fetchedAt = DateTime.now();
   bool get isExpired =>
       DateTime.now().difference(fetchedAt) > const Duration(minutes: 5);
 }
 
 /// Remote datasource untuk OSRM dengan cache in-memory + deduplikasi request.
 ///
-/// - Cache 5 menit per pasangan origin->destination (key dibulatkan 5 desimal ~1m)
+/// - Cache 5 menit per pasangan origin->destination (key dibulatkan 4 desimal ~11m)
+/// - Menyimpan seluruh opsi rute alternatif
 /// - Deduplikasi: request concurrent yang sama share Future yang sama
 class RoutingRemoteDatasource {
   final Dio _dio;
 
   // Static agar cache survive antar instance Repository
-  static final Map<String, _CachedRoute> _cache = {};
+  static final Map<String, _CachedRoutes> _cache = {};
   static final Map<String, Future<List<RouteModel>>> _inFlight = {};
 
   RoutingRemoteDatasource({Dio? dio}) : _dio = dio ?? DioClient().dio;
 
   static String _key(LatLng o, LatLng d) =>
-      '${o.latitude.toStringAsFixed(5)},${o.longitude.toStringAsFixed(5)}'
-      '->${d.latitude.toStringAsFixed(5)},${d.longitude.toStringAsFixed(5)}';
+      '${o.latitude.toStringAsFixed(4)},${o.longitude.toStringAsFixed(4)}'
+      '->${d.latitude.toStringAsFixed(4)},${d.longitude.toStringAsFixed(4)}';
 
   /// Bersihkan cache (mis. saat user ganti kota atau pull-to-refresh)
   static void clearCache() {
@@ -56,7 +57,7 @@ class RoutingRemoteDatasource {
 
     // 1. Hit cache
     final cached = _cache[key];
-    if (cached != null && !cached.isExpired) return [cached.route];
+    if (cached != null && !cached.isExpired) return cached.routes;
     if (cached != null && cached.isExpired) _cache.remove(key);
 
     // 2. Deduplikasi concurrent requests
@@ -69,7 +70,7 @@ class RoutingRemoteDatasource {
     try {
       final routes = await future;
       if (routes.isNotEmpty) {
-        _cache[key] = _CachedRoute(routes.first);
+        _cache[key] = _CachedRoutes(routes);
       }
       return routes;
     } finally {

@@ -210,5 +210,23 @@ void main() {
       expect(formatSeverity(mediumReport), 'Sedang');
       expect(formatSeverity(lightReport), 'Ringan');
     });
+
+    test('ReportModel.getCategoryFallbackImage returns working URL and does not contain broken 404 ID', () {
+      final roadImg = ReportModel.getCategoryFallbackImage('Jalan Berlubang');
+      final generalImg = ReportModel.getCategoryFallbackImage('Umum');
+      final drainaseImg = ReportModel.getCategoryFallbackImage('Drainase Rusak');
+
+      expect(roadImg, isNotEmpty);
+      expect(roadImg, startsWith('https://images.unsplash.com/'));
+      // Must not contain broken 404 ID
+      expect(roadImg, isNot(contains('photo-1584463699966-224424368146')));
+
+      expect(generalImg, isNotEmpty);
+      expect(generalImg, isNot(contains('photo-1584463699966-224424368146')));
+
+      expect(drainaseImg, isNotEmpty);
+      expect(drainaseImg, contains('photo-1515162816999-a0c47dc192f7'));
+    });
   });
 }
+

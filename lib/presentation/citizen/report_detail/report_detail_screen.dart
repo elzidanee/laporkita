@@ -467,7 +467,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                 style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.neutral600,
+                  color: AppColors.neutral500,
                 ),
               ),
             ],

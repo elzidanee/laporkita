@@ -244,7 +244,8 @@ class ReportRepository {
         addressText: 'Jl. Soekarno Hatta No. 88, Lowokwaru, Kota Malang',
         description:
             'Jalan berlubang cukup dalam (diameter 50cm, kedalaman 8cm) di dekat persimpangan.',
-        directPhotoUrl: null,
+        directPhotoUrl:
+            'https://images.unsplash.com/photo-1578916171728-46686eac8d58?q=80&w=800&auto=format&fit=crop',
         supportCount: 18,
         viewCount: 140,
         urgencyScore: 4.8,
@@ -264,7 +265,8 @@ class ReportRepository {
         longitude: 112.6240,
         addressText: 'Jl. Ahmad Yani No. 34, Blimbing, Kota Malang',
         description: 'Aspal amblas dan bergelombang di lajur kanan arah selatan.',
-        directPhotoUrl: null,
+        directPhotoUrl:
+            'https://images.unsplash.com/photo-1515263487990-61b07816b324?q=80&w=800&auto=format&fit=crop',
         supportCount: 12,
         viewCount: 95,
         urgencyScore: 4.2,
@@ -284,7 +286,8 @@ class ReportRepository {
         longitude: 112.6280,
         addressText: 'Jl. Merdeka Timur, Klojen, Kota Malang',
         description: 'Lampu penerangan jalan umum mati total di malam hari.',
-        directPhotoUrl: null,
+        directPhotoUrl:
+            'https://images.unsplash.com/photo-1509114397022-ed747cca3f65?q=80&w=800&auto=format&fit=crop',
         supportCount: 25,
         viewCount: 210,
         urgencyScore: 2.1,
@@ -303,7 +306,8 @@ class ReportRepository {
         longitude: 112.6140,
         addressText: 'Jl. MT Haryono No. 102, Dinoyo, Kota Malang',
         description: 'Lubang jalan tergenang air setelah hujan deras di depan ruko.',
-        directPhotoUrl: null,
+        directPhotoUrl:
+            'https://images.unsplash.com/photo-1578916171728-46686eac8d58?q=80&w=800&auto=format&fit=crop',
         supportCount: 7,
         viewCount: 60,
         urgencyScore: 3.8,
