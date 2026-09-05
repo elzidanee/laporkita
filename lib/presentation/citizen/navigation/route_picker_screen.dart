@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../core/services/tts_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../data/models/report_model.dart';
 import '../../../data/models/route_model.dart';
 import '../../../data/repositories/routing_repository.dart';
 import '../../reports/bloc/report_bloc.dart';
@@ -72,11 +73,9 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
   RouteModel? _activeRoute;
   List<LatLng> _altRoutePoints = [];
 
-  // Peringatan jalan rusak di sepanjang koridor rute Malang
-  final List<LatLng> _hazardPoints = const [
-    LatLng(-7.9540, 112.6200),
-    LatLng(-7.9650, 112.6240),
-  ];
+  // Data peringatan jalan rusak backend yang sedang aktif/didekati
+  ReportModel? _activeHazardReport;
+  int _activeHazardDistance = 10;
 
   @override
   void initState() {
