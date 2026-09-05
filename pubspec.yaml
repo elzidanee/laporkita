@@ -47,6 +47,8 @@ dependencies:
   # Network & API Integration
   dio: ^5.8.0+1
   flutter_secure_storage: ^9.0.0
+  flutter_image_compress: ^2.3.0
+  path_provider: ^2.1.5
 
   # State Management (BLoC)
   flutter_bloc: ^9.1.1
