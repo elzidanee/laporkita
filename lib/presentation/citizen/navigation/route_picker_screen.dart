@@ -203,6 +203,7 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
 
       final currentPoint = LatLng(pos.latitude, pos.longitude);
       final placeName = await _reverseGeocode(currentPoint);
+      if (!mounted) return;
       final displayOrigin = placeName.startsWith('Titik Peta')
           ? 'Lokasi Anda Saat Ini'
           : 'Lokasi Anda ($placeName)';
@@ -215,7 +216,12 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
 
       _mapController.move(currentPoint, 15.0);
       _fetchRoutesFromOsrm();
-      _checkHazardProximity(currentPoint);
+
+      final reportState = context.read<ReportBloc>().state;
+      if (reportState is ReportListLoaded) {
+        final hazards = _filterRoadHazards(reportState.reports);
+        _checkHazardProximity(currentPoint, hazards);
+      }
     } catch (_) {
       if (mounted) {
         setState(() => _isLocatingUser = false);
@@ -419,14 +425,74 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
     _fitCameraToRoute();
   }
 
-  /// Menghasilkan item kartu rute dinamis sesuai respons OSRM
-  List<RouteOptionItem> _buildRouteOptionItems() {
+  /// Memfilter laporan fasilitas umum khusus kategori jalan berlubang / rusak yang masih aktif
+  List<ReportModel> _filterRoadHazards(List<ReportModel> allReports) {
+    final filtered = allReports.where((r) {
+      if (r.status == ReportStatus.completed ||
+          r.status == ReportStatus.resolved ||
+          r.status == ReportStatus.rejected) {
+        return false;
+      }
+      if (r.latitude == 0.0 && r.longitude == 0.0) return false;
+
+      final cat = r.categoryName.toLowerCase();
+      final desc = (r.description ?? '').toLowerCase();
+      return cat.contains('jalan') ||
+          cat.contains('lubang') ||
+          cat.contains('aspal') ||
+          cat.contains('rusak') ||
+          desc.contains('lubang') ||
+          desc.contains('jalan rusak');
+    }).toList();
+
+    return filtered;
+  }
+
+  /// Menghitung tingkat keparahan laporan untuk visual & suara
+  String _formatSeverity(ReportModel? report) {
+    if (report == null) return 'Sedang';
+    if (report.damageSeverity != null) {
+      if (report.damageSeverity! >= 0.7) return 'Berat';
+      if (report.damageSeverity! >= 0.4) return 'Sedang';
+      return 'Ringan';
+    }
+    if (report.urgencyScore != null) {
+      if (report.urgencyScore! >= 4.0) return 'Berat';
+      if (report.urgencyScore! >= 3.0) return 'Sedang';
+      return 'Ringan';
+    }
+    return 'Sedang';
+  }
+
+  /// Menghitung jumlah laporan jalan rusak backend di koridor suatu rute
+  int _countHazardsNearRoute(RouteModel route, List<ReportModel> hazards) {
+    int count = 0;
+    for (final hazard in hazards) {
+      final hazardLoc = LatLng(hazard.latitude, hazard.longitude);
+      for (final pt in route.points) {
+        final d = Geolocator.distanceBetween(
+          pt.latitude,
+          pt.longitude,
+          hazardLoc.latitude,
+          hazardLoc.longitude,
+        );
+        if (d <= 150.0) {
+          count++;
+          break;
+        }
+      }
+    }
+    return count;
+  }
+
+  /// Menghasilkan item kartu rute dinamis dengan resiko dihitung dari laporan backend
+  List<RouteOptionItem> _buildRouteOptionItems(List<ReportModel> roadHazards) {
     if (_routes.isEmpty) return NavigationRouteSheet.defaultRoutes;
 
     return List.generate(_routes.length, (i) {
       final route = _routes[i];
       final isFirst = i == 0;
-      final warnings = isFirst ? 2 : (i == 1 ? 0 : 1);
+      final warnings = _countHazardsNearRoute(route, roadHazards);
       final riskColor = warnings >= 2
           ? AppColors.statusDanger
           : (warnings == 0 ? AppColors.greenPrimary : AppColors.statusPending);
@@ -435,10 +501,10 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
         index: i,
         title: isFirst ? 'Rute Tercepat' : 'Rute Alternatif $i',
         riskTitle: isFirst
-            ? 'Rute awal (ada resiko)'
+            ? (warnings > 0 ? 'Rute awal ($warnings peringatan)' : 'Rute awal (Aman)')
             : (warnings == 0
                 ? 'Rute Alternatif $i (lebih aman)'
-                : 'Hindari Alternatif $i'),
+                : 'Hindari Alternatif $i ($warnings resiko)'),
         durationKm: '${route.durationMinutes} - ${route.distanceKm}',
         warningCountText: '$warnings peringatan',
         riskColor: riskColor,
@@ -470,22 +536,30 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
     }
   }
 
-  /// Peringatan suara dan visual saat mendekati jalan rusak / berlubang (Figma 464:837)
+  /// Peringatan suara dan visual saat mendekati jalan rusak dari data backend (Figma 464:837)
   void _triggerHazardAlert({
-    String hazard = 'Jalan Berlubang',
+    required ReportModel report,
     int distance = 10,
-    String? street,
   }) {
     _hasTriggeredHazardVoice = true;
+    _activeHazardReport = report;
+    _activeHazardDistance = distance;
+
     setState(() {
       _currentMode = NavigationScreenMode.hazardAlert;
     });
 
     if (!_isSoundMuted) {
+      final sev = _formatSeverity(report);
+      final cat = report.categoryName.isNotEmpty ? report.categoryName : 'Jalan Berlubang';
+      final street = (report.addressText != null && report.addressText!.isNotEmpty)
+          ? report.addressText!
+          : 'di jalan depan';
+
       _ttsService.speakHazardAlert(
-        hazardType: hazard,
+        hazardType: '$cat tingkat $sev',
         distanceMeters: distance,
-        streetName: street ?? 'Jl. Soekarno Hatta',
+        streetName: street,
       );
     }
   }
@@ -502,11 +576,11 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
   }
 
   /// Memeriksa jarak pengguna ke titik bahaya terdekat untuk memicu peringatan otomatis
-  void _checkHazardProximity(LatLng currentPosition) {
+  void _checkHazardProximity(LatLng currentPosition, List<ReportModel> hazards) {
     if (_currentMode != NavigationScreenMode.activeNavigation) return;
     if (_hasTriggeredHazardVoice) return;
 
-    for (final hazard in _hazardPoints) {
+    for (final hazard in hazards) {
       final distance = Geolocator.distanceBetween(
         currentPosition.latitude,
         currentPosition.longitude,
@@ -514,12 +588,11 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
         hazard.longitude,
       );
 
-      // Jika dalam radius 50 meter dari titik lubang, picu alert suara & visual otomatis
+      // Jika dalam radius 50 meter dari titik lubang backend, picu alert suara & visual
       if (distance <= 50.0) {
         _triggerHazardAlert(
-          hazard: 'Jalan Berlubang',
+          report: hazard,
           distance: distance.round() < 15 ? 10 : distance.round(),
-          street: 'Jl. Soekarno Hatta',
         );
         break;
       }
@@ -595,421 +668,477 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final firstStep =
-        (_activeRoute?.steps.isNotEmpty ?? false) ? _activeRoute!.steps.first : null;
-    final nextStep =
-        ((_activeRoute?.steps.length ?? 0) > 1) ? _activeRoute!.steps[1] : null;
+    return BlocBuilder<ReportBloc, ReportState>(
+      builder: (context, reportState) {
+        List<ReportModel> allReports = [];
+        if (reportState is ReportListLoaded) {
+          allReports = reportState.reports;
+        }
+        final roadHazards = _filterRoadHazards(allReports);
 
-    final stepName =
-        (firstStep?.name.isNotEmpty ?? false) ? firstStep!.name : 'Jl. Ahmad Habibi';
-    final nextStreet =
-        (nextStep?.name.isNotEmpty ?? false) ? 'ke ${nextStep!.name}' : 'ke Jl. Soekarno Hatta';
-    final stepDistance =
-        firstStep != null ? '${firstStep.distanceMeters.round()}m' : '150m';
-    final maneuverIcon = firstStep?.maneuverIcon ?? Icons.turn_left_rounded;
+        final firstStep =
+            (_activeRoute?.steps.isNotEmpty ?? false) ? _activeRoute!.steps.first : null;
+        final nextStep =
+            ((_activeRoute?.steps.length ?? 0) > 1) ? _activeRoute!.steps[1] : null;
 
-    final durationText = _activeRoute?.durationMinutes ?? '12 Menit';
-    final etaText =
-        '${_activeRoute?.distanceKm ?? "4,6 km"} - ${_activeRoute?.etaFormatted ?? "09.53"}';
+        final stepName =
+            (firstStep?.name.isNotEmpty ?? false) ? firstStep!.name : 'Jl. Ahmad Habibi';
+        final nextStreet =
+            (nextStep?.name.isNotEmpty ?? false) ? 'ke ${nextStep!.name}' : 'ke Jl. Soekarno Hatta';
+        final stepDistance =
+            firstStep != null ? '${firstStep.distanceMeters.round()}m' : '150m';
+        final maneuverIcon = firstStep?.maneuverIcon ?? Icons.turn_left_rounded;
 
-    return Scaffold(
-      backgroundColor: AppColors.white,
-      body: Stack(
-        children: [
-          // 1. Peta FlutterMap
-          FlutterMap(
-            mapController: _mapController,
-            options: MapOptions(
-              initialCenter: _origin,
-              initialZoom: 14.5,
-              minZoom: 10.0,
-              maxZoom: 18.0,
-              onTap: (tapPosition, point) => _handleMapTap(point),
-            ),
+        final durationText = _activeRoute?.durationMinutes ?? '12 Menit';
+        final etaText =
+            '${_activeRoute?.distanceKm ?? "4,6 km"} - ${_activeRoute?.etaFormatted ?? "09.53"}';
+
+        return Scaffold(
+          backgroundColor: AppColors.white,
+          body: Stack(
             children: [
-              // Lapisan OpenStreetMap Tile
-              TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.laporkita.app',
-              ),
-
-              // Garis Rute Alternatif (Abu-abu, Figma 471:4186)
-              if (_altRoutePoints.isNotEmpty &&
-                  _currentMode == NavigationScreenMode.routePlanning)
-                PolylineLayer(
-                  polylines: [
-                    Polyline(
-                      points: _altRoutePoints,
-                      strokeWidth: 5.0,
-                      color: AppColors.navRouteAlt.withValues(alpha: 0.75),
-                    ),
-                  ],
+              // 1. Peta FlutterMap
+              FlutterMap(
+                mapController: _mapController,
+                options: MapOptions(
+                  initialCenter: _origin,
+                  initialZoom: 14.5,
+                  minZoom: 10.0,
+                  maxZoom: 18.0,
+                  onTap: (tapPosition, point) => _handleMapTap(point),
                 ),
-
-              // Garis Rute Utama (Biru Navigasi OSRM, Figma 454:2 & 462:126)
-              if (_activeRoute != null && _activeRoute!.points.isNotEmpty)
-                PolylineLayer(
-                  polylines: [
-                    Polyline(
-                      points: _activeRoute!.points,
-                      strokeWidth: 6.0,
-                      color: AppColors.navRouteBlue,
-                    ),
-                  ],
-                ),
-
-              // Marker Layer: User Puck, Pin Tujuan & Segitiga Bahaya
-              MarkerLayer(
-                markers: [
-                  // Posisi Asal (Titik A)
-                  Marker(
-                    point: _currentMode == NavigationScreenMode.hazardPassed
-                        ? (_activeRoute?.points.length ?? 0) > 3
-                            ? _activeRoute!.points[2]
-                            : _origin
-                        : _origin,
-                    width: 44,
-                    height: 44,
-                    child: _buildUserPuck(),
+                children: [
+                  // Lapisan OpenStreetMap Tile
+                  TileLayer(
+                    urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    userAgentPackageName: 'com.laporkita.app',
                   ),
 
-                  // Pin Tujuan Merah (Titik B)
-                  Marker(
-                    point: _destination,
-                    width: 40,
-                    height: 40,
-                    alignment: Alignment.topCenter,
-                    child: const Icon(
-                      Icons.location_on_rounded,
-                      color: AppColors.statusDanger,
-                      size: 40,
+                  // Garis Rute Alternatif (Abu-abu, Figma 471:4186)
+                  if (_altRoutePoints.isNotEmpty &&
+                      _currentMode == NavigationScreenMode.routePlanning)
+                    PolylineLayer(
+                      polylines: [
+                        Polyline(
+                          points: _altRoutePoints,
+                          strokeWidth: 5.0,
+                          color: AppColors.navRouteAlt.withValues(alpha: 0.75),
+                        ),
+                      ],
                     ),
-                  ),
 
-                  // Marker Peringatan Bahaya Jalan Rusak
-                  ..._hazardPoints.map(
-                    (point) => Marker(
-                      point: point,
-                      width: 38,
-                      height: 38,
-                      child: GestureDetector(
-                        onTap: () {
-                          _triggerHazardAlert(
-                            hazard: 'Jalan Berlubang',
-                            distance: 10,
-                            street: stepName,
+                  // Garis Rute Utama (Biru Navigasi OSRM, Figma 454:2 & 462:126)
+                  if (_activeRoute != null && _activeRoute!.points.isNotEmpty)
+                    PolylineLayer(
+                      polylines: [
+                        Polyline(
+                          points: _activeRoute!.points,
+                          strokeWidth: 6.0,
+                          color: AppColors.navRouteBlue,
+                        ),
+                      ],
+                    ),
+
+                  // Marker Layer: User Puck, Pin Tujuan & Segitiga Bahaya dari Backend
+                  MarkerLayer(
+                    markers: [
+                      // Posisi Asal (Titik A)
+                      Marker(
+                        point: _currentMode == NavigationScreenMode.hazardPassed
+                            ? (_activeRoute?.points.length ?? 0) > 3
+                                ? _activeRoute!.points[2]
+                                : _origin
+                            : _origin,
+                        width: 44,
+                        height: 44,
+                        child: _buildUserPuck(),
+                      ),
+
+                      // Pin Tujuan Merah (Titik B)
+                      Marker(
+                        point: _destination,
+                        width: 40,
+                        height: 40,
+                        alignment: Alignment.topCenter,
+                        child: const Icon(
+                          Icons.location_on_rounded,
+                          color: AppColors.statusDanger,
+                          size: 40,
+                        ),
+                      ),
+
+                      // Marker Peringatan Bahaya Jalan Rusak dari Data Backend
+                      ...roadHazards.map(
+                        (hazardReport) {
+                          final point =
+                              LatLng(hazardReport.latitude, hazardReport.longitude);
+                          return Marker(
+                            point: point,
+                            width: 38,
+                            height: 38,
+                            child: GestureDetector(
+                              onTap: () {
+                                final dist = Geolocator.distanceBetween(
+                                  _origin.latitude,
+                                  _origin.longitude,
+                                  hazardReport.latitude,
+                                  hazardReport.longitude,
+                                ).round();
+                                _triggerHazardAlert(
+                                  report: hazardReport,
+                                  distance: dist < 15 ? 10 : dist,
+                                );
+                              },
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: AppColors.white,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.25),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: const Icon(
+                                  Icons.warning_rounded,
+                                  color: AppColors.statusDanger,
+                                  size: 28,
+                                ),
+                              ),
+                            ),
                           );
                         },
-                        child: const Icon(
-                          Icons.warning_rounded,
-                          color: AppColors.statusPending,
-                          size: 34,
-                        ),
                       ),
-                    ),
+                    ],
+                  ),
+
+                  // Atribusi wajib OpenStreetMap
+                  const RichAttributionWidget(
+                    attributions: [
+                      TextSourceAttribution('© OpenStreetMap contributors'),
+                    ],
                   ),
                 ],
               ),
 
-              // Atribusi wajib OpenStreetMap
-              const RichAttributionWidget(
-                attributions: [
-                  TextSourceAttribution('© OpenStreetMap contributors'),
-                ],
-              ),
-            ],
-          ),
+              // 2. Header Atas: Sesuai Mode Aktif
+              if (_currentMode == NavigationScreenMode.routePlanning)
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: NavigationTopBar(
+                    originText: _originName,
+                    destinationText: _destinationName,
+                    isPickingOrigin: _mapPickingTarget == MapPickingTarget.origin,
+                    isPickingDestination:
+                        _mapPickingTarget == MapPickingTarget.destination,
+                    isLocatingOrigin: _isLocatingUser,
+                    onBack: () => Navigator.of(context).maybePop(),
+                    onSwap: _swapLocations,
+                    onTapOrigin: () => _openLocationPicker(true),
+                    onTapDestination: () => _openLocationPicker(false),
+                  ),
+                )
+              else if (_currentMode == NavigationScreenMode.activeNavigation)
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: NavigationActiveTopBanner(
+                    state: NavigationBannerState.turnByTurn,
+                    distanceText: stepDistance,
+                    primaryText: stepName,
+                    secondaryText: nextStreet,
+                    maneuverIcon: maneuverIcon,
+                    onMicTap: () {
+                      if (_isSoundMuted) {
+                        setState(() => _isSoundMuted = false);
+                        _ttsService.speak('Panduan suara diaktifkan');
+                      } else {
+                        final first = (_activeRoute?.steps.isNotEmpty ?? false)
+                            ? _activeRoute!.steps.first
+                            : null;
+                        if (first != null) {
+                          _ttsService.speakInstruction(
+                            instruction: first.instructionText,
+                            distanceText: '${first.distanceMeters.round()} meter',
+                          );
+                        } else {
+                          _ttsService.speak('Lanjutkan mengikuti rute.');
+                        }
+                      }
+                    },
+                  ),
+                )
+              else if (_currentMode == NavigationScreenMode.hazardAlert)
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: NavigationActiveTopBanner(
+                    state: NavigationBannerState.hazardApproaching,
+                    distanceText: '$_activeHazardDistance meter',
+                    primaryText: '$_activeHazardDistance meter',
+                    secondaryText: _activeHazardReport?.categoryName ?? 'Jalan Berlubang',
+                  ),
+                )
+              else if (_currentMode == NavigationScreenMode.hazardPassed)
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: const NavigationActiveTopBanner(
+                    state: NavigationBannerState.hazardPassed,
+                    distanceText: '450m',
+                    primaryText: 'Lokasi telah dilewati',
+                    secondaryText:
+                        'Tetap berhati-hati dan perhatikan kondisi jalan di depan.',
+                    maneuverIcon: Icons.turn_right_rounded,
+                  ),
+                ),
 
-          // 2. Header Atas: Sesuai Mode Aktif
-          if (_currentMode == NavigationScreenMode.routePlanning)
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: NavigationTopBar(
-                originText: _originName,
-                destinationText: _destinationName,
-                isPickingOrigin: _mapPickingTarget == MapPickingTarget.origin,
-                isPickingDestination:
-                    _mapPickingTarget == MapPickingTarget.destination,
-                isLocatingOrigin: _isLocatingUser,
-                onBack: () => Navigator.of(context).maybePop(),
-                onSwap: _swapLocations,
-                onTapOrigin: () => _openLocationPicker(true),
-                onTapDestination: () => _openLocationPicker(false),
-              ),
-            )
-          else if (_currentMode == NavigationScreenMode.activeNavigation)
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: NavigationActiveTopBanner(
-                state: NavigationBannerState.turnByTurn,
-                distanceText: stepDistance,
-                primaryText: stepName,
-                secondaryText: nextStreet,
-                maneuverIcon: maneuverIcon,
-                onMicTap: () {
-                  if (_isSoundMuted) {
-                    setState(() => _isSoundMuted = false);
-                    _ttsService.speak('Panduan suara diaktifkan');
-                  } else {
-                    final first = (_activeRoute?.steps.isNotEmpty ?? false)
-                        ? _activeRoute!.steps.first
-                        : null;
-                    if (first != null) {
-                      _ttsService.speakInstruction(
-                        instruction: first.instructionText,
-                        distanceText: '${first.distanceMeters.round()} meter',
+              // 2b. Pill Panduan jika sedang mode "Pilih di Peta"
+              if (_mapPickingTarget != MapPickingTarget.none &&
+                  _currentMode == NavigationScreenMode.routePlanning)
+                Positioned(
+                  top: MediaQuery.of(context).padding.top + 130,
+                  left: 20,
+                  right: 20,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.neutral900.withValues(alpha: 0.9),
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.2),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _mapPickingTarget == MapPickingTarget.origin
+                              ? Icons.my_location_rounded
+                              : Icons.location_on_rounded,
+                          color: _mapPickingTarget == MapPickingTarget.origin
+                              ? AppColors.statusInfo
+                              : AppColors.statusDanger,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _mapPickingTarget == MapPickingTarget.origin
+                                ? 'Ketuk peta untuk menentukan Titik Asal (A)'
+                                : 'Ketuk peta untuk menentukan Titik Tujuan (B)',
+                            style: const TextStyle(
+                              color: AppColors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () {
+                            setState(() => _mapPickingTarget = MapPickingTarget.none);
+                          },
+                          child: const Icon(
+                            Icons.close_rounded,
+                            color: AppColors.white,
+                            size: 18,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+              // 3. Kolom Tombol Mengapung di Sisi Kanan (Figma 454:2)
+              Positioned(
+                right: 16,
+                top: MediaQuery.of(context).size.height * 0.22,
+                child: NavigationFloatingTools(
+                  isSoundMuted: _isSoundMuted,
+                  onSearch: () => _openLocationPicker(false),
+                  onToggleSound: () {
+                    setState(() => _isSoundMuted = !_isSoundMuted);
+                    if (_isSoundMuted) {
+                      _ttsService.stop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Suara panduan navigasi dinonaktifkan'),
+                          duration: Duration(seconds: 2),
+                        ),
                       );
                     } else {
-                      _ttsService.speak('Lanjutkan mengikuti rute.');
+                      _ttsService.speak('Suara panduan diaktifkan');
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Suara panduan navigasi diaktifkan'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
                     }
-                  }
-                },
-              ),
-            )
-          else if (_currentMode == NavigationScreenMode.hazardAlert)
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: const NavigationActiveTopBanner(
-                state: NavigationBannerState.hazardApproaching,
-                distanceText: '10 meter',
-                primaryText: '10 meter',
-                secondaryText: 'Jalan Berlubang',
-              ),
-            )
-          else if (_currentMode == NavigationScreenMode.hazardPassed)
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: const NavigationActiveTopBanner(
-                state: NavigationBannerState.hazardPassed,
-                distanceText: '450m',
-                primaryText: 'Lokasi telah dilewati',
-                secondaryText:
-                    'Tetap berhati-hati dan perhatikan kondisi jalan di depan.',
-                maneuverIcon: Icons.turn_right_rounded,
-              ),
-            ),
-
-          // 2b. Pill Panduan jika sedang mode "Pilih di Peta"
-          if (_mapPickingTarget != MapPickingTarget.none &&
-              _currentMode == NavigationScreenMode.routePlanning)
-            Positioned(
-              top: MediaQuery.of(context).padding.top + 130,
-              left: 20,
-              right: 20,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                decoration: BoxDecoration(
-                  color: AppColors.neutral900.withValues(alpha: 0.9),
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.2),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
+                  },
+                  onToggleLayers: () {
+                    setState(() {
+                      _selectedRouteIndex =
+                          (_selectedRouteIndex + 1) % (_routes.isEmpty ? 3 : _routes.length);
+                      if (_selectedRouteIndex < _routes.length) {
+                        _activeRoute = _routes[_selectedRouteIndex];
+                      }
+                    });
+                    _fitCameraToRoute();
+                  },
+                  onCompass: () {
+                    _mapController.rotate(0);
+                  },
+                  onMyLocation: _recenterToCurrentLocation,
                 ),
-                child: Row(
-                  children: [
-                    Icon(
-                      _mapPickingTarget == MapPickingTarget.origin
-                          ? Icons.my_location_rounded
-                          : Icons.location_on_rounded,
-                      color: _mapPickingTarget == MapPickingTarget.origin
-                          ? AppColors.statusInfo
-                          : AppColors.statusDanger,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        _mapPickingTarget == MapPickingTarget.origin
-                            ? 'Ketuk peta untuk menentukan Titik Asal (A)'
-                            : 'Ketuk peta untuk menentukan Titik Tujuan (B)',
-                        style: const TextStyle(
-                          color: AppColors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+              ),
+
+              // 4. Tombol "Mulai Navigasi" Mengapung di atas Bottom Sheet (Figma 454:2)
+              if (_currentMode == NavigationScreenMode.routePlanning)
+                Positioned(
+                  left: 24,
+                  right: 24,
+                  bottom: 290,
+                  child: SizedBox(
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: _isLoadingRoute ? null : _startNavigation,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.greenPrimary,
+                        foregroundColor: AppColors.white,
+                        elevation: 4,
+                        shadowColor: Colors.black.withValues(alpha: 0.25),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
                         ),
                       ),
-                    ),
-                    GestureDetector(
-                      onTap: () {
-                        setState(() => _mapPickingTarget = MapPickingTarget.none);
-                      },
-                      child: const Icon(
-                        Icons.close_rounded,
-                        color: AppColors.white,
-                        size: 18,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-          // 3. Kolom Tombol Mengapung di Sisi Kanan (Figma 454:2)
-          Positioned(
-            right: 16,
-            top: MediaQuery.of(context).size.height * 0.22,
-            child: NavigationFloatingTools(
-              isSoundMuted: _isSoundMuted,
-              onSearch: () => _openLocationPicker(false),
-              onToggleSound: () {
-                setState(() => _isSoundMuted = !_isSoundMuted);
-                if (_isSoundMuted) {
-                  _ttsService.stop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Suara panduan navigasi dinonaktifkan'),
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
-                } else {
-                  _ttsService.speak('Suara panduan diaktifkan');
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Suara panduan navigasi diaktifkan'),
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
-                }
-              },
-              onToggleLayers: () {
-                setState(() {
-                  _selectedRouteIndex =
-                      (_selectedRouteIndex + 1) % (_routes.isEmpty ? 3 : _routes.length);
-                  if (_selectedRouteIndex < _routes.length) {
-                    _activeRoute = _routes[_selectedRouteIndex];
-                  }
-                });
-                _fitCameraToRoute();
-              },
-              onCompass: () {
-                _mapController.rotate(0);
-              },
-              onMyLocation: _recenterToCurrentLocation,
-            ),
-          ),
-
-          // 4. Tombol "Mulai Navigasi" Mengapung di atas Bottom Sheet (Figma 454:2)
-          if (_currentMode == NavigationScreenMode.routePlanning)
-            Positioned(
-              left: 24,
-              right: 24,
-              bottom: 290,
-              child: SizedBox(
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _isLoadingRoute ? null : _startNavigation,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.greenPrimary,
-                    foregroundColor: AppColors.white,
-                    elevation: 4,
-                    shadowColor: Colors.black.withValues(alpha: 0.25),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      child: _isLoadingRoute
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                    AppColors.white),
+                              ),
+                            )
+                          : const Text(
+                              'Mulai Navigasi',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                     ),
                   ),
-                  child: _isLoadingRoute
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                                AppColors.white),
-                          ),
-                        )
-                      : const Text(
-                          'Mulai Navigasi',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
                 ),
-              ),
-            ),
 
-          // 5. Panel Bagian Bawah Sesuai Mode
-          if (_currentMode == NavigationScreenMode.routePlanning)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: NavigationRouteSheet(
-                selectedIndex: _selectedRouteIndex,
-                customRoutes: _buildRouteOptionItems(),
-                showRiskBadges: true,
-                onSelectRoute: _selectRoute,
-              ),
-            )
-          else if (_currentMode == NavigationScreenMode.activeNavigation)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: NavigationActiveBottomBar(
-                durationText: durationText,
-                distanceEtaText: etaText,
-                onClose: _exitNavigation,
-                onRoutesToggle: () {
-                  _triggerHazardAlert(
-                    hazard: 'Jalan Berlubang',
-                    distance: 10,
-                    street: stepName,
-                  );
-                },
-              ),
-            )
-          else if (_currentMode == NavigationScreenMode.hazardAlert)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: NavigationHazardDialog(
-                title: 'Jalan Berlubang',
-                distanceRemaining: '10 meter lagi',
-                streetName: stepName,
-                severityLevel: 'Sedang',
-                onDismiss: _triggerHazardPassed,
-                onViewDetail: () {
-                  _triggerHazardPassed();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Membuka detail laporan fasilitas rusak...'),
-                    ),
-                  );
-                },
-              ),
-            )
-          else if (_currentMode == NavigationScreenMode.hazardPassed)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: NavigationActiveBottomBar(
-                durationText: '8 Menit',
-                distanceEtaText: '3,2 km - 09.49',
-                onClose: _exitNavigation,
-                onRoutesToggle: () {
-                  setState(() {
-                    _currentMode = NavigationScreenMode.activeNavigation;
-                  });
-                },
-              ),
-            ),
-        ],
-      ),
+              // 5. Panel Bagian Bawah Sesuai Mode
+              if (_currentMode == NavigationScreenMode.routePlanning)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: NavigationRouteSheet(
+                    selectedIndex: _selectedRouteIndex,
+                    customRoutes: _buildRouteOptionItems(roadHazards),
+                    showRiskBadges: true,
+                    onSelectRoute: _selectRoute,
+                  ),
+                )
+              else if (_currentMode == NavigationScreenMode.activeNavigation)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: NavigationActiveBottomBar(
+                    durationText: durationText,
+                    distanceEtaText: etaText,
+                    onClose: _exitNavigation,
+                    onRoutesToggle: () {
+                      final firstHazard =
+                          roadHazards.isNotEmpty ? roadHazards.first : null;
+                      if (firstHazard != null) {
+                        _triggerHazardAlert(
+                          report: firstHazard,
+                          distance: 10,
+                        );
+                      }
+                    },
+                  ),
+                )
+              else if (_currentMode == NavigationScreenMode.hazardAlert)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: NavigationHazardDialog(
+                    title: _activeHazardReport?.categoryName ?? 'Jalan Berlubang',
+                    distanceRemaining: '$_activeHazardDistance meter lagi',
+                    streetName: _activeHazardReport?.addressText ?? stepName,
+                    severityLevel: _formatSeverity(_activeHazardReport),
+                    onDismiss: _triggerHazardPassed,
+                    onViewDetail: () {
+                      _triggerHazardPassed();
+                      if (_activeHazardReport != null) {
+                        Navigator.pushNamed(
+                          context,
+                          '/report-detail',
+                          arguments: {
+                            'id': _activeHazardReport!.id,
+                            'reportModel': _activeHazardReport,
+                            'title': _activeHazardReport!.categoryName,
+                            'address': _activeHazardReport!.addressText ?? 'Malang',
+                            'fullAddress':
+                                _activeHazardReport!.addressText ?? 'Kota Malang',
+                            'status': _activeHazardReport!.status.displayName,
+                            'description': _activeHazardReport!.description ??
+                                'Laporan fasilitas rusak.',
+                            'photoUrl': _activeHazardReport!.photoUrl,
+                            'supports': _activeHazardReport!.supportCount,
+                          },
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content:
+                                Text('Membuka detail laporan fasilitas rusak...'),
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                )
+              else if (_currentMode == NavigationScreenMode.hazardPassed)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: NavigationActiveBottomBar(
+                    durationText: '8 Menit',
+                    distanceEtaText: '3,2 km - 09.49',
+                    onClose: _exitNavigation,
+                    onRoutesToggle: () {
+                      setState(() {
+                        _currentMode = NavigationScreenMode.activeNavigation;
+                      });
+                    },
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
