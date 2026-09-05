@@ -33,4 +33,9 @@ class AppColors {
   // ── Borders & Dividers ───────────────────────────────────────────────
   static const Color border     = Color(0xFFE2E8E4);
   static const Color borderLight = Color(0xFFE8E8E8);
+
+  // ── Navigation & Map Tokens ──────────────────────────────────────────
+  static const Color navRouteBlue  = Color(0xFF1565C0); // Rute aktif biru Figma
+  static const Color navRouteAlt   = Color(0xFF9E9E9E); // Rute alternatif abu-abu
+  static const Color navPuckBorder = Color(0xFF1976D2); // Border indikator posisi user
 }

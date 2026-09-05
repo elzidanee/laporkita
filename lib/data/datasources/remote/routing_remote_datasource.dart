@@ -39,41 +39,46 @@ class RoutingRemoteDatasource {
     required LatLng origin,
     required LatLng destination,
   }) async {
-    final key = _key(origin, destination);
+    final routes = await getRoutes(
+      origin: origin,
+      destination: destination,
+      alternatives: false,
+    );
+    return routes.first;
+  }
+
+  Future<List<RouteModel>> getRoutes({
+    required LatLng origin,
+    required LatLng destination,
+    bool alternatives = true,
+  }) async {
+    final key = '${_key(origin, destination)}_${alternatives ? "alt" : "single"}';
 
     // 1. Hit cache
     final cached = _cache[key];
-    if (cached != null && !cached.isExpired) return cached.route;
+    if (cached != null && !cached.isExpired) return [cached.route];
     if (cached != null && cached.isExpired) _cache.remove(key);
 
-    // 2. Deduplikasi: jika ada request sama yang sedang berjalan, ikut Future itu
-    final inflight = _inFlight[key];
-    if (inflight != null) return inflight;
-
-    final future = _fetchRoute(origin, destination);
-    _inFlight[key] = future;
-
-    try {
-      final route = await future;
-      _cache[key] = _CachedRoute(route);
-      return route;
-    } finally {
-      _inFlight.remove(key);
-    }
+    return _fetchRoutes(origin, destination, alternatives: alternatives);
   }
 
-  Future<RouteModel> _fetchRoute(LatLng origin, LatLng destination) async {
+  Future<List<RouteModel>> _fetchRoutes(
+    LatLng origin,
+    LatLng destination, {
+    bool alternatives = true,
+  }) async {
+    final altParam = alternatives ? '&alternatives=true' : '';
     final url =
         '${AppConfig.osrmBaseUrl}/route/v1/driving/'
         '${origin.longitude},${origin.latitude};'
         '${destination.longitude},${destination.latitude}'
-        '?overview=full&geometries=geojson&steps=true';
+        '?overview=full&geometries=geojson&steps=true$altParam';
 
     try {
       final response = await _dio.get(url);
 
       if (response.data is Map<String, dynamic>) {
-        return RouteModel.fromOsrmJson(response.data as Map<String, dynamic>);
+        return RouteModel.fromOsrmJsonList(response.data as Map<String, dynamic>);
       } else {
         throw const RouteNotFoundException(
           'Format data respons dari server rute tidak valid.',
