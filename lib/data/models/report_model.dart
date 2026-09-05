@@ -319,6 +319,62 @@ class ReportModel {
     };
   }
 
+  ReportModel copyWith({
+    String? id,
+    String? reportCode,
+    String? reporterId,
+    String? categoryId,
+    ReportStatus? status,
+    double? latitude,
+    double? longitude,
+    String? addressText,
+    String? description,
+    String? directPhotoUrl,
+    int? supportCount,
+    int? viewCount,
+    double? urgencyScore,
+    bool? needsManualReview,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    double? rawAiConfidenceScore,
+    double? damageSeverity,
+    DateTime? estimatedCompletionAt,
+    Map<String, dynamic>? category,
+    Map<String, dynamic>? reporter,
+    Map<String, dynamic>? assignedAgency,
+    List<ReportMediaModel>? media,
+    List<ReportStatusHistoryModel>? statusHistory,
+    Map<String, int>? count,
+  }) {
+    return ReportModel(
+      id: id ?? this.id,
+      reportCode: reportCode ?? this.reportCode,
+      reporterId: reporterId ?? this.reporterId,
+      categoryId: categoryId ?? this.categoryId,
+      status: status ?? this.status,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      addressText: addressText ?? this.addressText,
+      description: description ?? this.description,
+      directPhotoUrl: directPhotoUrl ?? this.directPhotoUrl,
+      supportCount: supportCount ?? this.supportCount,
+      viewCount: viewCount ?? this.viewCount,
+      urgencyScore: urgencyScore ?? this.urgencyScore,
+      needsManualReview: needsManualReview ?? this.needsManualReview,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rawAiConfidenceScore: rawAiConfidenceScore ?? this.rawAiConfidenceScore,
+      damageSeverity: damageSeverity ?? this.damageSeverity,
+      estimatedCompletionAt: estimatedCompletionAt ?? this.estimatedCompletionAt,
+      category: category ?? this.category,
+      reporter: reporter ?? this.reporter,
+      assignedAgency: assignedAgency ?? this.assignedAgency,
+      media: media ?? this.media,
+      statusHistory: statusHistory ?? this.statusHistory,
+      count: count ?? this.count,
+    );
+  }
+
   /// Confidence score hasil verifikasi AI server-side
   double? get aiConfidenceScore => rawAiConfidenceScore ?? 0.88;
 

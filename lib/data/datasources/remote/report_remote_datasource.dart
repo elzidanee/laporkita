@@ -208,11 +208,18 @@ class ReportRemoteDatasource {
     return response.data!;
   }
 
-  Future<Map<String, dynamic>> validateReport(String reportId) async {
+  Future<Map<String, dynamic>> validateReport(
+    String reportId, {
+    bool isValid = true,
+    String? notes,
+  }) async {
     final response = await _dioClient.post<Map<String, dynamic>>(
       '/reports/$reportId/validate',
       fromJson: (json) => json as Map<String, dynamic>,
-      data: {},
+      data: {
+        'is_valid': isValid,
+        if (notes != null && notes.isNotEmpty) 'notes': notes,
+      },
     );
     return response.data!;
   }

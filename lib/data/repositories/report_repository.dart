@@ -423,11 +423,30 @@ class ReportRepository {
     return result;
   }
 
-  Future<Map<String, dynamic>> supportReport(String reportId) =>
-      _datasource.supportReport(reportId);
+  Future<Map<String, dynamic>> supportReport(String reportId) async {
+    await _ensureStorageLoaded();
+    final res = await _datasource.supportReport(reportId);
+    final idx = _submittedReports.indexWhere((r) => r.id == reportId);
+    if (idx != -1) {
+      final old = _submittedReports[idx];
+      _submittedReports[idx] = old.copyWith(supportCount: old.supportCount + 1);
+      await _savePersistedState();
+    }
+    return res;
+  }
 
-  Future<Map<String, dynamic>> cancelSupport(String reportId) =>
-      _datasource.cancelSupport(reportId);
+  Future<Map<String, dynamic>> cancelSupport(String reportId) async {
+    await _ensureStorageLoaded();
+    final res = await _datasource.cancelSupport(reportId);
+    final idx = _submittedReports.indexWhere((r) => r.id == reportId);
+    if (idx != -1) {
+      final old = _submittedReports[idx];
+      final newCount = old.supportCount > 0 ? old.supportCount - 1 : 0;
+      _submittedReports[idx] = old.copyWith(supportCount: newCount);
+      await _savePersistedState();
+    }
+    return res;
+  }
 
   Future<ApiResponse<List<Map<String, dynamic>>>> getComments(
     String reportId, {
@@ -445,22 +464,58 @@ class ReportRepository {
   }
 
   // ── Validate Report (Citizen Confirmation) ─────────────────────────────────
-  // FE-06: Warga konfirmasi laporan sudah selesai — POST /reports/:id/validate
-  Future<Map<String, dynamic>> validateReport(String reportId) async {
+  // FE-06: Warga konfirmasi status perbaikan — POST /reports/:id/validate
+  Future<Map<String, dynamic>> validateReport(
+    String reportId, {
+    bool isApproved = true,
+    String? feedback,
+  }) async {
     await _ensureStorageLoaded();
     Map<String, dynamic> result = {'success': true};
     try {
-      result = await _datasource.validateReport(reportId);
+      result = await _datasource.validateReport(
+        reportId,
+        isValid: isApproved,
+        notes: feedback,
+      );
     } catch (e) {
       debugPrint('ℹ️ [ReportRepository] validateReport notice: $e');
     }
 
+    final targetStatus =
+        isApproved ? ReportStatus.resolved : ReportStatus.disputed;
     final now = DateTime.now();
+    final note = isApproved
+        ? 'Tervalidasi selesai oleh pelapor'
+        : (feedback != null && feedback.isNotEmpty
+            ? 'Perbaikan dilaporkan belum sesuai oleh pelapor: $feedback'
+            : 'Perbaikan dilaporkan belum sesuai oleh pelapor');
+
     _statusOverrides[reportId] = {
-      'status': ReportStatus.completed.apiValue,
+      'status': targetStatus.apiValue,
       'updated_at': now.toIso8601String(),
-      'note': 'Tervalidasi oleh pelapor',
+      'note': note,
     };
+
+    final subIdx = _submittedReports.indexWhere((r) => r.id == reportId);
+    if (subIdx != -1) {
+      final old = _submittedReports[subIdx];
+      final history = List<ReportStatusHistoryModel>.from(old.statusHistory);
+      history.add(ReportStatusHistoryModel(
+        id: 'val-$reportId-${now.millisecondsSinceEpoch}',
+        reportId: reportId,
+        targetStatus: targetStatus,
+        note: note,
+        actorName: 'Pelapor',
+        createdAt: now,
+      ));
+      _submittedReports[subIdx] = old.copyWith(
+        status: targetStatus,
+        updatedAt: now,
+        statusHistory: history,
+      );
+    }
+
     await _savePersistedState();
     return result;
   }

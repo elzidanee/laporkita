@@ -1,9 +1,12 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../core/config/app_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/report_model.dart';
 import '../../../data/repositories/report_repository.dart';
+import '../../reports/bloc/report_bloc.dart';
 
 class ReportDetailScreen extends StatefulWidget {
   final Map<String, dynamic>? reportData;
@@ -234,6 +237,11 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
               size: 22,
             ),
             onPressed: () {
+              final code = report?.reportCode ?? _resolvedReportId ?? '';
+              if (code.isNotEmpty) {
+                Clipboard.setData(ClipboardData(
+                    text: 'LaporKita #$code: ${AppConfig.baseUrl}/reports/$code'));
+              }
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('Tautan laporan berhasil disalin!'),
@@ -787,23 +795,31 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                       try {
                         final repo = context.read<ReportRepository>();
                         await repo.supportReport(reportId);
-                      } catch (_) {
+                        if (mounted) {
+                          context.read<ReportBloc>().add(
+                                ReportSupportRequested(reportId),
+                              );
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Dukungan berhasil dikirim!'),
+                              backgroundColor: AppColors.greenPrimary,
+                            ),
+                          );
+                        }
+                      } catch (e) {
                         if (mounted) {
                           setState(() {
                             _isSupported = false;
                             _supportCount -= 1;
                           });
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Gagal mengirim dukungan: $e'),
+                              backgroundColor: AppColors.statusDanger,
+                            ),
+                          );
                         }
                       }
-                    }
-
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Dukungan berhasil dikirim!'),
-                          backgroundColor: AppColors.greenPrimary,
-                        ),
-                      );
                     }
                   },
             style: ElevatedButton.styleFrom(
@@ -1084,8 +1100,10 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       ));
 
       // Card Validasi Perbaikan di bawah Timeline (Figma node 230:766)
-      timelineItems.add(const SizedBox(height: 12));
-      timelineItems.add(_buildValidationPromptCard(report));
+      if (!hasValidated) {
+        timelineItems.add(const SizedBox(height: 12));
+        timelineItems.add(_buildValidationPromptCard(report));
+      }
     }
 
     return ListView(

@@ -124,9 +124,25 @@ class ReportBloc extends Bloc<ReportEvent, ReportState> {
       // Refresh detail jika sedang di detail screen
       if (state is ReportDetailLoaded) {
         add(ReportDetailRequested(event.reportId));
+      } else if (state is ReportListLoaded) {
+        final current = state as ReportListLoaded;
+        final updatedReports = current.reports.map((r) {
+          if (r.id == event.reportId) {
+            return r.copyWith(supportCount: r.supportCount + 1);
+          }
+          return r;
+        }).toList();
+        emit(ReportListLoaded(
+          reports: updatedReports,
+          nextCursor: current.nextCursor,
+          hasMore: current.hasMore,
+          total: current.total,
+        ));
       }
     } on ApiException catch (e) {
       emit(ReportError(code: e.code, message: e.userMessage));
+    } on NetworkException catch (e) {
+      emit(ReportError(code: 'NETWORK_ERROR', message: e.message));
     } catch (e) {
       emit(ReportError(code: 'UNKNOWN', message: e.toString()));
     }
@@ -144,11 +160,29 @@ class ReportBloc extends Bloc<ReportEvent, ReportState> {
       );
       if (state is ReportDetailLoaded) {
         emit(ReportDetailLoaded(updated));
+      } else if (state is ReportListLoaded) {
+        final current = state as ReportListLoaded;
+        final updatedReports = current.reports.map((r) {
+          if (r.id == event.reportId) {
+            return updated;
+          }
+          return r;
+        }).toList();
+        emit(ReportListLoaded(
+          reports: updatedReports,
+          nextCursor: current.nextCursor,
+          hasMore: current.hasMore,
+          total: current.total,
+        ));
       } else {
         add(const ReportLoadRequested());
       }
-    } catch (_) {
-      //
+    } on ApiException catch (e) {
+      emit(ReportError(code: e.code, message: e.userMessage));
+    } on NetworkException catch (e) {
+      emit(ReportError(code: 'NETWORK_ERROR', message: e.message));
+    } catch (e) {
+      emit(ReportError(code: 'STATUS_UPDATE_FAILED', message: e.toString()));
     }
   }
 }
