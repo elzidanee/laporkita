@@ -4,6 +4,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import '../../../core/services/tts_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/route_model.dart';
 import '../../../data/repositories/routing_repository.dart';
@@ -50,6 +51,7 @@ class RoutePickerScreen extends StatefulWidget {
 
 class _RoutePickerScreenState extends State<RoutePickerScreen> {
   final MapController _mapController = MapController();
+  final TtsService _ttsService = TtsService();
 
   NavigationScreenMode _currentMode = NavigationScreenMode.routePlanning;
   MapPickingTarget _mapPickingTarget = MapPickingTarget.none;
@@ -57,6 +59,7 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
   bool _isSoundMuted = false;
   bool _isLoadingRoute = false;
   bool _isLocatingUser = false;
+  bool _hasTriggeredHazardVoice = false;
 
   // Koordinat Asal (Titik A) & Tujuan (Titik B)
   late LatLng _origin;
@@ -78,6 +81,7 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
   @override
   void initState() {
     super.initState();
+    _ttsService.initialize();
     _origin = widget.initialOrigin ?? const LatLng(-7.9443, 112.6156);
     _destination = widget.initialDestination ?? const LatLng(-7.9827, 112.6304);
     _originName = widget.initialOriginName ??
@@ -92,6 +96,12 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
         _fetchRoutesFromOsrm();
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _ttsService.stop();
+    super.dispose();
   }
 
   /// Mendeteksi posisi GPS pengguna sebagai titik awal default saat pertama kali dibuka
@@ -206,6 +216,7 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
 
       _mapController.move(currentPoint, 15.0);
       _fetchRoutesFromOsrm();
+      _checkHazardProximity(currentPoint);
     } catch (_) {
       if (mounted) {
         setState(() => _isLocatingUser = false);
@@ -442,12 +453,83 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
     setState(() {
       _currentMode = NavigationScreenMode.activeNavigation;
       _mapPickingTarget = MapPickingTarget.none;
+      _hasTriggeredHazardVoice = false;
     });
     _mapController.move(_origin, 16.5);
+
+    if (!_isSoundMuted) {
+      final firstStep =
+          (_activeRoute?.steps.isNotEmpty ?? false) ? _activeRoute!.steps.first : null;
+      if (firstStep != null) {
+        _ttsService.speakInstruction(
+          instruction: firstStep.instructionText,
+          distanceText: '${firstStep.distanceMeters.round()} meter',
+        );
+      } else {
+        _ttsService.speak('Mulai navigasi menuju $_destinationName. Ikuti rute yang ditandai di peta.');
+      }
+    }
+  }
+
+  /// Peringatan suara dan visual saat mendekati jalan rusak / berlubang (Figma 464:837)
+  void _triggerHazardAlert({
+    String hazard = 'Jalan Berlubang',
+    int distance = 10,
+    String? street,
+  }) {
+    _hasTriggeredHazardVoice = true;
+    setState(() {
+      _currentMode = NavigationScreenMode.hazardAlert;
+    });
+
+    if (!_isSoundMuted) {
+      _ttsService.speakHazardAlert(
+        hazardType: hazard,
+        distanceMeters: distance,
+        streetName: street ?? 'Jl. Soekarno Hatta',
+      );
+    }
+  }
+
+  /// Peringatan suara dan banner saat telah melewati titik bahaya (Figma 471:1467)
+  void _triggerHazardPassed() {
+    setState(() {
+      _currentMode = NavigationScreenMode.hazardPassed;
+    });
+
+    if (!_isSoundMuted) {
+      _ttsService.speakHazardPassed();
+    }
+  }
+
+  /// Memeriksa jarak pengguna ke titik bahaya terdekat untuk memicu peringatan otomatis
+  void _checkHazardProximity(LatLng currentPosition) {
+    if (_currentMode != NavigationScreenMode.activeNavigation) return;
+    if (_hasTriggeredHazardVoice) return;
+
+    for (final hazard in _hazardPoints) {
+      final distance = Geolocator.distanceBetween(
+        currentPosition.latitude,
+        currentPosition.longitude,
+        hazard.latitude,
+        hazard.longitude,
+      );
+
+      // Jika dalam radius 50 meter dari titik lubang, picu alert suara & visual otomatis
+      if (distance <= 50.0) {
+        _triggerHazardAlert(
+          hazard: 'Jalan Berlubang',
+          distance: distance.round() < 15 ? 10 : distance.round(),
+          street: 'Jl. Soekarno Hatta',
+        );
+        break;
+      }
+    }
   }
 
   /// Keluar dari mode navigasi kembali ke perencanaan
   void _exitNavigation() {
+    _ttsService.stop();
     setState(() {
       _currentMode = NavigationScreenMode.routePlanning;
     });
@@ -613,9 +695,11 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
                       height: 38,
                       child: GestureDetector(
                         onTap: () {
-                          setState(() {
-                            _currentMode = NavigationScreenMode.hazardAlert;
-                          });
+                          _triggerHazardAlert(
+                            hazard: 'Jalan Berlubang',
+                            distance: 10,
+                            street: stepName,
+                          );
                         },
                         child: const Icon(
                           Icons.warning_rounded,
@@ -668,9 +752,22 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
                 secondaryText: nextStreet,
                 maneuverIcon: maneuverIcon,
                 onMicTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Panduan suara diaktifkan')),
-                  );
+                  if (_isSoundMuted) {
+                    setState(() => _isSoundMuted = false);
+                    _ttsService.speak('Panduan suara diaktifkan');
+                  } else {
+                    final first = (_activeRoute?.steps.isNotEmpty ?? false)
+                        ? _activeRoute!.steps.first
+                        : null;
+                    if (first != null) {
+                      _ttsService.speakInstruction(
+                        instruction: first.instructionText,
+                        distanceText: '${first.distanceMeters.round()} meter',
+                      );
+                    } else {
+                      _ttsService.speak('Lanjutkan mengikuti rute.');
+                    }
+                  }
                 },
               ),
             )
@@ -769,6 +866,23 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
               onSearch: () => _openLocationPicker(false),
               onToggleSound: () {
                 setState(() => _isSoundMuted = !_isSoundMuted);
+                if (_isSoundMuted) {
+                  _ttsService.stop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Suara panduan navigasi dinonaktifkan'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                } else {
+                  _ttsService.speak('Suara panduan diaktifkan');
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Suara panduan navigasi diaktifkan'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }
               },
               onToggleLayers: () {
                 setState(() {
@@ -850,9 +964,11 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
                 distanceEtaText: etaText,
                 onClose: _exitNavigation,
                 onRoutesToggle: () {
-                  setState(() {
-                    _currentMode = NavigationScreenMode.hazardAlert;
-                  });
+                  _triggerHazardAlert(
+                    hazard: 'Jalan Berlubang',
+                    distance: 10,
+                    street: stepName,
+                  );
                 },
               ),
             )
@@ -866,15 +982,9 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
                 distanceRemaining: '10 meter lagi',
                 streetName: stepName,
                 severityLevel: 'Sedang',
-                onDismiss: () {
-                  setState(() {
-                    _currentMode = NavigationScreenMode.hazardPassed;
-                  });
-                },
+                onDismiss: _triggerHazardPassed,
                 onViewDetail: () {
-                  setState(() {
-                    _currentMode = NavigationScreenMode.hazardPassed;
-                  });
+                  _triggerHazardPassed();
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('Membuka detail laporan fasilitas rusak...'),
