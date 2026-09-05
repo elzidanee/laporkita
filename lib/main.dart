@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:latlong2/latlong.dart';
 import 'core/theme/app_theme.dart';
 import 'presentation/citizen/home/splash_screen.dart';
 import 'presentation/citizen/home/get_started_screen.dart';
@@ -182,6 +183,15 @@ Widget? _resolveScreen(RouteSettings settings) {
       }
       return ValidationSuccessScreen(reportData: valSuccessData);
     case '/route-picker':
+      if (settings.arguments is Map<String, dynamic>) {
+        final args = settings.arguments as Map<String, dynamic>;
+        return RoutePickerScreen(
+          initialOrigin: args['origin'] as LatLng?,
+          initialOriginName: args['originName'] as String?,
+          initialDestination: args['destination'] as LatLng?,
+          initialDestinationName: args['destinationName'] as String?,
+        );
+      }
       return const RoutePickerScreen();
     default:
       return null;

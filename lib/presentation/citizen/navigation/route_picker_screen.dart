@@ -649,6 +649,7 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
                 isPickingOrigin: _mapPickingTarget == MapPickingTarget.origin,
                 isPickingDestination:
                     _mapPickingTarget == MapPickingTarget.destination,
+                isLocatingOrigin: _isLocatingUser,
                 onBack: () => Navigator.of(context).maybePop(),
                 onSwap: _swapLocations,
                 onTapOrigin: () => _openLocationPicker(true),

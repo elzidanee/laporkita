@@ -12,6 +12,7 @@ class NavigationTopBar extends StatelessWidget {
   final VoidCallback? onTapDestination;
   final bool isPickingOrigin;
   final bool isPickingDestination;
+  final bool isLocatingOrigin;
 
   const NavigationTopBar({
     super.key,
@@ -23,6 +24,7 @@ class NavigationTopBar extends StatelessWidget {
     this.onTapDestination,
     this.isPickingOrigin = false,
     this.isPickingDestination = false,
+    this.isLocatingOrigin = false,
   });
 
   @override
@@ -115,7 +117,21 @@ class NavigationTopBar extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            if (isPickingOrigin)
+                            if (isLocatingOrigin)
+                              const Padding(
+                                padding: EdgeInsets.only(left: 6),
+                                child: SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      AppColors.statusInfo,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            else if (isPickingOrigin)
                               const Icon(
                                 Icons.edit_location_alt_rounded,
                                 color: AppColors.statusInfo,
