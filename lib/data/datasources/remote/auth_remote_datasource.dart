@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:laporkita/core/network/dio_client.dart';
 import 'package:laporkita/core/config/app_config.dart';
@@ -112,7 +113,9 @@ class AuthRemoteDatasource {
       '/users/me',
       fromJson: (json) => UserModel.fromJson(json as Map<String, dynamic>),
     );
-    return response.data!;
+    final user = response.data!;
+    await cacheUser(user);
+    return user;
   }
 
   // ── Get User Points Log ────────────────────────────────────────────────────
@@ -131,7 +134,38 @@ class AuthRemoteDatasource {
     return response.data ?? [];
   }
 
-  // ── Token Storage Helpers ─────────────────────────────────────────────────
+  // ── Token & User Storage Helpers ───────────────────────────────────────────
+  static const String cachedUserKey = 'cached_user_profile';
+
+  Future<void> cacheUser(UserModel user) async {
+    try {
+      await _storage.write(
+        key: cachedUserKey,
+        value: jsonEncode(user.toJson()),
+      );
+    } catch (_) {}
+  }
+
+  Future<UserModel?> getCachedUser() async {
+    try {
+      final userJson = await _storage.read(key: cachedUserKey);
+      if (userJson != null && userJson.isNotEmpty) {
+        return UserModel.fromJson(
+            jsonDecode(userJson) as Map<String, dynamic>);
+      }
+      final userId = await _storage.read(key: AppConfig.userIdKey);
+      final roleStr = await _storage.read(key: AppConfig.userRoleKey);
+      if (userId != null && userId.isNotEmpty) {
+        return UserModel(
+          id: userId,
+          fullName: 'Warga LaporKita',
+          role: UserRole.fromString(roleStr ?? 'citizen'),
+          contributionPoints: 0,
+        );
+      }
+    } catch (_) {}
+    return null;
+  }
 
   Future<void> saveTokens(AuthTokenModel tokens) async {
     await Future.wait([
@@ -142,6 +176,8 @@ class AuthRemoteDatasource {
       _storage.write(key: AppConfig.userIdKey, value: tokens.user.id),
       _storage.write(
           key: AppConfig.userRoleKey, value: tokens.user.role.name),
+      _storage.write(
+          key: cachedUserKey, value: jsonEncode(tokens.user.toJson())),
     ]);
   }
 
@@ -151,6 +187,7 @@ class AuthRemoteDatasource {
       _storage.delete(key: AppConfig.refreshTokenKey),
       _storage.delete(key: AppConfig.userIdKey),
       _storage.delete(key: AppConfig.userRoleKey),
+      _storage.delete(key: cachedUserKey),
     ]);
   }
 

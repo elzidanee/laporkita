@@ -45,5 +45,13 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>LaporKita memerlukan akses kamera untuk mengambil foto bukti kerusakan fasilitas publik dan validasi laporan warga.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>LaporKita memerlukan akses galeri foto untuk memilih dan mengunggah gambar bukti laporan atau progres perbaikan.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>LaporKita memerlukan akses lokasi untuk menentukan koordinat presisi fasilitas yang dilaporkan dan navigasi rute aman.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>LaporKita memerlukan akses mikrofon untuk perekaman audio pendukung verifikasi laporan jika diperlukan.</string>
 </dict>
 </plist>

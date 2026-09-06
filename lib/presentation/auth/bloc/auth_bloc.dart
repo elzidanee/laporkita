@@ -3,6 +3,7 @@ export 'auth_event.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/models/auth_token_model.dart';
+import '../../../data/models/user_model.dart';
 import '../../../core/network/api_exception.dart';
 import 'auth_event.dart';
 
@@ -28,26 +29,59 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(const AuthLoading());
     try {
       final isLoggedIn = await _authRepository.isLoggedIn();
-      if (isLoggedIn) {
-        // Verifikasi token masih valid dengan ambil profil user
-        final user = await _authRepository.getMe();
-        final accessToken = await _authRepository.getAccessToken() ?? '';
-        emit(AuthAuthenticated(
-          user: user,
-          tokens: AuthTokenModel(
-            accessToken: accessToken,
-            refreshToken: '',
-            expiresIn: '15m',
-            tokenType: 'Bearer',
-            user: user,
-          ),
-        ));
-      } else {
+      if (!isLoggedIn) {
         emit(const AuthUnauthenticated());
+        return;
       }
+
+      // Verifikasi token dengan memanggil getMe()
+      UserModel? user;
+      try {
+        user = await _authRepository.getMe();
+      } on ApiException catch (e) {
+        if (e.isTokenInvalid) {
+          // Token expired / invalid menurut konfirmasi backend — logout aman
+          await _authRepository.logout();
+          emit(const AuthUnauthenticated());
+          return;
+        }
+        // Server error (500/502/503/504) — jangan hapus token, gunakan session lokal
+        user = await _authRepository.getCachedUser();
+        if (user == null) {
+          await _authRepository.logout();
+          emit(const AuthUnauthenticated());
+          return;
+        }
+      } on NetworkException {
+        // Offline / connection error / timeout — jangan hapus token, pertahankan session
+        user = await _authRepository.getCachedUser();
+        if (user == null) {
+          await _authRepository.logout();
+          emit(const AuthUnauthenticated());
+          return;
+        }
+      } catch (_) {
+        // Error tidak dikenal — pertahankan token jika profil lokal tersedia
+        user = await _authRepository.getCachedUser();
+        if (user == null) {
+          await _authRepository.logout();
+          emit(const AuthUnauthenticated());
+          return;
+        }
+      }
+
+      final accessToken = await _authRepository.getAccessToken() ?? '';
+      emit(AuthAuthenticated(
+        user: user,
+        tokens: AuthTokenModel(
+          accessToken: accessToken,
+          refreshToken: '',
+          expiresIn: '15m',
+          tokenType: 'Bearer',
+          user: user,
+        ),
+      ));
     } catch (_) {
-      // Token expired / invalid — paksa logout
-      await _authRepository.logout();
       emit(const AuthUnauthenticated());
     }
   }

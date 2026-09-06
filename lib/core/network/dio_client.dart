@@ -130,9 +130,28 @@ class DioClient {
         return ApiError.fromJson(data['error'] as Map<String, dynamic>);
       }
     } catch (_) {}
+
+    final statusCode = response.statusCode ?? 500;
+    String code = 'HTTP_$statusCode';
+    String message = 'Terjadi kesalahan ($statusCode).';
+
+    if (statusCode == 502) {
+      code = 'BAD_GATEWAY';
+      message = 'Server gateway sedang gangguan (502 Bad Gateway). Coba beberapa saat lagi.';
+    } else if (statusCode == 503) {
+      code = 'SERVICE_UNAVAILABLE';
+      message = 'Layanan sedang dalam pemeliharaan (503 Service Unavailable).';
+    } else if (statusCode == 504) {
+      code = 'GATEWAY_TIMEOUT';
+      message = 'Waktu koneksi gateway habis (504 Gateway Timeout). Coba beberapa saat lagi.';
+    } else if (statusCode == 500) {
+      code = 'INTERNAL_ERROR';
+      message = 'Terjadi kesalahan server internal (500). Silakan coba lagi.';
+    }
+
     return ApiError(
-      code: 'HTTP_${response.statusCode}',
-      message: 'Terjadi kesalahan (${response.statusCode}).',
+      code: code,
+      message: message,
     );
   }
 
@@ -207,6 +226,64 @@ class DioClient {
 
   // ─── Helper methods ────────────────────────────────────────────────────────
 
+  /// Parsing aman untuk response envelope dari backend
+  ApiResponse<T> _parseResponse<T>(
+    Response resp,
+    T Function(dynamic) fromJson,
+  ) {
+    final data = resp.data;
+
+    if (data == null) {
+      throw ApiException(
+        code: 'EMPTY_RESPONSE',
+        message: 'Respons dari server kosong.',
+        statusCode: resp.statusCode,
+      );
+    }
+
+    if (data is! Map<String, dynamic>) {
+      // Menangani raw HTML (502, 503, 504), string error, atau list
+      final statusCode = resp.statusCode ?? 200;
+      if (statusCode >= 500) {
+        String msg = 'Server sedang mengalami gangguan ($statusCode). Silakan coba lagi.';
+        String code = 'SERVER_ERROR';
+        if (statusCode == 502) {
+          code = 'BAD_GATEWAY';
+          msg = 'Server gateway sedang gangguan (502 Bad Gateway). Coba beberapa saat lagi.';
+        } else if (statusCode == 503) {
+          code = 'SERVICE_UNAVAILABLE';
+          msg = 'Layanan sedang dalam pemeliharaan (503 Service Unavailable).';
+        } else if (statusCode == 504) {
+          code = 'GATEWAY_TIMEOUT';
+          msg = 'Waktu koneksi gateway habis (504 Gateway Timeout). Coba beberapa saat lagi.';
+        }
+        throw ApiException(
+          code: code,
+          message: msg,
+          statusCode: statusCode,
+        );
+      }
+
+      throw ApiException(
+        code: 'INVALID_RESPONSE_FORMAT',
+        message: 'Format data dari server tidak valid.',
+        statusCode: resp.statusCode,
+      );
+    }
+
+    try {
+      return ApiResponse.fromJson(data, fromJson);
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException(
+        code: 'PARSING_ERROR',
+        message: 'Gagal menguraikan respons data server.',
+        details: e.toString(),
+        statusCode: resp.statusCode,
+      );
+    }
+  }
+
   /// Kirim GET request dan parse envelope response
   Future<ApiResponse<T>> get<T>(
     String path, {
@@ -215,10 +292,7 @@ class DioClient {
   }) async {
     try {
       final resp = await _dio.get(path, queryParameters: queryParameters);
-      return ApiResponse.fromJson(
-        resp.data as Map<String, dynamic>,
-        fromJson,
-      );
+      return _parseResponse(resp, fromJson);
     } on DioException catch (e) {
       throw _extractException(e);
     }
@@ -233,10 +307,7 @@ class DioClient {
   }) async {
     try {
       final resp = await _dio.post(path, data: formData ?? data);
-      return ApiResponse.fromJson(
-        resp.data as Map<String, dynamic>,
-        fromJson,
-      );
+      return _parseResponse(resp, fromJson);
     } on DioException catch (e) {
       throw _extractException(e);
     }
@@ -250,10 +321,7 @@ class DioClient {
   }) async {
     try {
       final resp = await _dio.patch(path, data: data);
-      return ApiResponse.fromJson(
-        resp.data as Map<String, dynamic>,
-        fromJson,
-      );
+      return _parseResponse(resp, fromJson);
     } on DioException catch (e) {
       throw _extractException(e);
     }
@@ -266,10 +334,7 @@ class DioClient {
   }) async {
     try {
       final resp = await _dio.delete(path);
-      return ApiResponse.fromJson(
-        resp.data as Map<String, dynamic>,
-        fromJson,
-      );
+      return _parseResponse(resp, fromJson);
     } on DioException catch (e) {
       throw _extractException(e);
     }
@@ -285,10 +350,32 @@ class DioClient {
         'Tidak dapat terhubung. Periksa koneksi internet Anda.',
       );
     }
+
+    final statusCode = e.response?.statusCode;
+    if (statusCode != null && statusCode >= 500) {
+      String code = 'SERVER_ERROR';
+      String msg = 'Terjadi kesalahan server internal ($statusCode).';
+      if (statusCode == 502) {
+        code = 'BAD_GATEWAY';
+        msg = 'Server gateway sedang gangguan (502 Bad Gateway). Coba beberapa saat lagi.';
+      } else if (statusCode == 503) {
+        code = 'SERVICE_UNAVAILABLE';
+        msg = 'Layanan sedang dalam pemeliharaan (503 Service Unavailable).';
+      } else if (statusCode == 504) {
+        code = 'GATEWAY_TIMEOUT';
+        msg = 'Waktu koneksi gateway habis (504 Gateway Timeout). Coba beberapa saat lagi.';
+      }
+      return ApiException(
+        code: code,
+        message: msg,
+        statusCode: statusCode,
+      );
+    }
+
     return ApiException(
       code: 'UNKNOWN',
       message: e.message ?? 'Terjadi kesalahan tak dikenal.',
-      statusCode: e.response?.statusCode,
+      statusCode: statusCode,
     );
   }
 }

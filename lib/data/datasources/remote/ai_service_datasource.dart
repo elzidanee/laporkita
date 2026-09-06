@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:laporkita/core/config/app_config.dart';
+import 'package:laporkita/core/network/api_exception.dart';
 import 'package:laporkita/core/utils/image_utils.dart';
 import 'package:laporkita/data/models/ai_verification_model.dart';
 import 'package:laporkita/data/models/risk_prediction_model.dart';
@@ -77,6 +78,12 @@ class AiServiceDatasource {
     };
 
     final response = await _dio.post('/v1/verify', data: payload);
+    if (response.data is! Map<String, dynamic>) {
+      throw const ApiException(
+        code: 'AI_SERVICE_UNAVAILABLE',
+        message: 'Layanan AI sedang tidak dapat dijangkau.',
+      );
+    }
     return AiVerificationResult.fromJson(
       response.data as Map<String, dynamic>,
     );
@@ -104,6 +111,12 @@ class AiServiceDatasource {
     };
 
     final response = await _dio.post('/v1/predict-risk', data: payload);
+    if (response.data is! Map<String, dynamic>) {
+      throw const ApiException(
+        code: 'AI_SERVICE_UNAVAILABLE',
+        message: 'Layanan AI sedang tidak dapat dijangkau.',
+      );
+    }
     final data = response.data as Map<String, dynamic>;
     if (data['data'] is Map<String, dynamic>) {
       (data['data'] as Map<String, dynamic>)['report_density'] = reportDensity;

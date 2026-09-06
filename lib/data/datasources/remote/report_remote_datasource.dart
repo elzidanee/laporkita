@@ -258,20 +258,16 @@ class ReportRemoteDatasource {
     required String filePath,
     required String type,
   }) async {
-    try {
-      final compressedPath = await ImageUtils.compressIfNeeded(filePath);
-      final formData = FormData.fromMap({
-        'type': type,
-        'photo': await MultipartFile.fromFile(compressedPath),
-      });
-      final response = await _dioClient.post<Map<String, dynamic>>(
-        '/reports/$reportId/media',
-        fromJson: (json) => json as Map<String, dynamic>,
-        data: formData,
-      );
-      return response.data!;
-    } catch (_) {
-      return {'success': true};
-    }
+    final compressedPath = await ImageUtils.compressIfNeeded(filePath);
+    final formData = FormData.fromMap({
+      'type': type,
+      'photo': await MultipartFile.fromFile(compressedPath),
+    });
+    final response = await _dioClient.post<Map<String, dynamic>>(
+      '/reports/$reportId/media',
+      fromJson: (json) => json as Map<String, dynamic>,
+      data: formData,
+    );
+    return response.data ?? {'success': true};
   }
 }
