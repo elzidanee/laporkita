@@ -115,13 +115,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                   Align(
                                     alignment: Alignment.centerLeft,
                                     child: IconButton(
-                                      onPressed: () => Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              const GetStartedScreen(),
-                                        ),
-                                      ),
+                                      onPressed: () {
+                                        if (Navigator.canPop(context)) {
+                                          Navigator.pop(context);
+                                        } else {
+                                          Navigator.pushReplacementNamed(
+                                              context, '/get-started');
+                                        }
+                                      },
                                       icon: const Icon(
                                         Icons.arrow_back_ios_new,
                                         color: AppColors.neutral900,
@@ -287,11 +288,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                     alignment: Alignment.centerRight,
                                     child: TextButton(
                                       onPressed: () {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          const SnackBar(
-                                              content: Text(
-                                                  'Fitur Lupa Kata Sandi')),
+                                        AppAlert.info(
+                                          context,
+                                          title: 'Lupa Kata Sandi',
+                                          message:
+                                              'Untuk mengatur ulang kata sandi, silakan hubungi tim helpdesk LaporKita atau verifikasi ulang nomor Anda melalui menu bantuan.',
                                         );
                                       },
                                       style: TextButton.styleFrom(

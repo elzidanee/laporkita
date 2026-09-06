@@ -67,7 +67,14 @@ class ApiException implements Exception {
       case 'UNAUTHORIZED':
         return 'Sesi telah berakhir. Silakan login ulang.';
       case 'INTERNAL_ERROR':
-        return 'Terjadi kesalahan server. Silakan coba lagi.';
+      case 'SERVER_ERROR':
+      case 'BAD_GATEWAY':
+      case 'SERVICE_UNAVAILABLE':
+      case 'GATEWAY_TIMEOUT':
+      case 'EMPTY_RESPONSE':
+      case 'INVALID_RESPONSE_FORMAT':
+      case 'PARSING_ERROR':
+        return message;
       default:
         return message;
     }

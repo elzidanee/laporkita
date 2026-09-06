@@ -148,12 +148,7 @@ class CitizenProfileTab extends StatelessWidget {
                     icon: Icons.assignment_turned_in_outlined,
                     title: 'Riwayat Laporan',
                     onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Membuka Riwayat Laporan...'),
-                          backgroundColor: AppColors.greenPrimary,
-                        ),
-                      );
+                      Navigator.pushNamed(context, '/tracking-progress');
                     },
                   ),
                   const SizedBox(height: 10),
@@ -231,7 +226,7 @@ class CitizenProfileTab extends StatelessWidget {
                       height: 52,
                       width: double.infinity,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFFEFEB),
+                        color: AppColors.surfaceDanger,
                         borderRadius: BorderRadius.circular(15),
                         border: Border.all(color: AppColors.statusDanger),
                       ),

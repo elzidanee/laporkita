@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:laporkita/presentation/citizen/profile/login_screen.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../shared_widgets/custom_alert.dart';
 import '../../auth/bloc/auth_bloc.dart';
@@ -121,13 +120,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                   Align(
                                     alignment: Alignment.centerLeft,
                                     child: IconButton(
-                                      onPressed: () => Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              const LoginScreen(),
-                                        ),
-                                      ),
+                                      onPressed: () {
+                                        if (Navigator.canPop(context)) {
+                                          Navigator.pop(context);
+                                        } else {
+                                          Navigator.pushReplacementNamed(
+                                              context, '/login');
+                                        }
+                                      },
                                       icon: const Icon(
                                         Icons.arrow_back_ios_new,
                                         color: AppColors.neutral900,
