@@ -76,7 +76,20 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       final detail = await repository.getReportById(reportId);
       if (mounted) {
         setState(() {
-          _report = detail;
+          final hasDetailPhoto = (detail.directPhotoUrl != null &&
+                  detail.directPhotoUrl!.isNotEmpty) ||
+              detail.media.isNotEmpty;
+
+          _report = _report != null
+              ? detail.copyWith(
+                  directPhotoUrl: hasDetailPhoto
+                      ? detail.directPhotoUrl
+                      : (_report!.directPhotoUrl ?? _report!.photoUrl),
+                  media:
+                      detail.media.isNotEmpty ? detail.media : _report!.media,
+                  category: detail.category ?? _report!.category,
+                )
+              : detail;
           _supportCount = detail.supportCount;
           _isLoading = false;
         });
@@ -458,7 +471,8 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
   }) {
     final String? localPath = widget.reportData?['imagePath'] as String? ??
         widget.reportData?['photoPath'] as String? ??
-        _report?.directPhotoUrl;
+        _report?.directPhotoUrl ??
+        (photoUrl.isNotEmpty && !photoUrl.startsWith('http') ? photoUrl : null);
 
     bool isLocalValid = false;
     if (localPath != null &&
@@ -471,24 +485,59 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       }
     }
 
-    Widget buildLocalPlaceholder() {
+    String? networkUrl;
+    if (photoUrl.isNotEmpty &&
+        photoUrl.startsWith('http') &&
+        !photoUrl.contains('images.unsplash.com') &&
+        !photoUrl.contains('storage.example.com')) {
+      networkUrl = photoUrl;
+    } else if (_report?.formattedPhotoUrl != null &&
+        _report!.formattedPhotoUrl!.startsWith('http') &&
+        !_report!.formattedPhotoUrl!.contains('images.unsplash.com') &&
+        !_report!.formattedPhotoUrl!.contains('storage.example.com')) {
+      networkUrl = _report!.formattedPhotoUrl;
+    } else if (_report?.photoUrl != null &&
+        _report!.photoUrl!.startsWith('http') &&
+        !_report!.photoUrl!.contains('images.unsplash.com') &&
+        !_report!.photoUrl!.contains('storage.example.com')) {
+      networkUrl = _report!.photoUrl;
+    } else if (_report?.media.isNotEmpty == true) {
+      for (final m in _report!.media) {
+        if (m.url.startsWith('http') &&
+            !m.url.contains('storage.example.com') &&
+            !m.url.contains('images.unsplash.com')) {
+          networkUrl = m.url;
+          break;
+        }
+      }
+    }
+
+    Widget buildCleanPlaceholder() {
       return Container(
-        color: AppColors.neutral100,
+        color: AppColors.greenLight,
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Icon(
-                Icons.image_outlined,
-                size: 44,
-                color: AppColors.neutral400,
+                Icons.location_city_rounded,
+                size: 48,
+                color: AppColors.greenPrimary,
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Text(
                 title,
                 style: const TextStyle(
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
+                  color: AppColors.greenDark,
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Laporan Warga',
+                style: TextStyle(
+                  fontSize: 12,
                   color: AppColors.neutral500,
                 ),
               ),
@@ -498,29 +547,30 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       );
     }
 
-    Widget buildNetworkFallback() {
-      return Image.network(
-        ReportModel.getCategoryFallbackImage(title),
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => buildLocalPlaceholder(),
-      );
-    }
-
     Widget imgWidget;
     if (isLocalValid && localPath != null) {
       imgWidget = Image.file(
         File(localPath),
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => buildNetworkFallback(),
+        errorBuilder: (context, error, stackTrace) {
+          if (networkUrl != null && networkUrl.isNotEmpty) {
+            return Image.network(
+              networkUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (context2, err, st) => buildCleanPlaceholder(),
+            );
+          }
+          return buildCleanPlaceholder();
+        },
       );
-    } else if (photoUrl.isNotEmpty && photoUrl.startsWith('http')) {
+    } else if (networkUrl != null && networkUrl.isNotEmpty) {
       imgWidget = Image.network(
-        photoUrl,
+        networkUrl,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => buildNetworkFallback(),
+        errorBuilder: (context, error, stackTrace) => buildCleanPlaceholder(),
       );
     } else {
-      imgWidget = buildNetworkFallback();
+      imgWidget = buildCleanPlaceholder();
     }
 
     return Container(

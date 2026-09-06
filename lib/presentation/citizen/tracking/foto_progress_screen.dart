@@ -510,18 +510,14 @@ class _FotoProgressScreenState extends State<FotoProgressScreen> {
     );
   }
 
-  Widget _photoPlaceholder([String categoryName = '']) {
-    return Image.network(
-      ReportModel.getCategoryFallbackImage(categoryName),
+  Widget _photoPlaceholder() {
+    return Container(
       width: 100,
       height: 80,
-      fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) => Container(
-        width: 100,
-        height: 80,
-        color: AppColors.neutral50,
-        child: const Icon(
-          Icons.image_not_supported_rounded,
+      color: AppColors.greenLight,
+      child: const Center(
+        child: Icon(
+          Icons.image_outlined,
           color: AppColors.greenPrimary,
           size: 28,
         ),

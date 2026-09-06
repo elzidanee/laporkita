@@ -513,17 +513,29 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
   }
 
   Widget _placeholderImage([String categoryTitle = '']) {
-    return Image.network(
-      ReportModel.getCategoryFallbackImage(categoryTitle),
-      fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) => Container(
-        color: AppColors.neutral50,
-        child: const Center(
-          child: Icon(
-            Icons.image_not_supported_rounded,
-            size: 48,
-            color: AppColors.greenPrimary,
-          ),
+    return Container(
+      color: AppColors.greenLight,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.location_city_rounded,
+              size: 40,
+              color: AppColors.greenPrimary,
+            ),
+            if (categoryTitle.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                categoryTitle,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.greenDark,
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );

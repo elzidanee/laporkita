@@ -11,6 +11,7 @@ class ReportRepository {
   final FlutterSecureStorage _storage;
   final NotificationRepository _notificationRepository;
   final List<ReportModel> _submittedReports = [];
+  final Map<String, ReportModel> _cachedReports = {};
   final Map<String, Map<String, dynamic>> _statusOverrides = {};
   bool _isStorageLoaded = false;
 
@@ -123,6 +124,7 @@ class ReportRepository {
 
     // 1. Prioritaskan data riil dari backend database
     for (final r in remoteData) {
+      _cachedReports[r.id] = r;
       if (!seenIds.contains(r.id)) {
         seenIds.add(r.id);
         merged.add(r);
@@ -131,6 +133,7 @@ class ReportRepository {
 
     // 2. Sertakan laporan lokal yang baru di-submit (bukan mock)
     for (final r in _submittedReports) {
+      _cachedReports[r.id] = r;
       if (!seenIds.contains(r.id) && !r.id.startsWith('mock-')) {
         seenIds.add(r.id);
         merged.insert(0, r);
@@ -139,7 +142,11 @@ class ReportRepository {
 
     // 3. Hanya tampilkan fallback jika benar-benar belum ada data
     if (merged.isEmpty) {
-      merged.addAll(_getFallbackMockReports());
+      final mockReports = _getFallbackMockReports();
+      for (final m in mockReports) {
+        _cachedReports[m.id] = m;
+      }
+      merged.addAll(mockReports);
     }
 
     // Apply persistent status overrides across all loaded reports
@@ -221,8 +228,7 @@ class ReportRepository {
         addressText: 'Jl. Soekarno Hatta No. 88, Lowokwaru, Kota Malang',
         description:
             'Jalan berlubang cukup dalam (diameter 50cm, kedalaman 8cm) di dekat persimpangan.',
-        directPhotoUrl:
-            'https://images.unsplash.com/photo-1578916171728-46686eac8d58?q=80&w=800&auto=format&fit=crop',
+        directPhotoUrl: null,
         supportCount: 18,
         viewCount: 140,
         urgencyScore: 4.8,
@@ -242,8 +248,7 @@ class ReportRepository {
         longitude: 112.6240,
         addressText: 'Jl. Ahmad Yani No. 34, Blimbing, Kota Malang',
         description: 'Aspal amblas dan bergelombang di lajur kanan arah selatan.',
-        directPhotoUrl:
-            'https://images.unsplash.com/photo-1515263487990-61b07816b324?q=80&w=800&auto=format&fit=crop',
+        directPhotoUrl: null,
         supportCount: 12,
         viewCount: 95,
         urgencyScore: 4.2,
@@ -263,8 +268,7 @@ class ReportRepository {
         longitude: 112.6280,
         addressText: 'Jl. Merdeka Timur, Klojen, Kota Malang',
         description: 'Lampu penerangan jalan umum mati total di malam hari.',
-        directPhotoUrl:
-            'https://images.unsplash.com/photo-1509114397022-ed747cca3f65?q=80&w=800&auto=format&fit=crop',
+        directPhotoUrl: null,
         supportCount: 25,
         viewCount: 210,
         urgencyScore: 2.1,
@@ -283,8 +287,7 @@ class ReportRepository {
         longitude: 112.6140,
         addressText: 'Jl. MT Haryono No. 102, Dinoyo, Kota Malang',
         description: 'Lubang jalan tergenang air setelah hujan deras di depan ruko.',
-        directPhotoUrl:
-            'https://images.unsplash.com/photo-1578916171728-46686eac8d58?q=80&w=800&auto=format&fit=crop',
+        directPhotoUrl: null,
         supportCount: 7,
         viewCount: 60,
         urgencyScore: 3.8,
@@ -302,16 +305,38 @@ class ReportRepository {
     ReportModel result;
     try {
       result = await _datasource.getReportById(id);
+      _cachedReports[id] = result;
     } catch (_) {
       final subIdx = _submittedReports.indexWhere((r) => r.id == id);
       if (subIdx != -1) {
         result = _submittedReports[subIdx];
+      } else if (_cachedReports.containsKey(id)) {
+        result = _cachedReports[id]!;
       } else {
         final mockList = _getFallbackMockReports();
-        result = mockList.firstWhere(
-          (r) => r.id == id,
-          orElse: () => mockList.first,
-        );
+        final mockIdx = mockList.indexWhere((r) => r.id == id);
+        if (mockIdx != -1) {
+          result = mockList[mockIdx];
+        } else {
+          result = ReportModel(
+            id: id,
+            reportCode: 'LP_2026_${id.hashCode.abs() % 100000}',
+            reporterId: 'user-local',
+            categoryId: 'cat-1',
+            status: ReportStatus.pendingVerification,
+            latitude: -7.9666,
+            longitude: 112.6326,
+            addressText: 'Jl. Veteran No. 8, Kota Malang',
+            description: 'Laporan fasilitas publik.',
+            directPhotoUrl: null,
+            supportCount: 0,
+            viewCount: 0,
+            urgencyScore: 4.0,
+            needsManualReview: false,
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          );
+        }
       }
     }
 
@@ -523,24 +548,55 @@ class ReportRepository {
           'ℹ️ [ReportRepository] updateReportStatus remote call notice: $e (Applying persistent verified sync)');
     }
 
-    ReportModel finalReport;
-    if (updatedRemote != null) {
-      finalReport = updatedRemote;
-    } else {
-      ReportModel? old = existingReport;
-      if (old == null) {
-        final subIdx = _submittedReports.indexWhere((r) => r.id == reportId);
-        if (subIdx != -1) {
-          old = _submittedReports[subIdx];
-        } else {
-          final mockList = _getFallbackMockReports();
-          final mockIdx = mockList.indexWhere((r) => r.id == reportId);
-          if (mockIdx != -1) {
-            old = mockList[mockIdx];
-          }
+    ReportModel? old = existingReport ?? _cachedReports[reportId];
+    if (old == null) {
+      final subIdx = _submittedReports.indexWhere((r) => r.id == reportId);
+      if (subIdx != -1) {
+        old = _submittedReports[subIdx];
+      } else {
+        final mockList = _getFallbackMockReports();
+        final mockIdx = mockList.indexWhere((r) => r.id == reportId);
+        if (mockIdx != -1) {
+          old = mockList[mockIdx];
         }
       }
+    }
 
+    ReportModel finalReport;
+    if (updatedRemote != null) {
+      final hasRemotePhoto = (updatedRemote.directPhotoUrl != null &&
+              updatedRemote.directPhotoUrl!.isNotEmpty) ||
+          updatedRemote.media.isNotEmpty;
+
+      final existingHistory =
+          List<ReportStatusHistoryModel>.from(updatedRemote.statusHistory.isNotEmpty
+              ? updatedRemote.statusHistory
+              : (old?.statusHistory ?? []));
+
+      if (!existingHistory.any((h) => h.targetStatus == newStatusEnum)) {
+        existingHistory.add(ReportStatusHistoryModel(
+          id: 'hist-$reportId-${newStatusEnum.apiValue}-${now.millisecondsSinceEpoch}',
+          reportId: reportId,
+          targetStatus: newStatusEnum,
+          note: notes,
+          actorName: 'Operator',
+          createdAt: now,
+        ));
+      }
+
+      finalReport = updatedRemote.copyWith(
+        directPhotoUrl: hasRemotePhoto
+            ? updatedRemote.directPhotoUrl
+            : (old?.directPhotoUrl ?? old?.photoUrl),
+        media: updatedRemote.media.isNotEmpty
+            ? updatedRemote.media
+            : (old?.media ?? const []),
+        category: updatedRemote.category ?? old?.category,
+        reporter: updatedRemote.reporter ?? old?.reporter,
+        assignedAgency: updatedRemote.assignedAgency ?? old?.assignedAgency,
+        statusHistory: existingHistory,
+      );
+    } else {
       final existingHistory =
           List<ReportStatusHistoryModel>.from(old?.statusHistory ?? []);
       existingHistory.add(ReportStatusHistoryModel(
@@ -563,7 +619,7 @@ class ReportRepository {
         addressText:
             old?.addressText ?? 'Jl. Sawojajar No. 45, Kedungkandang, Kota Malang',
         description: old?.description ?? 'Laporan fasilitas publik.',
-        directPhotoUrl: old?.directPhotoUrl,
+        directPhotoUrl: old?.directPhotoUrl ?? old?.photoUrl,
         supportCount: old?.supportCount ?? 14,
         viewCount: old?.viewCount ?? 120,
         urgencyScore: old?.urgencyScore ?? 4.8,
@@ -579,6 +635,7 @@ class ReportRepository {
       );
     }
 
+    _cachedReports[reportId] = finalReport;
     final idx = _submittedReports.indexWhere((r) => r.id == reportId);
     if (idx != -1) {
       _submittedReports[idx] = finalReport;

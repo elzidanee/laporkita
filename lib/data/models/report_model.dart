@@ -82,7 +82,11 @@ class ReportMediaModel {
       id: json['id'] as String? ?? '',
       reportId: json['report_id'] as String? ?? '',
       type: json['type'] as String? ?? 'initial_photo',
-      url: json['url'] as String? ?? '',
+      url: json['url'] as String? ??
+          json['file_url'] as String? ??
+          json['photo_url'] as String? ??
+          json['path'] as String? ??
+          '',
       uploadedBy: json['uploaded_by'] as String?,
       createdAt: DateTime.tryParse(json['created_at'] as String? ?? '') ??
           DateTime.now(),
@@ -236,6 +240,41 @@ class ReportModel {
         ? json['_count'] as Map<String, dynamic>
         : null;
 
+    ReportMediaModel? initialMedia;
+    if (mediaList.isNotEmpty) {
+      try {
+        initialMedia = mediaList.firstWhere(
+          (m) =>
+              m.type == 'initial_photo' &&
+              m.url.isNotEmpty &&
+              !m.url.contains('storage.example.com') &&
+              !m.url.contains('images.unsplash.com'),
+          orElse: () => mediaList.firstWhere(
+            (m) =>
+                m.url.isNotEmpty &&
+                !m.url.contains('storage.example.com') &&
+                !m.url.contains('images.unsplash.com'),
+            orElse: () => mediaList.first,
+          ),
+        );
+      } catch (_) {
+        initialMedia = mediaList.first;
+      }
+    }
+
+    final rawPhoto = json['photo_url']?.toString();
+    final String? serverPhotoUrl = (rawPhoto != null &&
+            rawPhoto.isNotEmpty &&
+            !rawPhoto.contains('storage.example.com') &&
+            !rawPhoto.contains('images.unsplash.com'))
+        ? rawPhoto
+        : (initialMedia != null &&
+                initialMedia.url.isNotEmpty &&
+                !initialMedia.url.contains('storage.example.com') &&
+                !initialMedia.url.contains('images.unsplash.com')
+            ? initialMedia.url
+            : null);
+
     return ReportModel(
       id: json['id']?.toString() ?? '',
       reportCode: json['report_code']?.toString() ?? '',
@@ -246,8 +285,7 @@ class ReportModel {
       longitude: double.tryParse(json['longitude']?.toString() ?? '0') ?? 0.0,
       addressText: json['address_text']?.toString(),
       description: json['description']?.toString(),
-      directPhotoUrl: json['photo_url']?.toString() ??
-          (mediaList.isNotEmpty ? mediaList.first.url : null),
+      directPhotoUrl: serverPhotoUrl,
       supportCount: json['support_count'] is int
           ? json['support_count'] as int
           : (countData?['supports'] is int
@@ -386,14 +424,53 @@ class ReportModel {
 
   /// URL foto utama laporan (fallback dari photo_url -> media.first.url)
   String? get photoUrl {
+    // 1. Cek directPhotoUrl jika merupakan URL remote valid
     if (directPhotoUrl != null && directPhotoUrl!.isNotEmpty) {
-      return directPhotoUrl;
-    }
-    if (media.isNotEmpty) {
-      for (final m in media) {
-        if (m.url.isNotEmpty) return m.url;
+      if ((directPhotoUrl!.startsWith('http://') ||
+              directPhotoUrl!.startsWith('https://')) &&
+          !directPhotoUrl!.contains('images.unsplash.com') &&
+          !directPhotoUrl!.contains('storage.example.com')) {
+        return directPhotoUrl;
+      }
+      // 2. Jika merupakan file lokal, pastikan file fisik benar-benar ada di perangkat ini
+      if (!directPhotoUrl!.startsWith('http')) {
+        try {
+          if (File(directPhotoUrl!).existsSync()) {
+            return directPhotoUrl;
+          }
+        } catch (_) {}
       }
     }
+
+    // 3. Ambil foto riil dari media backend (prioritaskan type: initial_photo dari server/Supabase)
+    if (media.isNotEmpty) {
+      final initialMedia = media.where(
+        (m) =>
+            m.type == 'initial_photo' &&
+            m.url.isNotEmpty &&
+            !m.url.contains('storage.example.com') &&
+            !m.url.contains('images.unsplash.com'),
+      );
+      if (initialMedia.isNotEmpty) {
+        return initialMedia.first.url;
+      }
+      for (final m in media) {
+        if (m.url.isNotEmpty &&
+            !m.url.contains('storage.example.com') &&
+            !m.url.contains('images.unsplash.com')) {
+          return m.url;
+        }
+      }
+    }
+
+    // 4. Fallback jika ada directPhotoUrl yang bukan dummy
+    if (directPhotoUrl != null &&
+        directPhotoUrl!.isNotEmpty &&
+        !directPhotoUrl!.contains('images.unsplash.com') &&
+        !directPhotoUrl!.contains('storage.example.com')) {
+      return directPhotoUrl;
+    }
+
     return null;
   }
 
@@ -426,8 +503,9 @@ class ReportModel {
         if (File(raw).existsSync()) return raw;
       } catch (_) {}
     }
-    // Domain dummy test suite QA
-    if (raw.contains('storage.example.com')) {
+    // Domain dummy test suite QA atau dummy Unsplash
+    if (raw.contains('storage.example.com') ||
+        raw.contains('images.unsplash.com')) {
       return null;
     }
     // Sudah absolute URL
