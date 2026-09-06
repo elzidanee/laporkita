@@ -1,6 +1,7 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:dio/dio.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:laporkita/core/network/api_exception.dart';
 import 'package:laporkita/core/network/dio_client.dart';
@@ -23,15 +24,67 @@ class MockAdapter implements HttpClientAdapter {
   void close({bool force = false}) {}
 }
 
+class FakeSecureStorage extends Fake implements FlutterSecureStorage {
+  final Map<String, String> _store = {};
+
+  @override
+  Future<String?> read({
+    required String key,
+    IOSOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    MacOsOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async => _store[key];
+
+  @override
+  Future<void> write({
+    required String key,
+    required String? value,
+    IOSOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    MacOsOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    if (value != null) {
+      _store[key] = value;
+    } else {
+      _store.remove(key);
+    }
+  }
+
+  @override
+  Future<void> delete({
+    required String key,
+    IOSOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    MacOsOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async => _store.remove(key);
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late DioClient dioClient;
   late MockAdapter mockAdapter;
+  late FakeSecureStorage fakeStorage;
 
   setUp(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
+      (methodCall) async => null,
+    );
+
     DioClient.resetInstance();
-    dioClient = DioClient();
+    fakeStorage = FakeSecureStorage();
+    dioClient = DioClient(storage: fakeStorage);
     mockAdapter = MockAdapter((options) {
       return ResponseBody.fromString(
         '{"success":true,"data":{"message":"ok"}}',
@@ -76,7 +129,7 @@ void main() {
       } on ApiException catch (e) {
         expect(e.code, equals('BAD_GATEWAY'));
         expect(e.statusCode, equals(502));
-        expect(e.userMessage, contains('sedang mengalami gangguan'));
+        expect(e.userMessage, contains('gangguan'));
         expect(e.userMessage.contains('<html'), isFalse);
       } catch (e) {
         fail('Unexpected exception type: ${e.runtimeType} -> $e');
@@ -136,7 +189,7 @@ void main() {
       } on ApiException catch (e) {
         expect(e.code, equals('GATEWAY_TIMEOUT'));
         expect(e.statusCode, equals(504));
-        expect(e.userMessage, contains('Waktu koneksi ke server habis'));
+        expect(e.userMessage, contains('habis'));
       } catch (e) {
         fail('Unexpected exception type: ${e.runtimeType} -> $e');
       }

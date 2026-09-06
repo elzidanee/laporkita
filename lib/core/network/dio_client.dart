@@ -344,6 +344,14 @@ class DioClient {
   Exception _extractException(DioException e) {
     if (e.error is ApiException) return e.error as ApiException;
     if (e.error is NetworkException) return e.error as NetworkException;
+    if (e.error is FormatException) {
+      return ApiException(
+        code: 'PARSING_ERROR',
+        message: 'Format data dari server rusak atau tidak valid.',
+        details: e.error.toString(),
+        statusCode: e.response?.statusCode,
+      );
+    }
     if (e.type == DioExceptionType.connectionError ||
         e.type == DioExceptionType.connectionTimeout) {
       return const NetworkException(
