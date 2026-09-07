@@ -16,9 +16,6 @@ import 'presentation/citizen/camera/ai_verification_screen.dart';
 import 'presentation/citizen/camera/report_success_screen.dart';
 import 'presentation/citizen/camera/new_report_form_screen.dart';
 import 'presentation/command_center/dashboard/dashboard_screen.dart';
-import 'presentation/command_center/dashboard/government_dashboard_screen.dart';
-import 'presentation/command_center/dashboard/operator_dashboard_screen.dart';
-import 'presentation/command_center/dashboard/admin_dashboard_screen.dart';
 import 'presentation/command_center/policy_simulator/policy_simulator_screen.dart';
 import 'presentation/citizen/tracking/tracking_progress_screen.dart';
 import 'presentation/citizen/tracking/foto_progress_screen.dart';
@@ -37,6 +34,7 @@ import 'data/repositories/prediction_repository.dart';
 import 'data/repositories/notification_repository.dart';
 import 'data/repositories/routing_repository.dart';
 import 'data/models/report_model.dart';
+import 'data/models/user_model.dart';
 import 'core/services/fcm_service.dart';
 
 void main() async {
@@ -134,11 +132,11 @@ Widget? _resolveScreen(RouteSettings settings) {
     case '/command-center':
       return const CommandCenterDashboard();
     case '/government-dashboard':
-      return const GovernmentDashboardScreen();
+      return const CommandCenterDashboard(initialRole: UserRole.policyMaker);
     case '/operator-dashboard':
-      return const OperatorDashboardScreen();
+      return const CommandCenterDashboard(initialRole: UserRole.operator);
     case '/admin-dashboard':
-      return const AdminDashboardScreen();
+      return const CommandCenterDashboard(initialRole: UserRole.admin);
     case '/policy-simulator':
       return const PolicySimulatorScreen();
     case '/tracking-progress':
