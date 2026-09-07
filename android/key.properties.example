@@ -1,0 +1,8 @@
+# Example Release Keystore Configuration for LaporKita
+# Copy this file to "key.properties" in the android/ directory and fill in your private credentials.
+# Note: "key.properties" and *.jks/*.keystore are already gitignored in android/.gitignore.
+# NEVER commit private signing keys or passwords to version control.
+keyAlias=laporkita_release_key
+keyPassword=your_key_password_here
+storeFile=../keystores/laporkita_release.jks
+storePassword=your_keystore_password_here
