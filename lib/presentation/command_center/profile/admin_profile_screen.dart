@@ -6,11 +6,19 @@ import '../../auth/bloc/auth_bloc.dart';
 class AdminProfileScreen extends StatefulWidget {
   final bool isEmbedded;
   final VoidCallback? onBack;
+  final VoidCallback? onUserManagementTap;
+  final VoidCallback? onAgenciesTap;
+  final VoidCallback? onCategoriesTap;
+  final VoidCallback? onAuditLogTap;
 
   const AdminProfileScreen({
     super.key,
     this.isEmbedded = false,
     this.onBack,
+    this.onUserManagementTap,
+    this.onAgenciesTap,
+    this.onCategoriesTap,
+    this.onAuditLogTap,
   });
 
   @override
@@ -227,10 +235,11 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
               _buildMenuCard(
                 icon: Icons.people_alt_outlined,
                 title: 'Manajemen Pengguna',
-                onTap: () => _showFeatureDialog(
-                  'Manajemen Pengguna',
-                  'Kelola akun operator OPD, petugas lapangan, dan akun warga yang terdaftar pada sistem LaporKita.',
-                ),
+                onTap: widget.onUserManagementTap ??
+                    () => _showFeatureDialog(
+                          'Manajemen Pengguna',
+                          'Kelola akun operator OPD, petugas lapangan, dan akun warga yang terdaftar pada sistem LaporKita.',
+                        ),
               ),
               const SizedBox(height: 12),
 
@@ -247,20 +256,22 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
               _buildMenuCard(
                 icon: Icons.account_balance_outlined,
                 title: 'OPD & Wilayah',
-                onTap: () => _showFeatureDialog(
-                  'OPD & Wilayah',
-                  'Daftar instansi penanggung jawab (DPUPR, Dishub, Diskominfo) dan pemetaan wilayah kerja se-Kota Malang.',
-                ),
+                onTap: widget.onAgenciesTap ??
+                    () => _showFeatureDialog(
+                          'OPD & Wilayah',
+                          'Daftar instansi penanggung jawab (DPUPR, Dishub, Diskominfo) dan pemetaan wilayah kerja se-Kota Malang.',
+                        ),
               ),
               const SizedBox(height: 12),
 
               _buildMenuCard(
                 icon: Icons.fact_check_outlined,
                 title: 'Kategori & Prioritas',
-                onTap: () => _showFeatureDialog(
-                  'Kategori & Prioritas',
-                  'Pengaturan taksonomi kategori laporan, SLA waktu respon, dan bobot prioritas kegawatan laporan warga.',
-                ),
+                onTap: widget.onCategoriesTap ??
+                    () => _showFeatureDialog(
+                          'Kategori & Prioritas',
+                          'Pengaturan taksonomi kategori laporan, SLA waktu respon, dan bobot prioritas kegawatan laporan warga.',
+                        ),
               ),
               const SizedBox(height: 12),
 
@@ -302,10 +313,11 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
               _buildMenuCard(
                 icon: Icons.history_rounded,
                 title: 'Log Aktivitas',
-                onTap: () => _showFeatureDialog(
-                  'Log Aktivitas',
-                  'Audit trail seluruh tindakan verifikasi, penerusan disposisi, dan perubahan status laporan oleh admin.',
-                ),
+                onTap: widget.onAuditLogTap ??
+                    () => _showFeatureDialog(
+                          'Log Aktivitas',
+                          'Audit trail seluruh tindakan verifikasi, penerusan disposisi, dan perubahan status laporan oleh admin.',
+                        ),
               ),
               const SizedBox(height: 12),
 

@@ -12,6 +12,8 @@ import '../../auth/bloc/auth_bloc.dart';
 import '../report_management/admin_reports_screen.dart';
 import '../monitoring/admin_monitoring_screen.dart';
 import '../notifications/admin_notification_screen.dart';
+import '../profile/admin_profile_screen.dart';
+import '../analytics/admin_statistics_analytics_screen.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Admin Dashboard Screen  (Figma: node 481-6023)
@@ -224,7 +226,27 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
   void _computeChartData(List<ReportModel> reports) {
     final now = DateTime.now();
-    final days = List.generate(6, (i) => now.subtract(Duration(days: 5 - i)));
+    final today = DateTime(now.year, now.month, now.day);
+    final activeDates = reports
+        .map((r) => DateTime(r.createdAt.year, r.createdAt.month, r.createdAt.day))
+        .toSet();
+    final minDate = activeDates.isNotEmpty
+        ? activeDates.reduce((a, b) => a.isBefore(b) ? a : b)
+        : today.subtract(const Duration(days: 5));
+    final totalSpan = today.difference(minDate).inDays;
+
+    final List<DateTime> days = [];
+    if (totalSpan <= 5) {
+      for (int i = 5; i >= 0; i--) {
+        days.add(today.subtract(Duration(days: i)));
+      }
+    } else {
+      for (int i = 0; i < 6; i++) {
+        final offset = (i * totalSpan / 5.0).round();
+        days.add(minDate.add(Duration(days: offset)));
+      }
+    }
+
     _chartLabels =
         days.map((d) => '${d.day} ${_shortMonth(d.month)}').toList();
 
@@ -661,7 +683,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   isEmbedded: true,
                   onBack: () => setState(() => _currentNavIndex = 0),
                 ),
-                _buildAdminProfileBody(),
+                AdminProfileScreen(
+                  isEmbedded: true,
+                  onBack: () => setState(() => _currentNavIndex = 0),
+                  onUserManagementTap: _showUserManagementModal,
+                  onAgenciesTap: _showAgenciesModal,
+                  onCategoriesTap: _showCategoriesModal,
+                  onAuditLogTap: _showAuditLogModal,
+                ),
               ],
             ),
       bottomNavigationBar: _buildAdminBottomNavBar(),
@@ -1066,35 +1095,79 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          RichText(
-            text: TextSpan(
-              children: [
-                TextSpan(
-                  text: 'Grafik Laporan  ',
-                  style: GoogleFonts.poppins(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black,
-                  ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              RichText(
+                text: TextSpan(
+                  children: [
+                    TextSpan(
+                      text: 'Grafik Laporan  ',
+                      style: GoogleFonts.poppins(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black,
+                      ),
+                    ),
+                    TextSpan(
+                      text: '(7 hari terakhir)',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
+                        color: const Color(0xFF515151),
+                      ),
+                    ),
+                  ],
                 ),
-                TextSpan(
-                  text: '(7 hari terakhir)',
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w400,
-                    color: const Color(0xFF515151),
-                  ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const AdminStatisticsAnalyticsScreen(),
+                    ),
+                  );
+                },
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Detail',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFF1D9C51),
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    const Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 11,
+                      color: Color(0xFF1D9C51),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
           const SizedBox(height: 14),
-          SizedBox(
-            height: 175,
-            child: _ReportLineChart(
-              greenData: _greenChartData,
-              blueData: _blueChartData,
-              labels: _chartLabels,
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AdminStatisticsAnalyticsScreen(),
+                ),
+              );
+            },
+            child: SizedBox(
+              height: 175,
+              child: _ReportLineChart(
+                greenData: _greenChartData,
+                blueData: _blueChartData,
+                labels: _chartLabels,
+              ),
             ),
           ),
         ],
@@ -1565,244 +1638,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  // ── ADMIN PROFILE TAB (Tab Index 4) ──────────────────────────────
-
-  Widget _buildAdminProfileBody() {
-    final authState = context.read<AuthBloc>().state;
-    String adminName = 'Admin Utama';
-    String adminEmail = 'admin@laporkita.malangkota.go.id';
-    if (authState is AuthAuthenticated) {
-      if (authState.user.fullName.isNotEmpty) {
-        adminName = authState.user.fullName;
-      }
-      final email = authState.user.email;
-      if (email != null && email.isNotEmpty) {
-        adminEmail = email;
-      }
-    }
-
-    return Container(
-      color: const Color(0xFFF5F6FA),
-      child: SafeArea(
-        child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Profil Administrator',
-              style: GoogleFonts.inter(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: AppColors.neutral900,
-              ),
-            ),
-            const SizedBox(height: 16),
-            // Profile Card
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 32,
-                    backgroundColor: AppColors.greenPrimary.withValues(alpha: 0.15),
-                    child: const Icon(
-                      Icons.admin_panel_settings_rounded,
-                      size: 34,
-                      color: AppColors.greenPrimary,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          adminName,
-                          style: GoogleFonts.inter(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.neutral900,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          adminEmail,
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            color: AppColors.neutral500,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: AppColors.greenPrimary.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            'SUPER ADMIN',
-                            style: GoogleFonts.inter(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.greenPrimary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Pengaturan & Kontrol Sistem',
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: AppColors.neutral700,
-              ),
-            ),
-            const SizedBox(height: 12),
-            _buildProfileMenuTile(
-              title: 'Manajemen Pengguna & Role',
-              subtitle: 'Atur hak akses staf, operator & warga',
-              icon: Icons.manage_accounts_rounded,
-              color: const Color(0xFF1976D2),
-              onTap: _showUserManagementModal,
-            ),
-            const SizedBox(height: 10),
-            _buildProfileMenuTile(
-              title: 'Daftar OPD & Instansi Terkait',
-              subtitle: 'Kelola integrasi OPD Kota Malang',
-              icon: Icons.apartment_rounded,
-              color: const Color(0xFF206C57),
-              onTap: _showAgenciesModal,
-            ),
-            const SizedBox(height: 10),
-            _buildProfileMenuTile(
-              title: 'Kategori Pengaduan & Bobot AI',
-              subtitle: 'Atur label, ikon & ambang batas AI',
-              icon: Icons.category_rounded,
-              color: const Color(0xFFF2AE01),
-              onTap: _showCategoriesModal,
-            ),
-            const SizedBox(height: 10),
-            _buildProfileMenuTile(
-              title: 'System Audit Log & Idempotency',
-              subtitle: 'Riwayat transaksi & keamanan sistem',
-              icon: Icons.security_rounded,
-              color: AppColors.statusDanger,
-              onTap: _showAuditLogModal,
-            ),
-            const SizedBox(height: 24),
-            // Logout Button
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  context.read<AuthBloc>().add(const AuthLogoutRequested());
-                  Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
-                },
-                icon: const Icon(Icons.logout_rounded, color: AppColors.statusDanger),
-                label: Text(
-                  'Keluar dari Akun Admin',
-                  style: GoogleFonts.inter(
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.statusDanger,
-                  ),
-                ),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: AppColors.statusDanger),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 30),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
-  Widget _buildProfileMenuTile({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.neutral200),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: color, size: 22),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.neutral900,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      color: AppColors.neutral500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: AppColors.neutral400,
-              size: 20,
-            ),
-          ],
         ),
       ),
     );

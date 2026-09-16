@@ -30,36 +30,29 @@ class _AdminStatisticsAnalyticsScreenState
   static const Color _greenPrimary = Color(0xFF1D9C51);
   static const Color _textGrey = Color(0xFF515151);
 
-  String _selectedRange = '7 Hari Terakhir';
+  String _selectedRange = 'Bulan Ini';
   final List<String> _rangeOptions = [
+    'Bulan Ini',
     '7 Hari Terakhir',
     '30 Hari Terakhir',
-    'Bulan Ini',
     'Tahun Ini',
+    'Semua Waktu',
   ];
 
   bool _isLoading = true;
-  int _totalLaporan = 2458;
-  String _trendText = '14% dari minggu lalu';
+  List<ReportModel> _allReports = [];
+
+  // Computed metrics strictly from real backend reports
+  int _totalLaporan = 0;
+  String _trendText = '0% dari bulan lalu';
   bool _trendIsUp = true;
 
-  List<String> _chartDates = [
-    '6 Mei',
-    '8 Mei',
-    '9 Mei',
-    '10 Mei',
-    '11 Mei',
-    '12 Mei',
-  ];
-  List<double> _chartValues = [600, 280, 420, 850, 520, 460];
+  List<String> _chartDates = [];
+  List<double> _chartValues = [];
+  List<String> _yAxisLabels = ['4', '2', '1', '0'];
+  double _chartMaxScale = 4.0;
 
-  List<_CategoryStat> _categoryStats = [
-    const _CategoryStat(name: 'Jalan', count: 1023, percentage: 41),
-    const _CategoryStat(name: 'Penerangan', count: 456, percentage: 19),
-    const _CategoryStat(name: 'Drainase', count: 312, percentage: 13),
-    const _CategoryStat(name: 'Trotoar', count: 298, percentage: 12),
-    const _CategoryStat(name: 'Lainnya', count: 369, percentage: 15),
-  ];
+  List<_CategoryStat> _categoryStats = [];
 
   @override
   void initState() {
@@ -71,14 +64,15 @@ class _AdminStatisticsAnalyticsScreenState
     setState(() => _isLoading = true);
     try {
       final repo = context.read<ReportRepository>();
-      final res = await repo.getReports(limit: 200);
+      final res = await repo.getReports(limit: 100);
       final List<ReportModel> reports = res.data ?? [];
 
       if (mounted) {
+        _allReports = reports;
         _computeStatisticsFromReports(reports);
       }
     } catch (_) {
-      // Fallback ke data visual Figma yang telah disiapkan jika offline
+      // Menjaga state tetap bersih jika gagal koneksi
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -87,56 +81,99 @@ class _AdminStatisticsAnalyticsScreenState
   }
 
   void _computeStatisticsFromReports(List<ReportModel> reports) {
-    if (reports.isEmpty) return;
-
     final now = DateTime.now();
-    int days = 7;
-    if (_selectedRange == '30 Hari Terakhir') days = 30;
-    if (_selectedRange == 'Bulan Ini') days = 30;
-    if (_selectedRange == 'Tahun Ini') days = 365;
+    final today = DateTime(now.year, now.month, now.day, 23, 59, 59);
 
-    final cutoff = now.subtract(Duration(days: days));
-    final inRangeReports = reports.where((r) => r.createdAt.isAfter(cutoff)).toList();
-    final effectiveReports = inRangeReports.isNotEmpty ? inRangeReports : reports;
+    // 1. Filter laporan rentang saat ini
+    final inRangeReports = reports.where((r) {
+      if (_selectedRange == 'Bulan Ini') {
+        return r.createdAt.year == now.year && r.createdAt.month == now.month;
+      } else if (_selectedRange == 'Tahun Ini') {
+        return r.createdAt.year == now.year;
+      } else if (_selectedRange == 'Semua Waktu') {
+        return true;
+      } else if (_selectedRange == '30 Hari Terakhir') {
+        return r.createdAt.isAfter(today.subtract(const Duration(days: 30)));
+      }
+      // '7 Hari Terakhir'
+      return r.createdAt.isAfter(today.subtract(const Duration(days: 7))) &&
+          r.createdAt.isBefore(today.add(const Duration(seconds: 1)));
+    }).toList();
 
-    _totalLaporan = effectiveReports.length >= 10 ? effectiveReports.length : 2458;
+    // 2. Filter laporan rentang sebelumnya untuk perhitungan trend nyata
+    final prevRangeReports = reports.where((r) {
+      if (_selectedRange == 'Bulan Ini') {
+        final prevMonth = now.month == 1 ? 12 : now.month - 1;
+        final prevYear = now.month == 1 ? now.year - 1 : now.year;
+        return r.createdAt.year == prevYear && r.createdAt.month == prevMonth;
+      } else if (_selectedRange == 'Tahun Ini') {
+        return r.createdAt.year == now.year - 1;
+      } else if (_selectedRange == 'Semua Waktu') {
+        return false;
+      } else if (_selectedRange == '30 Hari Terakhir') {
+        final startPrev = today.subtract(const Duration(days: 60));
+        final endPrev = today.subtract(const Duration(days: 30));
+        return r.createdAt.isAfter(startPrev) && r.createdAt.isBefore(endPrev);
+      }
+      // '7 Hari Terakhir'
+      final startPrev = today.subtract(const Duration(days: 14));
+      final endPrev = today.subtract(const Duration(days: 7));
+      return r.createdAt.isAfter(startPrev) && r.createdAt.isBefore(endPrev);
+    }).toList();
 
-    // Hitung Kategori Terbanyak
+    _totalLaporan = inRangeReports.length;
+
+    // Hitung trend riil dibandingkan periode sebelumnya
+    final currCount = inRangeReports.length;
+    final prevCount = prevRangeReports.length;
+    String periodName = 'periode lalu';
+    if (_selectedRange == '7 Hari Terakhir') periodName = 'minggu lalu';
+    if (_selectedRange == 'Bulan Ini') periodName = 'bulan lalu';
+    if (_selectedRange == 'Tahun Ini') periodName = 'tahun lalu';
+    if (_selectedRange == '30 Hari Terakhir') periodName = '30 hari lalu';
+
+    if (_selectedRange == 'Semua Waktu') {
+      _trendText = 'Semua data tersimpan';
+      _trendIsUp = true;
+    } else if (prevCount == 0) {
+      if (currCount == 0) {
+        _trendText = '0% dari $periodName';
+        _trendIsUp = true;
+      } else {
+        _trendText = '+100% dari $periodName';
+        _trendIsUp = true;
+      }
+    } else {
+      final change = ((currCount - prevCount) / prevCount * 100).round();
+      final sign = change >= 0 ? '+' : '';
+      _trendText = '$sign$change% dari $periodName';
+      _trendIsUp = change >= 0;
+    }
+
+    // 3. Hitung distribusi Kategori Terbanyak secara riil
     final Map<String, int> catCounts = {};
-    for (final r in effectiveReports) {
-      final cat = r.categoryName.isNotEmpty ? r.categoryName : 'Lainnya';
+    for (final r in inRangeReports) {
+      final cat = r.categoryName.trim().isNotEmpty ? r.categoryName.trim() : 'Lainnya';
       catCounts[cat] = (catCounts[cat] ?? 0) + 1;
     }
 
-    if (catCounts.isNotEmpty) {
+    final List<_CategoryStat> computedCats = [];
+    if (catCounts.isNotEmpty && inRangeReports.isNotEmpty) {
       final sortedEntries = catCounts.entries.toList()
         ..sort((a, b) => b.value.compareTo(a.value));
 
-      final total = sortedEntries.fold<int>(0, (sum, e) => sum + e.value);
-      final List<_CategoryStat> computed = [];
-
-      final topEntries = sortedEntries.take(4).toList();
-      int topSum = 0;
-      for (final e in topEntries) {
-        final pct = total > 0 ? (e.value / total) * 100 : 0.0;
-        computed.add(_CategoryStat(name: e.key, count: e.value, percentage: pct));
-        topSum += e.value;
-      }
-
-      final otherCount = total - topSum;
-      if (otherCount > 0 || computed.length < 5) {
-        final otherPct = total > 0 ? (otherCount / total) * 100 : 15.0;
-        computed.add(_CategoryStat(
-          name: 'Lainnya',
-          count: otherCount > 0 ? otherCount : 369,
-          percentage: otherPct > 0 ? otherPct : 15,
+      for (final e in sortedEntries) {
+        final pct = (e.value / inRangeReports.length) * 100;
+        computedCats.add(_CategoryStat(
+          name: e.key,
+          count: e.value,
+          percentage: pct,
         ));
       }
-
-      _categoryStats = computed;
     }
+    _categoryStats = computedCats;
 
-    // Hitung tanggal chart harian 6 slot
+    // 4. Hitung data Histogram Bar Chart 6 slot hari riil
     final months = [
       'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
       'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
@@ -145,22 +182,79 @@ class _AdminStatisticsAnalyticsScreenState
     final List<String> dates = [];
     final List<double> vals = [];
 
-    for (int i = 5; i >= 0; i--) {
-      final dt = now.subtract(Duration(days: i));
+    final activeReportDates = inRangeReports
+        .map((r) => DateTime(r.createdAt.year, r.createdAt.month, r.createdAt.day))
+        .toSet();
+
+    final List<DateTime> slotDates = [];
+    final minReportDate = activeReportDates.isNotEmpty
+        ? activeReportDates.reduce((a, b) => a.isBefore(b) ? a : b)
+        : today.subtract(const Duration(days: 5));
+
+    final totalDaysSpan = today.difference(minReportDate).inDays;
+
+    if (_selectedRange == '7 Hari Terakhir' || totalDaysSpan <= 5) {
+      for (int i = 5; i >= 0; i--) {
+        slotDates.add(today.subtract(Duration(days: i)));
+      }
+    } else {
+      for (int i = 0; i < 6; i++) {
+        final offset = (i * totalDaysSpan / 5.0).round();
+        slotDates.add(minReportDate.add(Duration(days: offset)));
+      }
+    }
+
+    for (final dt in slotDates) {
       dates.add('${dt.day} ${months[dt.month - 1]}');
 
-      final count = effectiveReports.where((r) {
+      final count = inRangeReports.where((r) {
         return r.createdAt.year == dt.year &&
             r.createdAt.month == dt.month &&
             r.createdAt.day == dt.day;
       }).length;
 
-      // Jika data riil sedikit, gunakan proporsi visual realistis
-      vals.add(count > 0 ? count.toDouble() * 60 : _chartValues[5 - i]);
+      vals.add(count.toDouble());
     }
 
     _chartDates = dates;
     _chartValues = vals;
+
+    // 5. Hitung Skala Sumbu Y Dinamis dari nilai maksimum riil
+    double maxData = 0.0;
+    for (final v in vals) {
+      if (v > maxData) maxData = v;
+    }
+
+    if (maxData <= 4) {
+      _chartMaxScale = 4.0;
+      _yAxisLabels = ['4', '2', '1', '0'];
+    } else if (maxData <= 10) {
+      _chartMaxScale = 10.0;
+      _yAxisLabels = ['10', '5', '2', '0'];
+    } else if (maxData <= 25) {
+      _chartMaxScale = 25.0;
+      _yAxisLabels = ['25', '15', '5', '0'];
+    } else if (maxData <= 50) {
+      _chartMaxScale = 50.0;
+      _yAxisLabels = ['50', '25', '10', '0'];
+    } else if (maxData <= 100) {
+      _chartMaxScale = 100.0;
+      _yAxisLabels = ['100', '50', '25', '0'];
+    } else if (maxData <= 500) {
+      _chartMaxScale = 500.0;
+      _yAxisLabels = ['500', '250', '100', '0'];
+    } else if (maxData <= 1000) {
+      _chartMaxScale = 1000.0;
+      _yAxisLabels = ['1000', '500', '250', '0'];
+    } else {
+      _chartMaxScale = ((maxData / 250).ceil() * 250).toDouble();
+      _yAxisLabels = [
+        _chartMaxScale.round().toString(),
+        (_chartMaxScale * 0.5).round().toString(),
+        (_chartMaxScale * 0.25).round().toString(),
+        '0',
+      ];
+    }
   }
 
   String _formatNumber(int n) {
@@ -206,55 +300,66 @@ class _AdminStatisticsAnalyticsScreenState
       backgroundColor: Colors.white,
       body: SafeArea(
         top: false,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.fromLTRB(28, topPadding + 14, 28, 36),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── TOP APP BAR (Figma Node 566:2587) ─────────────────────
-              _buildTopAppBar(),
+        child: _isLoading
+            ? const Center(
+                child: CircularProgressIndicator(color: _greenPrimary),
+              )
+            : RefreshIndicator(
+                onRefresh: _fetchLiveStatistics,
+                color: _greenPrimary,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: EdgeInsets.fromLTRB(28, topPadding + 14, 28, 36),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // ── TOP APP BAR (Figma Node 566:2587) ─────────────────────
+                      _buildTopAppBar(),
 
-              const SizedBox(height: 28),
+                      const SizedBox(height: 28),
 
-              // ── SUMMARY & FILTER ROW (Figma Node 566:2677 & 566:2697) ─
-              _buildSummaryAndFilterRow(),
+                      // ── SUMMARY & FILTER ROW (Figma Node 566:2677 & 566:2697) ─
+                      _buildSummaryAndFilterRow(),
 
-              const SizedBox(height: 36),
+                      const SizedBox(height: 36),
 
-              // ── HISTOGRAM BAR CHART (Figma Node 566:2742) ────────────
-              _buildBarChartSection(),
+                      // ── HISTOGRAM BAR CHART (Figma Node 566:2742) ────────────
+                      _buildBarChartSection(),
 
-              const SizedBox(height: 38),
+                      const SizedBox(height: 38),
 
-              // ── KATEGORI TERBANYAK SECTION (Figma Node 566:2744) ─────
-              Text(
-                'Kategori Terbanyak',
-                style: GoogleFonts.poppins(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black,
+                      // ── KATEGORI TERBANYAK SECTION (Figma Node 566:2744) ─────
+                      Text(
+                        'Kategori Terbanyak',
+                        style: GoogleFonts.poppins(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Category Cards List or Empty State
+                      if (_categoryStats.isEmpty)
+                        _buildEmptyCategoryCard()
+                      else
+                        ..._categoryStats.map((cat) => Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: _buildCategoryCard(cat),
+                            )),
+
+                      const SizedBox(height: 36),
+
+                      // ── UNDUH LAPORAN BUTTON (Figma Node 566:2675) ────────────
+                      Center(
+                        child: _buildDownloadButton(),
+                      ),
+
+                      const SizedBox(height: 16),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 14),
-
-              // Category Cards List
-              ..._categoryStats.map((cat) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: _buildCategoryCard(cat),
-                  )),
-
-              const SizedBox(height: 36),
-
-              // ── UNDUH LAPORAN BUTTON (Figma Node 566:2675) ────────────
-              Center(
-                child: _buildDownloadButton(),
-              ),
-
-              const SizedBox(height: 16),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -339,7 +444,7 @@ class _AdminStatisticsAnalyticsScreenState
                       ? Icons.arrow_upward_rounded
                       : Icons.arrow_downward_rounded,
                   size: 15,
-                  color: _greenPrimary,
+                  color: _trendIsUp ? _greenPrimary : const Color(0xFFC60D05),
                 ),
                 const SizedBox(width: 3),
                 Text(
@@ -347,7 +452,7 @@ class _AdminStatisticsAnalyticsScreenState
                   style: GoogleFonts.poppins(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    color: _greenPrimary,
+                    color: _trendIsUp ? _greenPrimary : const Color(0xFFC60D05),
                   ),
                 ),
               ],
@@ -362,7 +467,7 @@ class _AdminStatisticsAnalyticsScreenState
             setState(() {
               _selectedRange = val;
             });
-            _fetchLiveStatistics();
+            _computeStatisticsFromReports(_allReports);
           },
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
@@ -428,12 +533,11 @@ class _AdminStatisticsAnalyticsScreenState
   // ── HISTOGRAM BAR CHART ───────────────────────────────────────
   Widget _buildBarChartSection() {
     const double chartHeight = 150.0;
-    const double maxChartValue = 1000.0;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        // Y-Axis Labels: 1000, 500, 250, 0
+        // Y-Axis Labels: Dynamic scale based on real maximum
         SizedBox(
           height: chartHeight + 24, // include X-axis label height
           width: 36,
@@ -442,7 +546,7 @@ class _AdminStatisticsAnalyticsScreenState
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '1000',
+                _yAxisLabels.isNotEmpty ? _yAxisLabels[0] : '10',
                 style: GoogleFonts.poppins(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w400,
@@ -450,7 +554,7 @@ class _AdminStatisticsAnalyticsScreenState
                 ),
               ),
               Text(
-                '500',
+                _yAxisLabels.length > 1 ? _yAxisLabels[1] : '5',
                 style: GoogleFonts.poppins(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w400,
@@ -458,7 +562,7 @@ class _AdminStatisticsAnalyticsScreenState
                 ),
               ),
               Text(
-                '250',
+                _yAxisLabels.length > 2 ? _yAxisLabels[2] : '2',
                 style: GoogleFonts.poppins(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w400,
@@ -466,7 +570,7 @@ class _AdminStatisticsAnalyticsScreenState
                 ),
               ),
               Text(
-                '0',
+                _yAxisLabels.length > 3 ? _yAxisLabels[3] : '0',
                 style: GoogleFonts.poppins(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w400,
@@ -491,22 +595,26 @@ class _AdminStatisticsAnalyticsScreenState
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: List.generate(_chartValues.length, (idx) {
                     final val = _chartValues[idx];
-                    final double barHeight =
-                        (val / maxChartValue * chartHeight).clamp(12.0, chartHeight);
+                    final double barHeight = val > 0
+                        ? (val / _chartMaxScale * chartHeight).clamp(8.0, chartHeight)
+                        : 0.0;
 
                     return Column(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        Container(
-                          width: 16,
-                          height: barHeight,
-                          decoration: const BoxDecoration(
-                            color: _greenPrimary,
-                            borderRadius: BorderRadius.vertical(
-                              top: Radius.circular(3),
+                        if (val > 0)
+                          Container(
+                            width: 16,
+                            height: barHeight,
+                            decoration: const BoxDecoration(
+                              color: _greenPrimary,
+                              borderRadius: BorderRadius.vertical(
+                                top: Radius.circular(3),
+                              ),
                             ),
-                          ),
-                        ),
+                          )
+                        else
+                          const SizedBox(width: 16, height: 1),
                       ],
                     );
                   }),
@@ -597,7 +705,7 @@ class _AdminStatisticsAnalyticsScreenState
             Padding(
               padding: const EdgeInsets.only(right: 14),
               child: Text(
-                '${_formatNumber(cat.count)} (${cat.percentage.round()}%)',
+                '${_formatNumber(cat.count)} (${cat.percentage.toStringAsFixed(cat.percentage % 1 == 0 ? 0 : 1)}%)',
                 style: GoogleFonts.poppins(
                   fontSize: 13.5,
                   fontWeight: FontWeight.w500,
@@ -607,6 +715,33 @@ class _AdminStatisticsAnalyticsScreenState
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyCategoryCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE0DFDF), width: 1.0),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.bar_chart_rounded, color: Colors.grey.shade400, size: 36),
+          const SizedBox(height: 8),
+          Text(
+            'Belum Ada Data Laporan pada Rentang Ini',
+            style: GoogleFonts.poppins(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: _textGrey,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }

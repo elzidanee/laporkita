@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../data/models/report_model.dart';
 import '../../../data/repositories/report_repository.dart';
 import '../report_management/admin_reports_screen.dart';
+import '../analytics/admin_statistics_analytics_screen.dart';
 
 class AdminMonitoringScreen extends StatefulWidget {
   final bool isEmbedded;
@@ -22,7 +23,7 @@ class _AdminMonitoringScreenState extends State<AdminMonitoringScreen> {
   static const Color _bluePrimary = Color(0xFF1976D2);
 
   String _selectedOpd = 'Semua OPD';
-  String _selectedRange = '7 Hari Terakhir';
+  String _selectedRange = 'Bulan Ini';
   bool _isLoading = true;
 
   List<ReportModel> _allReports = [];
@@ -56,10 +57,11 @@ class _AdminMonitoringScreenState extends State<AdminMonitoringScreen> {
   ];
 
   final List<String> _rangeOptions = [
+    'Bulan Ini',
     '7 Hari Terakhir',
     '30 Hari Terakhir',
-    'Bulan Ini',
     'Tahun Ini',
+    'Semua Waktu',
   ];
 
   @override
@@ -146,6 +148,8 @@ class _AdminMonitoringScreenState extends State<AdminMonitoringScreen> {
           r.createdAt.year == now.year && r.createdAt.month == now.month).toList();
     } else if (_selectedRange == 'Tahun Ini') {
       dateFiltered = opdFiltered.where((r) => r.createdAt.year == now.year).toList();
+    } else if (_selectedRange == 'Semua Waktu') {
+      dateFiltered = opdFiltered;
     }
 
     // 3. Process Counts (purely from filtered data)
@@ -158,6 +162,7 @@ class _AdminMonitoringScreenState extends State<AdminMonitoringScreen> {
 
     final pending = dateFiltered.where((r) =>
         r.status == ReportStatus.pendingVerification ||
+        r.status == ReportStatus.assigned ||
         (r.status == ReportStatus.verified && r.assignedAgency == null)).length;
 
     // 4. Resolution Time Metrics
@@ -168,16 +173,18 @@ class _AdminMonitoringScreenState extends State<AdminMonitoringScreen> {
     if (resolvedReports.isNotEmpty) {
       double totalHours = 0;
       for (final r in resolvedReports) {
-        final hours = r.updatedAt.difference(r.createdAt).inMinutes / 60.0;
-        totalHours += hours > 0 ? hours : 24.0;
+        final diffMinutes = r.updatedAt.difference(r.createdAt).inMinutes;
+        final hours = diffMinutes > 0 ? (diffMinutes / 60.0) : 1.0;
+        totalHours += hours;
       }
       avgDays = double.parse((totalHours / (resolvedReports.length * 24.0)).toStringAsFixed(1));
     } else if (dateFiltered.isNotEmpty) {
       // Calculate turnaround of active records if none are formally completed yet
       double totalHours = 0;
       for (final r in dateFiltered) {
-        final hours = now.difference(r.createdAt).inMinutes / 60.0;
-        totalHours += hours > 0 ? hours : 2.0;
+        final diffMinutes = now.difference(r.createdAt).inMinutes;
+        final hours = diffMinutes > 0 ? (diffMinutes / 60.0) : 1.0;
+        totalHours += hours;
       }
       avgDays = double.parse((totalHours / (dateFiltered.length * 24.0)).toStringAsFixed(1));
     }
@@ -194,21 +201,51 @@ class _AdminMonitoringScreenState extends State<AdminMonitoringScreen> {
         r.updatedAt.isAfter(twoWeeksCutoff) &&
         r.updatedAt.isBefore(pastWeekCutoff)).toList();
 
-    double diff = -0.8;
+    double diff = 0.0;
     if (thisWeekResolved.isNotEmpty && lastWeekResolved.isNotEmpty) {
       final thisWeekAvg = thisWeekResolved.fold<double>(0, (s, r) => s + r.updatedAt.difference(r.createdAt).inHours / 24.0) / thisWeekResolved.length;
       final lastWeekAvg = lastWeekResolved.fold<double>(0, (s, r) => s + r.updatedAt.difference(r.createdAt).inHours / 24.0) / lastWeekResolved.length;
       diff = double.parse((thisWeekAvg - lastWeekAvg).toStringAsFixed(1));
-    } else if (avgDays > 0) {
-      diff = -0.8;
+    } else if (thisWeekResolved.isNotEmpty) {
+      final olderResolved = _allReports.where((r) =>
+          (r.status == ReportStatus.completed || r.status == ReportStatus.resolved) &&
+          r.updatedAt.isBefore(pastWeekCutoff)).toList();
+      if (olderResolved.isNotEmpty) {
+        final olderAvg = olderResolved.fold<double>(0, (s, r) => s + r.updatedAt.difference(r.createdAt).inHours / 24.0) / olderResolved.length;
+        final thisWeekAvg = thisWeekResolved.fold<double>(0, (s, r) => s + r.updatedAt.difference(r.createdAt).inHours / 24.0) / thisWeekResolved.length;
+        diff = double.parse((thisWeekAvg - olderAvg).toStringAsFixed(1));
+      } else {
+        diff = 0.0;
+      }
     } else {
       diff = 0.0;
     }
 
-    // 5. Line Chart: 7 daily points of activity / resolution
+    // 5. Line Chart: 7 points of activity / resolution
     final List<double> chartData = [];
-    for (int i = 6; i >= 0; i--) {
-      final dayStart = DateTime(now.year, now.month, now.day).subtract(Duration(days: i));
+    final activeDates = dateFiltered
+        .map((r) => DateTime(r.createdAt.year, r.createdAt.month, r.createdAt.day))
+        .toSet();
+    final today = DateTime(now.year, now.month, now.day);
+    final minDate = activeDates.isNotEmpty
+        ? activeDates.reduce((a, b) => a.isBefore(b) ? a : b)
+        : today.subtract(const Duration(days: 6));
+    final totalSpan = today.difference(minDate).inDays;
+
+    final List<DateTime> chartDates = [];
+    if (_selectedRange == '7 Hari Terakhir' || totalSpan <= 6) {
+      for (int i = 6; i >= 0; i--) {
+        chartDates.add(today.subtract(Duration(days: i)));
+      }
+    } else {
+      for (int i = 0; i < 7; i++) {
+        final offset = (i * totalSpan / 6.0).round();
+        chartDates.add(minDate.add(Duration(days: offset)));
+      }
+    }
+
+    for (final dt in chartDates) {
+      final dayStart = dt;
       final dayEnd = dayStart.add(const Duration(days: 1));
 
       final count = dateFiltered.where((r) {
@@ -555,14 +592,49 @@ class _AdminMonitoringScreenState extends State<AdminMonitoringScreen> {
                 const SizedBox(height: 22),
 
                 // ── STATISTIK PROSES SECTION ──────────────────────────
-                Text(
-                  'Statistik Proses',
-                  style: GoogleFonts.poppins(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black,
-                    letterSpacing: 0.3,
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Statistik Proses',
+                      style: GoogleFonts.poppins(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                const AdminStatisticsAnalyticsScreen(),
+                          ),
+                        );
+                      },
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Analitik Lengkap',
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: _greenPrimary,
+                            ),
+                          ),
+                          const SizedBox(width: 2),
+                          const Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 11,
+                            color: _greenPrimary,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 12),
 
