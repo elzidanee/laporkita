@@ -511,6 +511,7 @@ class _AdminVerificationActionScreenState
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
             initialValue: _selectedOpd,
+            isExpanded: true,
             decoration: InputDecoration(
               contentPadding:
                   const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -522,6 +523,10 @@ class _AdminVerificationActionScreenState
                 borderRadius: BorderRadius.circular(10),
                 borderSide: const BorderSide(color: Color(0xFFE0DFDF)),
               ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: AppColors.greenPrimary, width: 1.5),
+              ),
             ),
             items: _opdList.map((opd) {
               return DropdownMenuItem(
@@ -529,6 +534,8 @@ class _AdminVerificationActionScreenState
                 child: Text(
                   opd,
                   style: GoogleFonts.poppins(fontSize: 13),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
               );
             }).toList(),

@@ -563,6 +563,9 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
               fontWeight: FontWeight.w300,
               color: Colors.black,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.end,
           ),
         ),
         const SizedBox(height: 10),
@@ -575,6 +578,9 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
               fontWeight: FontWeight.w300,
               color: Colors.black,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.end,
           ),
         ),
         const SizedBox(height: 10),
@@ -587,6 +593,9 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
               fontWeight: FontWeight.w300,
               color: Colors.black,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.end,
           ),
         ),
         const SizedBox(height: 10),
@@ -613,6 +622,9 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
                 ),
               ],
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.end,
           ),
         ),
         const SizedBox(height: 10),
@@ -625,6 +637,9 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
               fontWeight: FontWeight.w300,
               color: Colors.black,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.end,
           ),
         ),
         const SizedBox(height: 10),
@@ -637,6 +652,9 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
               fontWeight: FontWeight.w300,
               color: Colors.black,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.end,
           ),
         ),
       ],
@@ -648,7 +666,7 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
     required Widget valueWidget,
   }) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Text(
           label,
@@ -658,17 +676,23 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
             color: Colors.black,
           ),
         ),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            valueWidget,
-            const SizedBox(width: 4),
-            const Icon(
-              Icons.chevron_right_rounded,
-              size: 20,
-              color: Color(0xFF515151),
-            ),
-          ],
+        const SizedBox(width: 12),
+        Expanded(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            mainAxisSize: MainAxisSize.max,
+            children: [
+              Flexible(
+                child: valueWidget,
+              ),
+              const SizedBox(width: 4),
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
+                color: Color(0xFF515151),
+              ),
+            ],
+          ),
         ),
       ],
     );

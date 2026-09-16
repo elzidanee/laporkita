@@ -11,7 +11,7 @@ import '../../../data/repositories/report_repository.dart';
 import '../../auth/bloc/auth_bloc.dart';
 import '../report_management/admin_reports_screen.dart';
 import '../monitoring/admin_monitoring_screen.dart';
-import '../../citizen/home/tabs/citizen_notifikasi_tab.dart';
+import '../notifications/admin_notification_screen.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Admin Dashboard Screen  (Figma: node 481-6023)
@@ -646,10 +646,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1D9C51),
+      backgroundColor: const Color(0xFFF8FAFC),
       body: _isLoading
           ? const Center(
-              child: CircularProgressIndicator(color: Colors.white),
+              child: CircularProgressIndicator(color: Color(0xFF1D9C51)),
             )
           : IndexedStack(
               index: _currentNavIndex,
@@ -657,7 +657,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 _buildDashboardBody(),
                 const AdminReportsScreen(),
                 const AdminMonitoringScreen(isEmbedded: true),
-                const CitizenNotifikasiTab(),
+                AdminNotificationScreen(
+                  isEmbedded: true,
+                  onBack: () => setState(() => _currentNavIndex = 0),
+                ),
                 _buildAdminProfileBody(),
               ],
             ),
@@ -669,14 +672,28 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     return FadeTransition(
       opacity: _fadeAnimation,
       child: Container(
-        color: const Color(0xFF1D9C51),
+        color: const Color(0xFFF8FAFC),
         child: RefreshIndicator(
           onRefresh: _fetchLiveDashboardData,
           color: const Color(0xFF1D9C51),
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
-              SliverToBoxAdapter(child: _buildHeader()),
+              SliverToBoxAdapter(
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Positioned(
+                      top: -600,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: Container(color: const Color(0xFF1D9C51)),
+                    ),
+                    _buildHeader(),
+                  ],
+                ),
+              ),
               SliverToBoxAdapter(
                 child: Container(
                   decoration: const BoxDecoration(
@@ -1445,61 +1462,64 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     final bottomPadding = MediaQuery.of(context).padding.bottom;
 
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFFF7FAFC),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x2E000000), // rgba(0,0,0,0.18) from Figma
-            blurRadius: 12,
-            offset: Offset(0, -1),
-          ),
-        ],
-      ),
-      padding: EdgeInsets.fromLTRB(4, 12, 4, math.max(10.0, bottomPadding)),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          // 1. Dashboard (griddy-icons:home-filled)
-          _buildNavItem(
-            index: 0,
-            icon: Icons.home_rounded,
-            activeIcon: Icons.home_rounded,
-            label: 'Dashboard',
-          ),
+      color: const Color(0xFFF8FAFC),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFFF7FAFC),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          boxShadow: [
+            BoxShadow(
+              color: Color(0x2E000000), // rgba(0,0,0,0.18) from Figma
+              blurRadius: 12,
+              offset: Offset(0, -1),
+            ),
+          ],
+        ),
+        padding: EdgeInsets.fromLTRB(4, 12, 4, math.max(10.0, bottomPadding)),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            // 1. Dashboard (griddy-icons:home-filled)
+            _buildNavItem(
+              index: 0,
+              icon: Icons.home_rounded,
+              activeIcon: Icons.home_rounded,
+              label: 'Dashboard',
+            ),
 
-          // 2. Laporan (fluent:form-24-regular)
-          _buildNavItem(
-            index: 1,
-            icon: Icons.list_alt_rounded,
-            activeIcon: Icons.list_alt_rounded,
-            label: 'Laporan',
-          ),
+            // 2. Laporan (fluent:form-24-regular)
+            _buildNavItem(
+              index: 1,
+              icon: Icons.list_alt_rounded,
+              activeIcon: Icons.list_alt_rounded,
+              label: 'Laporan',
+            ),
 
-          // 3. Monitoring (carbon:cloud-monitoring)
-          _buildNavItem(
-            index: 2,
-            icon: Icons.monitor_heart_outlined,
-            activeIcon: Icons.monitor_heart_rounded,
-            label: 'Monitoring',
-          ),
+            // 3. Monitoring (carbon:cloud-monitoring)
+            _buildNavItem(
+              index: 2,
+              icon: Icons.monitor_heart_outlined,
+              activeIcon: Icons.monitor_heart_rounded,
+              label: 'Monitoring',
+            ),
 
-          // 4. Notifikasi (mingcute:notification-line)
-          _buildNavItem(
-            index: 3,
-            icon: Icons.notifications_none_rounded,
-            activeIcon: Icons.notifications_rounded,
-            label: 'Notifikasi',
-          ),
+            // 4. Notifikasi (mingcute:notification-line)
+            _buildNavItem(
+              index: 3,
+              icon: Icons.notifications_none_rounded,
+              activeIcon: Icons.notifications_rounded,
+              label: 'Notifikasi',
+            ),
 
-          // 5. Profile (ix:user-profile)
-          _buildNavItem(
-            index: 4,
-            icon: Icons.account_circle_outlined,
-            activeIcon: Icons.account_circle_rounded,
-            label: 'Profile',
-          ),
-        ],
+            // 5. Profile (ix:user-profile)
+            _buildNavItem(
+              index: 4,
+              icon: Icons.account_circle_outlined,
+              activeIcon: Icons.account_circle_rounded,
+              label: 'Profile',
+            ),
+          ],
+        ),
       ),
     );
   }
