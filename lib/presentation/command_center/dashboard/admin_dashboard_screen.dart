@@ -9,6 +9,9 @@ import '../../../data/models/report_model.dart';
 import '../../../data/repositories/category_repository.dart';
 import '../../../data/repositories/report_repository.dart';
 import '../../auth/bloc/auth_bloc.dart';
+import '../report_management/admin_reports_screen.dart';
+import '../policy_simulator/policy_simulator_screen.dart';
+import '../../citizen/home/tabs/citizen_notifikasi_tab.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Admin Dashboard Screen  (Figma: node 481-6023)
@@ -22,6 +25,7 @@ class AdminDashboardScreen extends StatefulWidget {
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     with TickerProviderStateMixin {
+  int _currentNavIndex = 0;
   bool _isLoading = true;
   List<ReportModel> _reports = [];
   List<CategoryModel> _categories = [];
@@ -507,42 +511,58 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       backgroundColor: const Color(0xFFF5F6FA),
       body: _isLoading
           ? const Center(
-              child: CircularProgressIndicator(
-                  color: AppColors.greenPrimary),
+              child: CircularProgressIndicator(color: AppColors.greenPrimary),
             )
-          : FadeTransition(
-              opacity: _fadeAnimation,
-              child: RefreshIndicator(
-                onRefresh: _fetchLiveDashboardData,
-                color: AppColors.greenPrimary,
-                child: CustomScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  slivers: [
-                    SliverToBoxAdapter(child: _buildHeader()),
-                    SliverToBoxAdapter(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 22),
-                          _buildSectionTitle('Ringkasan Keseluruhan'),
-                          const SizedBox(height: 14),
-                          _buildStatCards(),
-                          const SizedBox(height: 20),
-                          _buildChartSection(),
-                          const SizedBox(height: 20),
-                          _buildAdminMenuSection(),
-                          const SizedBox(height: 20),
-                          _buildSectionTitle('Laporan Terbaru'),
-                          const SizedBox(height: 12),
-                          _buildReportList(),
-                          const SizedBox(height: 30),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+          : IndexedStack(
+              index: _currentNavIndex,
+              children: [
+                _buildDashboardBody(),
+                const AdminReportsScreen(),
+                const PolicySimulatorScreen(),
+                const CitizenNotifikasiTab(),
+                _buildAdminProfileBody(),
+              ],
+            ),
+      bottomNavigationBar: _buildAdminBottomNavBar(),
+    );
+  }
+
+  Widget _buildDashboardBody() {
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: RefreshIndicator(
+        onRefresh: _fetchLiveDashboardData,
+        color: AppColors.greenPrimary,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(child: _buildHeader()),
+            SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 22),
+                  _buildSectionTitle('Ringkasan Keseluruhan'),
+                  const SizedBox(height: 14),
+                  _buildStatCards(),
+                  const SizedBox(height: 20),
+                  _buildChartSection(),
+                  const SizedBox(height: 20),
+                  _buildAdminMenuSection(),
+                  const SizedBox(height: 20),
+                  _buildSectionTitle(
+                    'Laporan Terbaru',
+                    onAction: () => setState(() => _currentNavIndex = 1),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildReportList(),
+                  const SizedBox(height: 30),
+                ],
               ),
             ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -596,7 +616,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             children: [
               // Notification bell
               GestureDetector(
-                onTap: () {},
+                onTap: () {
+                  setState(() => _currentNavIndex = 3);
+                },
                 child: Container(
                   width: 40,
                   height: 40,
@@ -608,7 +630,24 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       color: Colors.white, size: 22),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
+              // Daftar Laporan
+              GestureDetector(
+                onTap: () {
+                  setState(() => _currentNavIndex = 1);
+                },
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.description_outlined,
+                      color: Colors.white, size: 20),
+                ),
+              ),
+              const SizedBox(width: 8),
               // Logout
               GestureDetector(
                 onTap: () {
@@ -636,16 +675,33 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  Widget _buildSectionTitle(String title, {VoidCallback? onAction}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Text(
-        title,
-        style: GoogleFonts.inter(
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-          color: AppColors.neutral900,
-        ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: GoogleFonts.inter(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: AppColors.neutral900,
+            ),
+          ),
+          if (onAction != null)
+            GestureDetector(
+              onTap: onAction,
+              child: Text(
+                'Lihat Semua >',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.greenPrimary,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -668,6 +724,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   icon: Icons.assessment_outlined,
                   color: AppColors.greenPrimary,
                   bgColor: const Color(0xFFE6F7ED),
+                  onTap: () {
+                    Navigator.pushNamed(context, '/admin-reports');
+                  },
                 ),
               ),
               const SizedBox(width: 12),
@@ -680,6 +739,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   icon: Icons.autorenew_rounded,
                   color: const Color(0xFFF2AE01),
                   bgColor: const Color(0xFFFFF8E6),
+                  onTap: () {
+                    Navigator.pushNamed(
+                      context,
+                      '/admin-reports',
+                      arguments: {'status': 'in_progress'},
+                    );
+                  },
                 ),
               ),
             ],
@@ -696,6 +762,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   icon: Icons.check_circle_outline,
                   color: const Color(0xFF2B82C4),
                   bgColor: const Color(0xFFE8F3FF),
+                  onTap: () {
+                    Navigator.pushNamed(
+                      context,
+                      '/admin-reports',
+                      arguments: {'status': 'completed'},
+                    );
+                  },
                 ),
               ),
               const SizedBox(width: 12),
@@ -708,6 +781,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   icon: Icons.cancel_outlined,
                   color: AppColors.statusDanger,
                   bgColor: const Color(0xFFFFEBEB),
+                  onTap: () {
+                    Navigator.pushNamed(
+                      context,
+                      '/admin-reports',
+                      arguments: {'status': 'rejected'},
+                    );
+                  },
                 ),
               ),
             ],
@@ -725,20 +805,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     required IconData icon,
     required Color color,
     required Color bgColor,
+    VoidCallback? onTap,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -798,8 +881,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   String _formatNumber(int n) {
     if (n >= 1000) {
@@ -1188,6 +1272,341 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'
     ];
     return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
+  }
+
+  // ── ADMIN BOTTOM NAVIGATION BAR (Figma Frame 2623 / Node 481:6242) ──
+
+  Widget _buildAdminBottomNavBar() {
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Color(0xFFF7FAFC),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x2E000000), // rgba(0,0,0,0.18) from Figma
+            blurRadius: 12,
+            offset: Offset(0, -1),
+          ),
+        ],
+      ),
+      padding: EdgeInsets.fromLTRB(4, 12, 4, math.max(10.0, bottomPadding)),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          // 1. Dashboard (griddy-icons:home-filled)
+          _buildNavItem(
+            index: 0,
+            icon: Icons.home_rounded,
+            activeIcon: Icons.home_rounded,
+            label: 'Dashboard',
+          ),
+
+          // 2. Laporan (fluent:form-24-regular)
+          _buildNavItem(
+            index: 1,
+            icon: Icons.list_alt_rounded,
+            activeIcon: Icons.list_alt_rounded,
+            label: 'Laporan',
+          ),
+
+          // 3. Monitoring (carbon:cloud-monitoring)
+          _buildNavItem(
+            index: 2,
+            icon: Icons.monitor_heart_outlined,
+            activeIcon: Icons.monitor_heart_rounded,
+            label: 'Monitoring',
+          ),
+
+          // 4. Notifikasi (mingcute:notification-line)
+          _buildNavItem(
+            index: 3,
+            icon: Icons.notifications_none_rounded,
+            activeIcon: Icons.notifications_rounded,
+            label: 'Notifikasi',
+          ),
+
+          // 5. Profile (ix:user-profile)
+          _buildNavItem(
+            index: 4,
+            icon: Icons.account_circle_outlined,
+            activeIcon: Icons.account_circle_rounded,
+            label: 'Profile',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavItem({
+    required int index,
+    required IconData icon,
+    required String label,
+    IconData? activeIcon,
+  }) {
+    final isSelected = _currentNavIndex == index;
+    final color = isSelected ? AppColors.greenPrimary : const Color(0xFF353535);
+
+    return Expanded(
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _currentNavIndex = index;
+          });
+        },
+        splashColor: Colors.transparent,
+        highlightColor: Colors.transparent,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isSelected && activeIcon != null ? activeIcon : icon,
+                color: color,
+                size: 26,
+              ),
+              const SizedBox(height: 5),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── ADMIN PROFILE TAB (Tab Index 4) ──────────────────────────────
+
+  Widget _buildAdminProfileBody() {
+    final adminName = _getAdminName();
+
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Profil Administrator',
+              style: GoogleFonts.inter(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: AppColors.neutral900,
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Profile Card
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 32,
+                    backgroundColor: AppColors.greenPrimary.withValues(alpha: 0.15),
+                    child: const Icon(
+                      Icons.admin_panel_settings_rounded,
+                      size: 34,
+                      color: AppColors.greenPrimary,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          adminName,
+                          style: GoogleFonts.inter(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.neutral900,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'admin@laporkita.malangkota.go.id',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: AppColors.neutral500,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.greenPrimary.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            'SUPER ADMIN',
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.greenPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Pengaturan & Kontrol Sistem',
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: AppColors.neutral700,
+              ),
+            ),
+            const SizedBox(height: 12),
+            _buildProfileMenuTile(
+              title: 'Manajemen Pengguna & Role',
+              subtitle: 'Atur hak akses staf, operator & warga',
+              icon: Icons.manage_accounts_rounded,
+              color: const Color(0xFF1976D2),
+              onTap: _showUserManagementModal,
+            ),
+            const SizedBox(height: 10),
+            _buildProfileMenuTile(
+              title: 'Daftar OPD & Instansi Terkait',
+              subtitle: 'Kelola integrasi OPD Kota Malang',
+              icon: Icons.apartment_rounded,
+              color: const Color(0xFF206C57),
+              onTap: _showAgenciesModal,
+            ),
+            const SizedBox(height: 10),
+            _buildProfileMenuTile(
+              title: 'Kategori Pengaduan & Bobot AI',
+              subtitle: 'Atur label, ikon & ambang batas AI',
+              icon: Icons.category_rounded,
+              color: const Color(0xFFF2AE01),
+              onTap: _showCategoriesModal,
+            ),
+            const SizedBox(height: 10),
+            _buildProfileMenuTile(
+              title: 'System Audit Log & Idempotency',
+              subtitle: 'Riwayat transaksi & keamanan sistem',
+              icon: Icons.security_rounded,
+              color: AppColors.statusDanger,
+              onTap: _showAuditLogModal,
+            ),
+            const SizedBox(height: 24),
+            // Logout Button
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  context.read<AuthBloc>().add(const AuthLogoutRequested());
+                  Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+                },
+                icon: const Icon(Icons.logout_rounded, color: AppColors.statusDanger),
+                label: Text(
+                  'Keluar dari Akun Admin',
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.statusDanger,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: AppColors.statusDanger),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 30),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileMenuTile({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.neutral200),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: color, size: 22),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.neutral900,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: AppColors.neutral500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.neutral400,
+              size: 20,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

@@ -24,6 +24,8 @@ import 'presentation/citizen/validation/camera_validasi_screen.dart';
 import 'presentation/citizen/validation/beri_validasi_screen.dart';
 import 'presentation/citizen/validation/validation_success_screen.dart';
 import 'presentation/citizen/navigation/route_picker_screen.dart';
+import 'presentation/command_center/report_management/admin_reports_screen.dart';
+import 'presentation/command_center/report_management/admin_report_detail_screen.dart';
 import 'presentation/auth/bloc/auth_bloc.dart';
 import 'presentation/reports/bloc/report_bloc.dart';
 import 'data/repositories/auth_repository.dart';
@@ -106,13 +108,39 @@ Widget? _resolveScreen(RouteSettings settings) {
     case '/citizen':
       return const CitizenHomeScreen();
     case '/report-detail':
+      if (settings.arguments is ReportModel) {
+        return AdminReportDetailScreen(report: settings.arguments as ReportModel);
+      }
       Map<String, dynamic>? detailData;
       if (settings.arguments is Map<String, dynamic>) {
         detailData = settings.arguments as Map<String, dynamic>;
-      } else if (settings.arguments is ReportModel) {
-        detailData = {'reportModel': settings.arguments};
+        if (detailData['reportModel'] is ReportModel && detailData['isAdmin'] == true) {
+          return AdminReportDetailScreen(report: detailData['reportModel'] as ReportModel);
+        }
       }
       return ReportDetailScreen(reportData: detailData);
+    case '/admin-reports':
+      String? initialStatus;
+      String? initialOpd;
+      if (settings.arguments is Map<String, dynamic>) {
+        final args = settings.arguments as Map<String, dynamic>;
+        initialStatus = args['status'] as String?;
+        initialOpd = args['opd'] as String?;
+      }
+      return AdminReportsScreen(
+        initialStatusFilter: initialStatus,
+        initialOpdFilter: initialOpd,
+      );
+    case '/admin-report-detail':
+      if (settings.arguments is ReportModel) {
+        return AdminReportDetailScreen(report: settings.arguments as ReportModel);
+      } else if (settings.arguments is Map<String, dynamic>) {
+        final args = settings.arguments as Map<String, dynamic>;
+        if (args['reportModel'] is ReportModel) {
+          return AdminReportDetailScreen(report: args['reportModel'] as ReportModel);
+        }
+      }
+      return const AdminReportsScreen();
     case '/camera':
       return const CameraCaptureScreen();
     case '/similar-reports':
