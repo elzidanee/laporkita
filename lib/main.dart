@@ -230,7 +230,7 @@ PageRouteBuilder _buildSmoothRoute(RouteSettings settings) {
       );
 
       final outFadeAnimation = Tween<double>(begin: 1.0, end: 0.92).animate(
-        CurvedAnimation(
+        CurvedAnimation(  
           parent: secondaryAnimation,
           curve: Curves.easeIn,
         ),
