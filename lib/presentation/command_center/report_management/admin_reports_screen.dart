@@ -6,7 +6,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../data/models/report_model.dart';
 import '../../../data/repositories/category_repository.dart';
 import '../../../data/repositories/report_repository.dart';
-import '../../auth/bloc/auth_bloc.dart';
 import 'admin_report_detail_screen.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -28,7 +27,6 @@ class AdminReportsScreen extends StatefulWidget {
 }
 
 class _AdminReportsScreenState extends State<AdminReportsScreen> {
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final TextEditingController _searchController = TextEditingController();
 
   bool _isLoading = true;
@@ -51,11 +49,9 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
 
   final List<String> _opdOptions = [
     'Semua OPD',
-    'Dinas PUPR',
-    'Dinas Perhubungan',
-    'Dinas Lingkungan Hidup',
-    'Satpol PP',
-    'BPBD',
+    'Dinas PUPR (DPUPR)',
+    'Dinas Perhubungan (Dishub)',
+    'Dinas Komunikasi & Informatika (Diskominfo)',
   ];
 
   @override
@@ -129,28 +125,35 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
       if (_selectedOpd != 'Semua OPD') {
         final agencyName = (r.assignedAgency?['name'] ?? '').toString().toLowerCase();
         final opdLower = _selectedOpd.toLowerCase();
-        if (!agencyName.contains(opdLower) && !opdLower.contains(agencyName)) {
-          final catName = r.categoryName.toLowerCase();
-          if (_selectedOpd == 'Dinas PUPR' &&
-              !(catName.contains('jalan') ||
-                  catName.contains('jembatan') ||
-                  catName.contains('trotoar') ||
-                  catName.contains('drainase'))) {
-            return false;
-          } else if (_selectedOpd == 'Dinas Perhubungan' &&
-              !(catName.contains('rambu') ||
-                  catName.contains('lampu') ||
-                  catName.contains('lalu lintas'))) {
-            return false;
-          } else if (_selectedOpd == 'Dinas Lingkungan Hidup' &&
-              !(catName.contains('sampah') ||
-                  catName.contains('kebersihan') ||
-                  catName.contains('pohon'))) {
-            return false;
-          } else if (_selectedOpd == 'Satpol PP' &&
-              !(catName.contains('ketertiban') || catName.contains('pkl'))) {
-            return false;
-          }
+        final catName = r.categoryName.toLowerCase();
+
+        if (opdLower.contains('pupr')) {
+          final isAgencyPupr = agencyName.contains('pupr') || agencyName.contains('dpupr');
+          final isCatPupr = catName.contains('jalan') ||
+              catName.contains('jembatan') ||
+              catName.contains('trotoar') ||
+              catName.contains('drainase') ||
+              catName.contains('infrastruktur') ||
+              catName.contains('aspal');
+          if (!isAgencyPupr && !isCatPupr) return false;
+        } else if (opdLower.contains('dishub') || opdLower.contains('perhubungan')) {
+          final isAgencyDishub = agencyName.contains('dishub') || agencyName.contains('perhubungan');
+          final isCatDishub = catName.contains('rambu') ||
+              catName.contains('lampu') ||
+              catName.contains('lalu lintas') ||
+              catName.contains('marka') ||
+              catName.contains('traffic');
+          if (!isAgencyDishub && !isCatDishub) return false;
+        } else if (opdLower.contains('diskominfo') || opdLower.contains('kominfo')) {
+          final isAgencyDiskominfo = agencyName.contains('diskominfo') || agencyName.contains('kominfo');
+          final isCatDiskominfo = catName.contains('internet') ||
+              catName.contains('cctv') ||
+              catName.contains('kabel') ||
+              catName.contains('fiber') ||
+              catName.contains('wifi') ||
+              catName.contains('telekomunikasi') ||
+              catName.contains('digital');
+          if (!isAgencyDiskominfo && !isCatDiskominfo) return false;
         }
       }
 
@@ -212,16 +215,14 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     final filtered = _filteredReports;
 
     return Scaffold(
-      key: _scaffoldKey,
       backgroundColor: Colors.white,
-      drawer: _buildAdminDrawer(),
       body: SafeArea(
         bottom: false,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             const SizedBox(height: 8),
-            // Top App Bar: Hamburger + Title
+            // Top App Bar: Title
             _buildTopAppBar(),
             const SizedBox(height: 14),
 
@@ -287,42 +288,41 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
   // ── TOP APP BAR ────────────────────────────────────────────────────
 
   Widget _buildTopAppBar() {
+    final canPop = Navigator.canPop(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          // Hamburger Menu Icon
-          InkWell(
-            onTap: () => _scaffoldKey.currentState?.openDrawer(),
-            borderRadius: BorderRadius.circular(20),
-            child: Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: Colors.transparent,
-                borderRadius: BorderRadius.circular(21),
-              ),
-              child: const Icon(
-                Icons.menu_rounded,
-                size: 28,
-                color: Colors.black,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              'Laporan',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.poppins(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: Colors.black,
-                letterSpacing: 0.4,
+      child: SizedBox(
+        height: 44,
+        child: Row(
+          children: [
+            if (canPop)
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                icon: const Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  size: 20,
+                  color: Colors.black,
+                ),
+                onPressed: () => Navigator.pop(context),
+              )
+            else
+              const SizedBox(width: 40),
+            Expanded(
+              child: Text(
+                'Laporan',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black,
+                  letterSpacing: 0.4,
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 42),
-        ],
+            const SizedBox(width: 40),
+          ],
+        ),
       ),
     );
   }
@@ -408,7 +408,13 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
         Expanded(
           flex: 3,
           child: _buildFilterChip(
-            label: _selectedOpd == 'Dinas Lingkungan Hidup' ? 'DLH' : _selectedOpd,
+            label: _selectedOpd.contains('DPUPR') || _selectedOpd.contains('PUPR')
+                ? 'DPUPR'
+                : (_selectedOpd.contains('Dishub') || _selectedOpd.contains('Perhubungan')
+                    ? 'Dishub'
+                    : (_selectedOpd.contains('Diskominfo') || _selectedOpd.contains('Informatika')
+                        ? 'Diskominfo'
+                        : _selectedOpd)),
             onTap: _showOpdBottomSheet,
           ),
         ),
@@ -1032,131 +1038,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     );
   }
 
-  // ── ADMIN DRAWER ───────────────────────────────────────────────────
 
-  Widget _buildAdminDrawer() {
-    return Drawer(
-      backgroundColor: Colors.white,
-      child: SafeArea(
-        child: Column(
-          children: [
-            BlocBuilder<AuthBloc, AuthState>(
-              builder: (context, authState) {
-                String adminName = 'Administrator';
-                String adminEmail = 'admin@laporkita.go.id';
-                if (authState is AuthAuthenticated) {
-                  adminName = authState.user.fullName;
-                  adminEmail = authState.user.email ?? 'admin@laporkita.go.id';
-                }
-                return Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFE8F5E9),
-                    border: Border(
-                      bottom: BorderSide(color: Color(0xFFE0DFDF)),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 26,
-                        backgroundColor: AppColors.greenPrimary,
-                        child: Text(
-                          adminName.isNotEmpty ? adminName[0].toUpperCase() : 'A',
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              adminName,
-                              style: GoogleFonts.poppins(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            Text(
-                              adminEmail,
-                              style: GoogleFonts.poppins(
-                                fontSize: 12,
-                                color: Colors.black54,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.dashboard_rounded, color: Colors.black87),
-              title: Text('Dashboard Admin', style: GoogleFonts.poppins(fontSize: 14)),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushReplacementNamed(context, '/admin-dashboard');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.description_rounded, color: AppColors.greenPrimary),
-              title: Text(
-                'Daftar Laporan',
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.greenPrimary,
-                ),
-              ),
-              selected: true,
-              selectedTileColor: const Color(0xFFE6F7ED),
-              onTap: () => Navigator.pop(context),
-            ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.refresh_rounded, color: Colors.black87),
-              title: Text('Muat Ulang Data', style: GoogleFonts.poppins(fontSize: 14)),
-              onTap: () {
-                Navigator.pop(context);
-                _fetchReports();
-              },
-            ),
-            const Spacer(),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.logout_rounded, color: AppColors.statusDanger),
-              title: Text(
-                'Keluar / Logout',
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  color: AppColors.statusDanger,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              onTap: () {
-                context.read<AuthBloc>().add(const AuthLogoutRequested());
-                Navigator.pushNamedAndRemoveUntil(
-                    context, '/get-started', (r) => false);
-              },
-            ),
-            const SizedBox(height: 12),
-          ],
-        ),
-      ),
-    );
-  }
 
   // ── EMPTY STATE ────────────────────────────────────────────────────
 

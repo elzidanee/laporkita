@@ -8,6 +8,7 @@ import 'package:latlong2/latlong.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/report_model.dart';
 import '../../../data/repositories/report_repository.dart';
+import 'admin_verification_action_screen.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Detail Laporan | Admin  (Figma: node 551-2)
@@ -40,6 +41,7 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
   }
 
   Future<void> _refreshDetail() async {
+    setState(() => _isLoading = true);
     try {
       final repo = context.read<ReportRepository>();
       final fresh = await repo.getReportById(_currentReport.id);
@@ -47,6 +49,9 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
         setState(() => _currentReport = fresh);
       }
     } catch (_) {}
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _loadComments() async {
@@ -871,7 +876,18 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
             child: SizedBox(
               height: 44,
               child: ElevatedButton(
-                onPressed: () => _showActionModal(r),
+                onPressed: () async {
+                  final updated = await Navigator.push<ReportModel>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => AdminVerificationActionScreen(report: r),
+                    ),
+                  );
+                  if (updated != null && mounted) {
+                    setState(() => _currentReport = updated);
+                    _refreshDetail();
+                  }
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1D9C51),
                   foregroundColor: Colors.white,
@@ -1251,203 +1267,6 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
     );
   }
 
-  void _showActionModal(ReportModel r) {
-    String targetStatus = 'in_progress';
-    String targetOpd = r.assignedAgency?['name'] ?? 'Dinas PUPR';
-    final notesController = TextEditingController();
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (modalContext, setModalState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 24,
-                right: 24,
-                top: 20,
-                bottom: MediaQuery.of(modalContext).viewInsets.bottom + 24,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Tindak Lanjut Laporan',
-                        style: GoogleFonts.poppins(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close_rounded),
-                        onPressed: () => Navigator.pop(ctx),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    'Perbarui Status Laporan',
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  DropdownButtonFormField<String>(
-                    initialValue: targetStatus,
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    ),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'in_progress',
-                        child: Text('Sedang Diproses'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'assigned',
-                        child: Text('Tugaskan ke OPD'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'completed',
-                        child: Text('Selesaikan Laporan'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'rejected',
-                        child: Text('Tolak Laporan'),
-                      ),
-                    ],
-                    onChanged: (val) {
-                      if (val != null) setModalState(() => targetStatus = val);
-                    },
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    'Tugaskan Kepada OPD',
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  DropdownButtonFormField<String>(
-                    initialValue: targetOpd,
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    ),
-                    items: const [
-                      DropdownMenuItem(value: 'Dinas PUPR', child: Text('Dinas PUPR')),
-                      DropdownMenuItem(value: 'Dinas Perhubungan', child: Text('Dinas Perhubungan')),
-                      DropdownMenuItem(value: 'Dinas Lingkungan Hidup', child: Text('Dinas Lingkungan Hidup')),
-                      DropdownMenuItem(value: 'Satpol PP', child: Text('Satpol PP')),
-                      DropdownMenuItem(value: 'BPBD', child: Text('BPBD')),
-                    ],
-                    onChanged: (val) {
-                      if (val != null) setModalState(() => targetOpd = val);
-                    },
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    'Catatan Tindak Lanjut / Catatan Petugas',
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: notesController,
-                    maxLines: 2,
-                    decoration: InputDecoration(
-                      hintText: 'Contoh: Tim lapangan PUPR sudah diterjunkan ke lokasi.',
-                      hintStyle: GoogleFonts.poppins(fontSize: 12),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 46,
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        final scaffoldMessenger = ScaffoldMessenger.of(context);
-                        final nav = Navigator.of(ctx);
-                        nav.pop();
-                        setState(() => _isLoading = true);
-                        try {
-                          final repo = context.read<ReportRepository>();
-                          final updated = await repo.updateReportStatus(
-                            r.id,
-                            targetStatus,
-                            notes: notesController.text.trim().isNotEmpty
-                                ? notesController.text.trim()
-                                : 'Status diperbarui oleh Admin via Tindak Lanjut',
-                            existingReport: r,
-                          );
-
-                          if (mounted) {
-                            setState(() {
-                              _currentReport = updated;
-                              _isLoading = false;
-                            });
-                            scaffoldMessenger.showSnackBar(
-                              const SnackBar(
-                                content: Text('Status laporan berhasil diperbarui ke backend!'),
-                                backgroundColor: AppColors.greenPrimary,
-                              ),
-                            );
-                          }
-                        } catch (e) {
-                          if (mounted) {
-                            setState(() => _isLoading = false);
-                            scaffoldMessenger.showSnackBar(
-                              SnackBar(
-                                content: Text('Gagal memperbarui status: $e'),
-                                backgroundColor: AppColors.statusDanger,
-                              ),
-                            );
-                          }
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.greenPrimary,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: Text(
-                        'Simpan Perubahan',
-                        style: GoogleFonts.poppins(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
 
   // ── HELPERS ────────────────────────────────────────────────────────
 
@@ -1483,14 +1302,23 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
 
   String _inferOpd(String categoryName) {
     final lower = categoryName.toLowerCase();
-    if (lower.contains('jalan') || lower.contains('jembatan') || lower.contains('trotoar') || lower.contains('drainase')) {
-      return 'Dinas PUPR';
-    } else if (lower.contains('lampu') || lower.contains('rambu') || lower.contains('lalu lintas')) {
-      return 'Dinas Perhubungan';
-    } else if (lower.contains('sampah') || lower.contains('kebersihan')) {
-      return 'Dinas Lingkungan Hidup';
+    if (lower.contains('lampu') ||
+        lower.contains('rambu') ||
+        lower.contains('lalu lintas') ||
+        lower.contains('marka') ||
+        lower.contains('traffic')) {
+      return 'Dinas Perhubungan (Dishub)';
+    } else if (lower.contains('internet') ||
+        lower.contains('cctv') ||
+        lower.contains('kabel') ||
+        lower.contains('fiber') ||
+        lower.contains('wifi') ||
+        lower.contains('komunikasi') ||
+        lower.contains('informasi') ||
+        lower.contains('digital')) {
+      return 'Dinas Komunikasi & Informatika (Diskominfo)';
     } else {
-      return 'Dinas PUPR';
+      return 'Dinas PUPR (DPUPR)';
     }
   }
 }

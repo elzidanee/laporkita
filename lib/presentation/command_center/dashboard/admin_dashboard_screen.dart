@@ -30,14 +30,28 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   List<ReportModel> _reports = [];
   List<CategoryModel> _categories = [];
 
-  // Computed stats
+  // Computed stats strictly from real backend reports
   int _totalLaporan = 0;
   int _sedangDiproses = 0;
   int _selesai = 0;
   int _ditolak = 0;
 
-  // Chart data — reports per day for last 7 days
-  List<int> _chartData = List.filled(7, 0);
+  // Real trend calculations compared to yesterday
+  String _totalTrendPercent = '0%';
+  bool _totalIsUp = true;
+  String _inProgressTrendPercent = '0%';
+  bool _inProgressIsUp = true;
+  String _selesaiTrendPercent = '0%';
+  bool _selesaiIsUp = true;
+  String _ditolakTrendPercent = '0%';
+  bool _ditolakIsUp = false;
+
+  // Filter state for summary
+  String _selectedFilter = 'Semua';
+
+  // Real chart data computed from backend reports for the last 6 days
+  List<double> _greenChartData = [0, 0, 0, 0, 0, 0];
+  List<double> _blueChartData = [0, 0, 0, 0, 0, 0];
   List<String> _chartLabels = [];
 
   late AnimationController _fadeController;
@@ -92,8 +106,31 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   }
 
   void _computeStats(List<ReportModel> reports) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+
+    // Filter reports according to _selectedFilter
+    List<ReportModel> filtered = reports;
+    if (_selectedFilter == 'Hari ini') {
+      filtered = reports.where((r) {
+        final c = r.createdAt;
+        return c.year == today.year &&
+            c.month == today.month &&
+            c.day == today.day;
+      }).toList();
+    } else if (_selectedFilter == '7 Hari Terakhir') {
+      final sevenDaysAgo = today.subtract(const Duration(days: 7));
+      filtered = reports.where((r) => r.createdAt.isAfter(sevenDaysAgo)).toList();
+    } else if (_selectedFilter == 'Bulan ini') {
+      filtered = reports
+          .where((r) =>
+              r.createdAt.year == now.year && r.createdAt.month == now.month)
+          .toList();
+    }
+
     int inProgress = 0, selesai = 0, ditolak = 0;
-    for (final r in reports) {
+    for (final r in filtered) {
       if (r.status == ReportStatus.inProgress ||
           r.status == ReportStatus.assigned ||
           r.status == ReportStatus.verified) {
@@ -106,24 +143,111 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         ditolak++;
       }
     }
-    _totalLaporan = reports.length;
+
+    _totalLaporan = filtered.length;
     _sedangDiproses = inProgress;
     _selesai = selesai;
     _ditolak = ditolak;
+
+    // Calculate real changes compared to yesterday
+    final reportsToday = reports.where((r) {
+      final c = r.createdAt;
+      return c.year == today.year &&
+          c.month == today.month &&
+          c.day == today.day;
+    }).toList();
+
+    final reportsYesterday = reports.where((r) {
+      final c = r.createdAt;
+      return c.year == yesterday.year &&
+          c.month == yesterday.month &&
+          c.day == yesterday.day;
+    }).toList();
+
+    _totalTrendPercent =
+        _calcTrendPercent(reportsToday.length, reportsYesterday.length);
+    _totalIsUp = reportsToday.length >= reportsYesterday.length;
+
+    final inProgressToday = reportsToday
+        .where((r) =>
+            r.status == ReportStatus.inProgress ||
+            r.status == ReportStatus.assigned ||
+            r.status == ReportStatus.verified)
+        .length;
+    final inProgressYesterday = reportsYesterday
+        .where((r) =>
+            r.status == ReportStatus.inProgress ||
+            r.status == ReportStatus.assigned ||
+            r.status == ReportStatus.verified)
+        .length;
+    _inProgressTrendPercent =
+        _calcTrendPercent(inProgressToday, inProgressYesterday);
+    _inProgressIsUp = inProgressToday >= inProgressYesterday;
+
+    final selesaiToday = reportsToday
+        .where((r) =>
+            r.status == ReportStatus.completed ||
+            r.status == ReportStatus.resolved)
+        .length;
+    final selesaiYesterday = reportsYesterday
+        .where((r) =>
+            r.status == ReportStatus.completed ||
+            r.status == ReportStatus.resolved)
+        .length;
+    _selesaiTrendPercent =
+        _calcTrendPercent(selesaiToday, selesaiYesterday);
+    _selesaiIsUp = selesaiToday >= selesaiYesterday;
+
+    final ditolakToday = reportsToday
+        .where((r) =>
+            r.status == ReportStatus.rejected ||
+            r.status == ReportStatus.disputed)
+        .length;
+    final ditolakYesterday = reportsYesterday
+        .where((r) =>
+            r.status == ReportStatus.rejected ||
+            r.status == ReportStatus.disputed)
+        .length;
+    _ditolakTrendPercent =
+        _calcTrendPercent(ditolakToday, ditolakYesterday);
+    _ditolakIsUp = ditolakToday >= ditolakYesterday;
+  }
+
+  String _calcTrendPercent(int current, int previous) {
+    if (previous == 0) {
+      if (current == 0) return '0%';
+      return '100%';
+    }
+    final change = ((current - previous) / previous * 100).round();
+    return '${change.abs()}%';
   }
 
   void _computeChartData(List<ReportModel> reports) {
     final now = DateTime.now();
-    final days = List.generate(7, (i) => now.subtract(Duration(days: 6 - i)));
+    final days = List.generate(6, (i) => now.subtract(Duration(days: 5 - i)));
     _chartLabels =
         days.map((d) => '${d.day} ${_shortMonth(d.month)}').toList();
-    _chartData = days.map((day) {
+
+    _greenChartData = days.map((day) {
       return reports.where((r) {
         final c = r.createdAt;
         return c.year == day.year &&
             c.month == day.month &&
             c.day == day.day;
-      }).length;
+      }).length.toDouble();
+    }).toList();
+
+    _blueChartData = days.map((day) {
+      return reports.where((r) {
+        final c = r.createdAt;
+        final isMatch = c.year == day.year &&
+            c.month == day.month &&
+            c.day == day.day;
+        return isMatch &&
+            (r.status == ReportStatus.inProgress ||
+                r.status == ReportStatus.assigned ||
+                r.status == ReportStatus.verified);
+      }).length.toDouble();
     }).toList();
   }
 
@@ -179,6 +303,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           _buildUserRoleTile(
             name: 'DPUPR Operator Lapangan',
             email: 'dpupr@malangkota.go.id',
+            role: 'operator',
+            color: const Color(0xFFF2AE01),
+          ),
+          const SizedBox(height: 8),
+          _buildUserRoleTile(
+            name: 'Dishub Operator Lapangan',
+            email: 'dishub@malangkota.go.id',
+            role: 'operator',
+            color: const Color(0xFFF2AE01),
+          ),
+          const SizedBox(height: 8),
+          _buildUserRoleTile(
+            name: 'Diskominfo Operator Lapangan',
+            email: 'diskominfo@malangkota.go.id',
             role: 'operator',
             color: const Color(0xFFF2AE01),
           ),
@@ -508,10 +646,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
+      backgroundColor: const Color(0xFF1D9C51),
       body: _isLoading
           ? const Center(
-              child: CircularProgressIndicator(color: AppColors.greenPrimary),
+              child: CircularProgressIndicator(color: Colors.white),
             )
           : IndexedStack(
               index: _currentNavIndex,
@@ -530,360 +668,354 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   Widget _buildDashboardBody() {
     return FadeTransition(
       opacity: _fadeAnimation,
-      child: RefreshIndicator(
-        onRefresh: _fetchLiveDashboardData,
-        color: AppColors.greenPrimary,
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            SliverToBoxAdapter(child: _buildHeader()),
-            SliverToBoxAdapter(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 22),
-                  _buildSectionTitle('Ringkasan Keseluruhan'),
-                  const SizedBox(height: 14),
-                  _buildStatCards(),
-                  const SizedBox(height: 20),
-                  _buildChartSection(),
-                  const SizedBox(height: 20),
-                  _buildAdminMenuSection(),
-                  const SizedBox(height: 20),
-                  _buildSectionTitle(
-                    'Laporan Terbaru',
-                    onAction: () => setState(() => _currentNavIndex = 1),
+      child: Container(
+        color: const Color(0xFF1D9C51),
+        child: RefreshIndicator(
+          onRefresh: _fetchLiveDashboardData,
+          color: const Color(0xFF1D9C51),
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverToBoxAdapter(child: _buildHeader()),
+              SliverToBoxAdapter(
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFF8FAFC),
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(25)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Color(0x20000000),
+                        blurRadius: 10,
+                        offset: Offset(0, -2),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 12),
-                  _buildReportList(),
-                  const SizedBox(height: 30),
-                ],
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 18),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 22),
+                        _buildSummaryHeaderRow(),
+                        const SizedBox(height: 16),
+                        _buildStatCards(),
+                        const SizedBox(height: 20),
+                        _buildChartSection(),
+                        const SizedBox(height: 24),
+                        Text(
+                          'Laporan Terbaru',
+                          style: GoogleFonts.poppins(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        _buildReportList(),
+                        const SizedBox(height: 32),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  // ── HEADER ─────────────────────────────────────────────────────
+  // ── HEADER (Figma Node 481:6023) ───────────────────────────────
 
   Widget _buildHeader() {
     final adminName = _getAdminName();
     final greeting = _getGreeting();
 
     return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF1D9C51), Color(0xFF195F3E)],
-        ),
-      ),
+      color: const Color(0xFF1D9C51),
       padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top + 18,
+        top: MediaQuery.of(context).padding.top + 16,
         left: 24,
         right: 24,
-        bottom: 34,
+        bottom: 24,
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Hallo!,',
-                  style: GoogleFonts.inter(
+                  'Hallo!, $greeting',
+                  style: GoogleFonts.poppins(
                     fontSize: 22,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w600,
                     color: Colors.white,
+                    letterSpacing: 0.46,
+                    height: 1.25,
                   ),
                 ),
-                const SizedBox(height: 2),
                 Text(
-                  '$greeting $adminName !',
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    color: Colors.white.withValues(alpha: 0.85),
+                  '$adminName !',
+                  style: GoogleFonts.poppins(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                    letterSpacing: 0.46,
+                    height: 1.25,
                   ),
                 ),
               ],
             ),
           ),
-          Row(
-            children: [
-              // Notification bell
-              GestureDetector(
-                onTap: () {
-                  setState(() => _currentNavIndex = 3);
-                },
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.18),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.notifications_outlined,
-                      color: Colors.white, size: 22),
-                ),
+          // Single notification bell icon from Figma node 481:6032
+          GestureDetector(
+            onTap: () {
+              setState(() => _currentNavIndex = 3);
+            },
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              child: const Icon(
+                Icons.notifications_rounded,
+                color: Colors.white,
+                size: 32,
               ),
-              const SizedBox(width: 8),
-              // Daftar Laporan
-              GestureDetector(
-                onTap: () {
-                  setState(() => _currentNavIndex = 1);
-                },
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.18),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.description_outlined,
-                      color: Colors.white, size: 20),
-                ),
-              ),
-              const SizedBox(width: 8),
-              // Logout
-              GestureDetector(
-                onTap: () {
-                  context
-                      .read<AuthBloc>()
-                      .add(const AuthLogoutRequested());
-                  Navigator.pushNamedAndRemoveUntil(
-                      context, '/get-started', (r) => false);
-                },
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.18),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.logout_outlined,
-                      color: Colors.white, size: 20),
-                ),
-              ),
-            ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title, {VoidCallback? onAction}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            title,
-            style: GoogleFonts.inter(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: AppColors.neutral900,
+  // ── RINGKASAN KESELURUHAN & FILTER ─────────────────────────────
+
+  Widget _buildSummaryHeaderRow() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          'Ringkasan Keseluruhan',
+          style: GoogleFonts.poppins(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: Colors.black,
+            letterSpacing: 0.3,
+          ),
+        ),
+        PopupMenuButton<String>(
+          initialValue: _selectedFilter,
+          onSelected: (String val) {
+            setState(() {
+              _selectedFilter = val;
+              _computeStats(_reports);
+            });
+          },
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          itemBuilder: (context) => [
+            const PopupMenuItem(value: 'Semua', child: Text('Semua')),
+            const PopupMenuItem(value: 'Hari ini', child: Text('Hari ini')),
+            const PopupMenuItem(
+                value: '7 Hari Terakhir', child: Text('7 Hari Terakhir')),
+            const PopupMenuItem(value: 'Bulan ini', child: Text('Bulan ini')),
+          ],
+          child: Container(
+            height: 30,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8.5),
+              border: Border.all(color: const Color(0xFFE0DFDF), width: 0.85),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 4.2,
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _selectedFilter,
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF1976D2),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: Color(0xFF1976D2),
+                  size: 18,
+                ),
+              ],
             ),
           ),
-          if (onAction != null)
-            GestureDetector(
-              onTap: onAction,
-              child: Text(
-                'Lihat Semua >',
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.greenPrimary,
-                ),
-              ),
-            ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  // ── STAT CARDS ─────────────────────────────────────────────────
+  // ── 2x2 STAT CARDS (Figma Node 481:6046 - 481:6077) ───────────
 
   Widget _buildStatCards() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatCard(
-                  label: 'Total Laporan',
-                  value: _totalLaporan,
-                  percent: 14,
-                  isUp: true,
-                  icon: Icons.assessment_outlined,
-                  color: AppColors.greenPrimary,
-                  bgColor: const Color(0xFFE6F7ED),
-                  onTap: () {
-                    Navigator.pushNamed(context, '/admin-reports');
-                  },
-                ),
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _buildFigmaStatCard(
+                title: 'Total Laporan',
+                value: _formatNumber(_totalLaporan),
+                percent: _totalTrendPercent,
+                isUp: _totalIsUp,
+                trendColor: _totalIsUp
+                    ? const Color(0xFF1D9C51)
+                    : const Color(0xFFC60D05),
+                valueColor: Colors.black,
+                titleColor: Colors.black,
+                onTap: () => setState(() => _currentNavIndex = 1),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildStatCard(
-                  label: 'Sedang Diproses',
-                  value: _sedangDiproses,
-                  percent: 8,
-                  isUp: true,
-                  icon: Icons.autorenew_rounded,
-                  color: const Color(0xFFF2AE01),
-                  bgColor: const Color(0xFFFFF8E6),
-                  onTap: () {
-                    Navigator.pushNamed(
-                      context,
-                      '/admin-reports',
-                      arguments: {'status': 'in_progress'},
-                    );
-                  },
-                ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: _buildFigmaStatCard(
+                title: 'Sedang Diproses',
+                value: _formatNumber(_sedangDiproses),
+                percent: _inProgressTrendPercent,
+                isUp: _inProgressIsUp,
+                trendColor: const Color(0xFFF2AE01),
+                valueColor: const Color(0xFFF2AE01),
+                titleColor: Colors.black,
+                onTap: () => setState(() => _currentNavIndex = 1),
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatCard(
-                  label: 'Selesai',
-                  value: _selesai,
-                  percent: 10,
-                  isUp: true,
-                  icon: Icons.check_circle_outline,
-                  color: const Color(0xFF2B82C4),
-                  bgColor: const Color(0xFFE8F3FF),
-                  onTap: () {
-                    Navigator.pushNamed(
-                      context,
-                      '/admin-reports',
-                      arguments: {'status': 'completed'},
-                    );
-                  },
-                ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            Expanded(
+              child: _buildFigmaStatCard(
+                title: 'Selesai',
+                value: _formatNumber(_selesai),
+                percent: _selesaiTrendPercent,
+                isUp: _selesaiIsUp,
+                trendColor: const Color(0xFF1D9C51),
+                valueColor: Colors.black,
+                titleColor: Colors.black,
+                onTap: () => setState(() => _currentNavIndex = 1),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildStatCard(
-                  label: 'Ditolak/Dispute',
-                  value: _ditolak,
-                  percent: 3,
-                  isUp: false,
-                  icon: Icons.cancel_outlined,
-                  color: AppColors.statusDanger,
-                  bgColor: const Color(0xFFFFEBEB),
-                  onTap: () {
-                    Navigator.pushNamed(
-                      context,
-                      '/admin-reports',
-                      arguments: {'status': 'rejected'},
-                    );
-                  },
-                ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: _buildFigmaStatCard(
+                title: 'Ditolak/Dispute',
+                value: _formatNumber(_ditolak),
+                percent: _ditolakTrendPercent,
+                isUp: _ditolakIsUp,
+                trendColor: const Color(0xFFC60D05),
+                valueColor: const Color(0xFFC60D05),
+                titleColor: const Color(0xFFC60D05),
+                onTap: () => setState(() => _currentNavIndex = 1),
               ),
-            ],
-          ),
-        ],
-      ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
-  Widget _buildStatCard({
-    required String label,
-    required int value,
-    required int percent,
+  Widget _buildFigmaStatCard({
+    required String title,
+    required String value,
+    required String percent,
     required bool isUp,
-    required IconData icon,
-    required Color color,
-    required Color bgColor,
+    required Color trendColor,
+    required Color valueColor,
+    required Color titleColor,
     VoidCallback? onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(16),
+        height: 129,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+          borderRadius: BorderRadius.circular(13.5),
+          border: Border.all(color: const Color(0xFFE3E3E3), width: 1.35),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              title,
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: titleColor,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            Text(
+              value,
+              style: GoogleFonts.poppins(
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                color: valueColor,
+                letterSpacing: 0.6,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            Row(
+              children: [
+                Icon(
+                  isUp
+                      ? Icons.arrow_upward_rounded
+                      : Icons.arrow_downward_rounded,
+                  size: 14,
+                  color: trendColor,
+                ),
+                const SizedBox(width: 3),
+                RichText(
+                  text: TextSpan(
+                    children: [
+                      TextSpan(
+                        text: '$percent ',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: trendColor,
+                        ),
+                      ),
+                      TextSpan(
+                        text: 'dari kemarin',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ],
         ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: bgColor,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              fontSize: 11,
-              color: AppColors.neutral500,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            _formatNumber(value),
-            style: GoogleFonts.inter(
-              fontSize: 26,
-              fontWeight: FontWeight.bold,
-              color: AppColors.neutral900,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              Icon(
-                isUp
-                    ? Icons.arrow_upward_rounded
-                    : Icons.arrow_downward_rounded,
-                size: 14,
-                color: isUp
-                    ? AppColors.greenPrimary
-                    : AppColors.statusDanger,
-              ),
-              const SizedBox(width: 2),
-              Expanded(
-                child: Text(
-                  '$percent% dari kemarin',
-                  style: GoogleFonts.inter(
-                    fontSize: 10,
-                    color: isUp
-                        ? AppColors.greenPrimary
-                        : AppColors.statusDanger,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        ],
       ),
-    ),
-  );
-}
+    );
+  }
 
   String _formatNumber(int n) {
     if (n >= 1000) {
@@ -897,287 +1029,241 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     return n.toString();
   }
 
-  // ── CHART ──────────────────────────────────────────────────────
+  // ── CHART SECTION (Figma Node 481:6078) ─────────────────────────
 
   Widget _buildChartSection() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Grafik Laporan (7 hari terakhir)',
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: AppColors.neutral900,
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 150,
-              child: _ReportLineChart(
-                data: _chartData,
-                labels: _chartLabels,
-              ),
-            ),
-          ],
-        ),
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE0DFDF), width: 1.0),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 5,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
-    );
-  }
-
-  // ── ADMIN QUICK ACTIONS ────────────────────────────────────────
-
-  Widget _buildAdminMenuSection() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: GridView.count(
-        crossAxisCount: 2,
-        shrinkWrap: true,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 2.4,
-        physics: const NeverScrollableScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildAdminMenuCard(
-            title: 'Manajemen User',
-            subtitle: 'Citizen, Operator, Admin',
-            icon: Icons.people_alt_rounded,
-            color: AppColors.greenPrimary,
-            onTap: _showUserManagementModal,
+          RichText(
+            text: TextSpan(
+              children: [
+                TextSpan(
+                  text: 'Grafik Laporan  ',
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                  ),
+                ),
+                TextSpan(
+                  text: '(7 hari terakhir)',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
+                    color: const Color(0xFF515151),
+                  ),
+                ),
+              ],
+            ),
           ),
-          _buildAdminMenuCard(
-            title: 'Dinas / Agencies',
-            subtitle: 'PUPR, Dishub, Diskominfo',
-            icon: Icons.apartment_rounded,
-            color: const Color(0xFF1976D2),
-            onTap: _showAgenciesModal,
-          ),
-          _buildAdminMenuCard(
-            title: 'Kategori Pengaduan',
-            subtitle: 'Kelola Icon & Bobot AI',
-            icon: Icons.category_rounded,
-            color: const Color(0xFFF2AE01),
-            onTap: _showCategoriesModal,
-          ),
-          _buildAdminMenuCard(
-            title: 'System Audit Log',
-            subtitle: 'Idempotency & Request Log',
-            icon: Icons.security_rounded,
-            color: AppColors.statusDanger,
-            onTap: _showAuditLogModal,
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 175,
+            child: _ReportLineChart(
+              greenData: _greenChartData,
+              blueData: _blueChartData,
+              labels: _chartLabels,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildAdminMenuCard({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-            horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: color, size: 20),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.neutral900,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    subtitle,
-                    style: GoogleFonts.inter(
-                        fontSize: 9, color: AppColors.neutral500),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ── LAPORAN TERBARU ────────────────────────────────────────────
+  // ── LAPORAN TERBARU (Figma Node 481:6114 - 481:6240) ────────────
 
   Widget _buildReportList() {
     if (_reports.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Text(
-            'Belum ada laporan terbaru.',
-            style: GoogleFonts.inter(
-                color: AppColors.neutral500, fontSize: 14),
-          ),
-        ),
-      );
+      return _buildEmptyReportsState();
     }
-    final recent = _reports.take(10).toList();
+
+    final recentReports = _reports.take(10).toList();
     return ListView.separated(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: recent.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 10),
-      itemBuilder: (context, index) => _buildReportCard(recent[index]),
+      padding: EdgeInsets.zero,
+      itemCount: recentReports.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 12),
+      itemBuilder: (context, index) => _buildReportCard(recentReports[index]),
+    );
+  }
+
+  Widget _buildEmptyReportsState() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE0DFDF), width: 1.0),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 54,
+            height: 54,
+            decoration: const BoxDecoration(
+              color: Color(0xFFE6F7ED),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.assignment_outlined,
+              color: Color(0xFF1D9C51),
+              size: 28,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Belum Ada Laporan Masuk',
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.black,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Laporan dari masyarakat akan langsung tampil di sini secara real-time.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              fontWeight: FontWeight.w400,
+              color: const Color(0xFF757575),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildReportCard(ReportModel r) {
     return GestureDetector(
       onTap: () async {
-        await Navigator.pushNamed(context, '/report-detail',
-            arguments: r);
+        await Navigator.pushNamed(context, '/report-detail', arguments: r);
         if (mounted) _fetchLiveDashboardData();
       },
       child: Container(
+        height: 104,
+        padding: const EdgeInsets.fromLTRB(6, 7, 10, 7),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFE0DFDF), width: 1.0),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 5,
+              offset: const Offset(0, 1),
             ),
           ],
         ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Thumbnail
+            // 1. Left: Thumbnail with watermark overlay (Figma 119x82)
             ClipRRect(
-              borderRadius: const BorderRadius.horizontal(
-                  left: Radius.circular(14)),
-              child: SizedBox(
-                width: 90,
-                height: 90,
-                child: _buildThumbnail(r),
-              ),
-            ),
-            // Middle info
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                width: 119,
+                height: 84,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  border:
+                      Border.all(color: const Color(0xFFBEC4BD), width: 1.0),
+                ),
+                child: Stack(
+                  fit: StackFit.expand,
                   children: [
-                    Text(
-                      r.categoryName,
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.neutral900,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 3),
-                    Row(
-                      children: [
-                        const Icon(Icons.location_on_outlined,
-                            size: 11,
-                            color: AppColors.neutral500),
-                        const SizedBox(width: 2),
-                        Expanded(
-                          child: Text(
-                            r.addressText ?? '-',
-                            style: GoogleFonts.inter(
-                              fontSize: 10,
-                              color: AppColors.neutral500,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      r.reportCode,
-                      style: GoogleFonts.inter(
-                        fontSize: 10,
-                        color: AppColors.neutral400,
-                        fontWeight: FontWeight.w500,
-                      ),
+                    _buildThumbnailImage(r),
+                    // Watermark badge in bottom-left
+                    Positioned(
+                      left: 2,
+                      bottom: 2,
+                      child: _buildCameraWatermark(r),
                     ),
                   ],
                 ),
               ),
             ),
-            // Right: date + status
-            Padding(
-              padding: const EdgeInsets.only(
-                  right: 12, top: 10, bottom: 10),
+            const SizedBox(width: 10),
+            // 2. Middle: Info
+            Expanded(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    _formatDate(r.createdAt),
-                    style: GoogleFonts.inter(
-                      fontSize: 10,
-                      color: AppColors.neutral500,
+                    r.categoryName,
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    r.addressText ?? '-',
+                    style: GoogleFonts.poppins(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w400,
+                      color: const Color(0xFF666666),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 8),
-                  _buildStatusBadge(r.status),
+                  Text(
+                    r.reportCode,
+                    style: GoogleFonts.poppins(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFF1D9C51),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ],
               ),
+            ),
+            const SizedBox(width: 6),
+            // 3. Right: Date, Chevron, Status Badge
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  _formatDateFigma(r.createdAt),
+                  style: GoogleFonts.poppins(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w400,
+                    color: const Color(0xFFA8A8A8),
+                  ),
+                ),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: Color(0xFF333333),
+                ),
+                _buildFigmaStatusBadge(r.status),
+              ],
             ),
           ],
         ),
@@ -1185,12 +1271,75 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     );
   }
 
-  Widget _buildThumbnail(ReportModel r) {
+  Widget _buildCameraWatermark(ReportModel r) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 2.5, vertical: 1.5),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(2.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 0.5),
+            decoration: BoxDecoration(
+              color: const Color(0xFF42A54B).withValues(alpha: 0.8),
+              borderRadius: BorderRadius.circular(2),
+              border:
+                  Border.all(color: const Color(0xFF62D26D), width: 0.3),
+            ),
+            child: Text(
+              'LaporKita',
+              style: GoogleFonts.poppins(
+                fontSize: 4,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          const SizedBox(height: 1),
+          Text(
+            r.reportCode,
+            style: GoogleFonts.poppins(
+              fontSize: 3.5,
+              fontWeight: FontWeight.w400,
+              color: Colors.white,
+            ),
+            maxLines: 1,
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.location_on, size: 4, color: Colors.white),
+              const SizedBox(width: 1),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 34),
+                child: Text(
+                  r.addressText ?? 'Malang',
+                  style: GoogleFonts.poppins(
+                    fontSize: 3,
+                    fontWeight: FontWeight.w400,
+                    color: Colors.white,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildThumbnailImage(ReportModel r) {
     Widget placeholder() => Container(
-          color: AppColors.neutral100,
+          color: const Color(0xFFEAEAEA),
           child: const Center(
-            child: Icon(Icons.image_outlined,
-                size: 26, color: AppColors.neutral400),
+            child:
+                Icon(Icons.image_outlined, size: 24, color: Color(0xFF9E9E9E)),
           ),
         );
 
@@ -1204,72 +1353,88 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       } catch (_) {}
     }
     if (isLocalValid && localPath != null) {
-      return Image.file(File(localPath),
-          fit: BoxFit.cover,
-          errorBuilder: (context, e, s) => placeholder());
+      return Image.file(
+        File(localPath),
+        fit: BoxFit.cover,
+        errorBuilder: (context, e, s) => placeholder(),
+      );
     }
 
     final photoUrl = r.formattedPhotoUrl ?? r.photoUrl ?? '';
     if (photoUrl.isNotEmpty && photoUrl.startsWith('http')) {
-      return Image.network(photoUrl,
-          fit: BoxFit.cover,
-          errorBuilder: (context, e, s) => placeholder());
+      return Image.network(
+        photoUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (context, e, s) => placeholder(),
+      );
     }
-    return placeholder();
+
+    return Image.network(
+      ReportModel.getCategoryFallbackImage(r.categoryName),
+      fit: BoxFit.cover,
+      errorBuilder: (context, e, s) => placeholder(),
+    );
   }
 
-  Widget _buildStatusBadge(ReportStatus status) {
+  Widget _buildFigmaStatusBadge(ReportStatus status) {
     Color bgColor;
     Color textColor;
     String label;
 
     switch (status) {
+      case ReportStatus.pendingVerification:
+        bgColor = const Color(0xFFFFF9E9);
+        textColor = const Color(0xFFF2AE01);
+        label = 'Menunggu verifikasi';
+        break;
+      case ReportStatus.inProgress:
+      case ReportStatus.verified:
+        bgColor = const Color(0xFFFFF9E9);
+        textColor = const Color(0xFFF2AE01);
+        label = 'Sedang Diproses';
+        break;
+      case ReportStatus.assigned:
+        bgColor = const Color(0xFFDBEDFF);
+        textColor = const Color(0xFF1976D2);
+        label = 'Diteruskan';
+        break;
       case ReportStatus.completed:
       case ReportStatus.resolved:
         bgColor = const Color(0xFFE6F7ED);
-        textColor = AppColors.greenPrimary;
+        textColor = const Color(0xFF1D9C51);
         label = 'Selesai';
-        break;
-      case ReportStatus.inProgress:
-      case ReportStatus.assigned:
-      case ReportStatus.verified:
-        bgColor = const Color(0xFFFFF8E6);
-        textColor = const Color(0xFFF2AE01);
-        label = 'Diproses';
         break;
       case ReportStatus.rejected:
       case ReportStatus.disputed:
         bgColor = const Color(0xFFFFEBEB);
-        textColor = AppColors.statusDanger;
+        textColor = const Color(0xFFC60D05);
         label = 'Ditolak';
         break;
-      default:
-        bgColor = const Color(0xFFE8F3FF);
-        textColor = const Color(0xFF2B82C4);
-        label = 'Menunggu';
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      height: 18,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      alignment: Alignment.center,
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(15),
       ),
       child: Text(
         label,
-        style: GoogleFonts.inter(
-          fontSize: 9,
-          fontWeight: FontWeight.bold,
+        style: GoogleFonts.poppins(
+          fontSize: 8.5,
+          fontWeight: FontWeight.w400,
           color: textColor,
         ),
       ),
     );
   }
 
-  String _formatDate(DateTime dt) {
+  String _formatDateFigma(DateTime dt) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-      'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'
+      'januari', 'Februari', 'maret', 'april', 'Mei', 'juni',
+      'juli', 'agustus', 'september', 'oktober', 'november', 'desember'
     ];
     return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
   }
@@ -1388,10 +1553,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   // ── ADMIN PROFILE TAB (Tab Index 4) ──────────────────────────────
 
   Widget _buildAdminProfileBody() {
-    final adminName = _getAdminName();
+    final authState = context.read<AuthBloc>().state;
+    String adminName = 'Admin Utama';
+    String adminEmail = 'admin@laporkita.malangkota.go.id';
+    if (authState is AuthAuthenticated) {
+      if (authState.user.fullName.isNotEmpty) {
+        adminName = authState.user.fullName;
+      }
+      final email = authState.user.email;
+      if (email != null && email.isNotEmpty) {
+        adminEmail = email;
+      }
+    }
 
-    return SafeArea(
-      child: SingleChildScrollView(
+    return Container(
+      color: const Color(0xFFF5F6FA),
+      child: SafeArea(
+        child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1445,7 +1623,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'admin@laporkita.malangkota.go.id',
+                          adminEmail,
                           style: GoogleFonts.inter(
                             fontSize: 12,
                             color: AppColors.neutral500,
@@ -1544,8 +1722,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildProfileMenuTile({
     required String title,
@@ -1611,156 +1790,200 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 }
 
 // ─────────────────────────────────────────────────────────────
-//  Custom Line Chart using CustomPainter (no extra deps)
+//  Custom Dual Line Chart (Figma Node 481:6078)
 // ─────────────────────────────────────────────────────────────
 class _ReportLineChart extends StatelessWidget {
-  final List<int> data;
+  final List<double> greenData;
+  final List<double> blueData;
   final List<String> labels;
 
-  const _ReportLineChart({required this.data, required this.labels});
+  const _ReportLineChart({
+    required this.greenData,
+    required this.blueData,
+    required this.labels,
+  });
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, constraints) {
-      return Column(
-        children: [
-          Expanded(
-            child: CustomPaint(
-              size: Size(constraints.maxWidth, double.infinity),
-              painter: _LineChartPainter(data: data),
-            ),
-          ),
-          const SizedBox(height: 6),
-          // X-axis labels
-          Padding(
-            padding: const EdgeInsets.only(left: 28),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: labels
-                  .map((l) => Text(
-                        l,
-                        style: GoogleFonts.inter(
-                            fontSize: 9,
-                            color: AppColors.neutral400),
-                      ))
-                  .toList(),
-            ),
-          ),
-        ],
+      return CustomPaint(
+        size: Size(constraints.maxWidth, 175),
+        painter: _DualLineChartPainter(
+          greenData: greenData,
+          blueData: blueData,
+          labels: labels,
+        ),
       );
     });
   }
 }
 
-class _LineChartPainter extends CustomPainter {
-  final List<int> data;
+class _DualLineChartPainter extends CustomPainter {
+  final List<double> greenData;
+  final List<double> blueData;
+  final List<String> labels;
 
-  _LineChartPainter({required this.data});
+  _DualLineChartPainter({
+    required this.greenData,
+    required this.blueData,
+    required this.labels,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (data.isEmpty) return;
+    const double leftMargin = 32.0;
+    const double rightMargin = 8.0;
+    const double topMargin = 8.0;
+    const double bottomMargin = 26.0;
 
-    final maxVal = data.reduce(math.max).toDouble();
-    final range = maxVal == 0 ? 1.0 : maxVal;
+    final double chartWidth = size.width - leftMargin - rightMargin;
+    final double chartHeight = size.height - topMargin - bottomMargin;
 
-    const double leftPad = 28;
-    const double topPad = 8;
-    const double bottomPad = 4;
-    final double chartWidth = size.width - leftPad;
-    final double chartHeight = size.height - topPad - bottomPad;
+    if (chartWidth <= 0 || chartHeight <= 0) return;
 
-    // Grid lines & Y labels
+    // Dynamically calculate nice max value from actual real backend data
+    double maxData = 0.0;
+    for (final v in greenData) {
+      if (v > maxData) maxData = v;
+    }
+    for (final v in blueData) {
+      if (v > maxData) maxData = v;
+    }
+
+    final double maxVal = _calculateNiceMax(maxData);
+    const int steps = 5; // 5 intervals -> 6 grid lines (Figma spec)
+
     final gridPaint = Paint()
-      ..color = AppColors.neutral100
-      ..strokeWidth = 1;
-    const ySteps = 4;
-    for (int i = 0; i <= ySteps; i++) {
-      final y = topPad + chartHeight - (i / ySteps) * chartHeight;
+      ..color = const Color(0xFFECECEC)
+      ..strokeWidth = 1.0;
+
+    for (int i = 0; i <= steps; i++) {
+      final y = topMargin + (i / steps) * chartHeight;
+      // Draw horizontal grid line
       canvas.drawLine(
-          Offset(leftPad, y), Offset(size.width, y), gridPaint);
-      final value = ((i / ySteps) * maxVal).round();
+        Offset(leftMargin, y),
+        Offset(size.width - rightMargin, y),
+        gridPaint,
+      );
+
+      // Draw dynamic Y label (e.g. 100, 80, 60... or 10, 8, 6... or 5, 4, 3...)
+      final stepVal = maxVal - (i / steps) * maxVal;
+      final labelVal = stepVal.round().toString();
       final tp = TextPainter(
         text: TextSpan(
-          text: value.toString(),
-          style: GoogleFonts.inter(
-              fontSize: 8, color: AppColors.neutral400),
+          text: labelVal,
+          style: GoogleFonts.poppins(
+            fontSize: 10.5,
+            fontWeight: FontWeight.w500,
+            color: const Color(0xFF626262),
+          ),
         ),
         textDirection: TextDirection.ltr,
       )..layout();
-      tp.paint(canvas, Offset(0, y - tp.height / 2));
+      tp.paint(canvas, Offset(leftMargin - tp.width - 6, y - tp.height / 2));
     }
 
-    // Compute data points
-    final points = <Offset>[];
-    for (int i = 0; i < data.length; i++) {
-      final x = leftPad + (i / (data.length - 1)) * chartWidth;
-      final normalized = data[i] / range;
-      final y = topPad + chartHeight - normalized * chartHeight;
-      points.add(Offset(x, y));
-    }
-
-    // Fill area
-    final fillPath = Path()
-      ..moveTo(points.first.dx, topPad + chartHeight);
-    for (final p in points) {
-      fillPath.lineTo(p.dx, p.dy);
-    }
-    fillPath
-      ..lineTo(points.last.dx, topPad + chartHeight)
-      ..close();
-    canvas.drawPath(
-      fillPath,
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            AppColors.greenPrimary.withValues(alpha: 0.3),
-            AppColors.greenPrimary.withValues(alpha: 0.0),
-          ],
-        ).createShader(Rect.fromLTWH(
-            leftPad, topPad, chartWidth, chartHeight)),
+    // Bottom horizontal line
+    canvas.drawLine(
+      Offset(leftMargin, topMargin + chartHeight),
+      Offset(size.width - rightMargin, topMargin + chartHeight),
+      gridPaint,
     );
 
-    // Draw smooth line
-    final linePaint = Paint()
-      ..color = AppColors.greenPrimary
-      ..strokeWidth = 2.5
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..style = PaintingStyle.stroke;
-    final linePath = Path()
-      ..moveTo(points.first.dx, points.first.dy);
-    for (int i = 1; i < points.length; i++) {
-      final cp1 = Offset(
-        (points[i - 1].dx + points[i].dx) / 2,
-        points[i - 1].dy,
-      );
-      final cp2 = Offset(
-        (points[i - 1].dx + points[i].dx) / 2,
-        points[i].dy,
-      );
-      linePath.cubicTo(
-          cp1.dx, cp1.dy, cp2.dx, cp2.dy, points[i].dx, points[i].dy);
+    // Compute points for green data
+    final greenPoints = <Offset>[];
+    if (greenData.isNotEmpty) {
+      final count = greenData.length;
+      for (int i = 0; i < count; i++) {
+        final x = leftMargin + (i / (count - 1)) * chartWidth;
+        final val = greenData[i].clamp(0.0, maxVal);
+        final y = topMargin + chartHeight - (val / maxVal) * chartHeight;
+        greenPoints.add(Offset(x, y));
+      }
     }
-    canvas.drawPath(linePath, linePaint);
 
-    // Draw dots
-    for (final p in points) {
-      canvas.drawCircle(
-          p, 4, Paint()..color = AppColors.greenPrimary);
-      canvas.drawCircle(
-          p,
-          4,
-          Paint()
-            ..color = Colors.white
-            ..strokeWidth = 2
-            ..style = PaintingStyle.stroke);
+    // Compute points for blue data
+    final bluePoints = <Offset>[];
+    if (blueData.isNotEmpty) {
+      final count = blueData.length;
+      for (int i = 0; i < count; i++) {
+        final x = leftMargin + (i / (count - 1)) * chartWidth;
+        final val = blueData[i].clamp(0.0, maxVal);
+        final y = topMargin + chartHeight - (val / maxVal) * chartHeight;
+        bluePoints.add(Offset(x, y));
+      }
+    }
+
+    // Draw green line (Figma #1D9C51)
+    if (greenPoints.length >= 2) {
+      final greenPath = _createSmoothPath(greenPoints);
+      final greenPaint = Paint()
+        ..color = const Color(0xFF1D9C51)
+        ..strokeWidth = 2.4
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
+      canvas.drawPath(greenPath, greenPaint);
+    }
+
+    // Draw blue line (Figma #1976D2)
+    if (bluePoints.length >= 2) {
+      final bluePath = _createSmoothPath(bluePoints);
+      final bluePaint = Paint()
+        ..color = const Color(0xFF1976D2)
+        ..strokeWidth = 2.4
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
+      canvas.drawPath(bluePath, bluePaint);
+    }
+
+    // Draw X-axis labels (6 Mei, 7 Mei, etc.)
+    if (labels.isNotEmpty) {
+      final count = labels.length;
+      for (int i = 0; i < count; i++) {
+        final x = leftMargin + (i / (count - 1)) * chartWidth;
+        final tp = TextPainter(
+          text: TextSpan(
+            text: labels[i],
+            style: GoogleFonts.poppins(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w500,
+              color: const Color(0xFF626262),
+            ),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        tp.paint(canvas, Offset(x - tp.width / 2, topMargin + chartHeight + 8));
+      }
     }
   }
 
+  double _calculateNiceMax(double val) {
+    if (val <= 5) return 5.0;
+    if (val <= 10) return 10.0;
+    if (val <= 25) return 25.0;
+    if (val <= 50) return 50.0;
+    if (val <= 100) return 100.0;
+    return ((val / 50).ceil() * 50).toDouble();
+  }
+
+  Path _createSmoothPath(List<Offset> pts) {
+    final path = Path();
+    if (pts.isEmpty) return path;
+    path.moveTo(pts.first.dx, pts.first.dy);
+    for (int i = 1; i < pts.length; i++) {
+      final prev = pts[i - 1];
+      final curr = pts[i];
+      final cx = (prev.dx + curr.dx) / 2;
+      path.cubicTo(cx, prev.dy, cx, curr.dy, curr.dx, curr.dy);
+    }
+    return path;
+  }
+
   @override
-  bool shouldRepaint(covariant _LineChartPainter old) =>
-      old.data != data;
+  bool shouldRepaint(covariant _DualLineChartPainter old) =>
+      old.greenData != greenData ||
+      old.blueData != blueData ||
+      old.labels != labels;
 }

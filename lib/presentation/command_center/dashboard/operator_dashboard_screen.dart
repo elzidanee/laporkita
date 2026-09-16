@@ -28,6 +28,8 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
 
   String _searchQuery = '';
   String _selectedFilterTab = 'all'; // 'all', 'manual_review', 'in_progress', 'completed'
+  String _selectedDinas = 'Semua Dinas'; // 'Semua Dinas', 'DPUPR', 'Dishub', 'Diskominfo'
+  final List<String> _dinasOptions = ['Semua Dinas', 'DPUPR', 'Dishub', 'Diskominfo'];
 
   @override
   void initState() {
@@ -110,6 +112,45 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
               r.status == ReportStatus.completed ||
               r.status == ReportStatus.resolved)
           .toList();
+    }
+
+    // Filter by Dinas (DPUPR, Dishub, Diskominfo)
+    if (_selectedDinas != 'Semua Dinas') {
+      final dinasLower = _selectedDinas.toLowerCase();
+      list = list.where((r) {
+        final agencyName = (r.assignedAgency?['name'] ?? '').toString().toLowerCase();
+        final catName = r.categoryName.toLowerCase();
+
+        if (dinasLower == 'dpupr') {
+          return agencyName.contains('pupr') ||
+              agencyName.contains('dpupr') ||
+              catName.contains('jalan') ||
+              catName.contains('jembatan') ||
+              catName.contains('trotoar') ||
+              catName.contains('drainase') ||
+              catName.contains('infrastruktur') ||
+              catName.contains('aspal');
+        } else if (dinasLower == 'dishub') {
+          return agencyName.contains('dishub') ||
+              agencyName.contains('perhubungan') ||
+              catName.contains('rambu') ||
+              catName.contains('lampu') ||
+              catName.contains('lalu lintas') ||
+              catName.contains('marka') ||
+              catName.contains('traffic');
+        } else if (dinasLower == 'diskominfo') {
+          return agencyName.contains('diskominfo') ||
+              agencyName.contains('kominfo') ||
+              catName.contains('internet') ||
+              catName.contains('cctv') ||
+              catName.contains('kabel') ||
+              catName.contains('fiber') ||
+              catName.contains('wifi') ||
+              catName.contains('telekomunikasi') ||
+              catName.contains('digital');
+        }
+        return true;
+      }).toList();
     }
 
     // Filter by Search Query
@@ -644,7 +685,7 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
-                    'DPUPR / Dishub Command Panel',
+                    'DPUPR / Dishub / Diskominfo Command Panel',
                     style: TextStyle(
                       fontSize: 11,
                       color: Colors.white70,
@@ -956,7 +997,45 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
         ),
         const SizedBox(height: 10),
 
-        // Filter Chips Bar
+        // Filter Dinas Chips Bar (DPUPR / Dishub / Diskominfo)
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: _dinasOptions.map((dinas) {
+              final isSelected = _selectedDinas == dinas;
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ChoiceChip(
+                  label: Text(
+                    dinas,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                      color: isSelected ? Colors.white : AppColors.neutral700,
+                    ),
+                  ),
+                  selected: isSelected,
+                  selectedColor: AppColors.greenPrimary,
+                  backgroundColor: AppColors.white,
+                  side: BorderSide(
+                    color: isSelected ? AppColors.greenPrimary : AppColors.neutral300,
+                  ),
+                  onSelected: (selected) {
+                    if (selected) {
+                      setState(() {
+                        _selectedDinas = dinas;
+                        _applyFilters();
+                      });
+                    }
+                  },
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        // Filter Chips Bar (Status)
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
