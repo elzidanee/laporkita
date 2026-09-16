@@ -10,7 +10,7 @@ import '../../../data/repositories/category_repository.dart';
 import '../../../data/repositories/report_repository.dart';
 import '../../auth/bloc/auth_bloc.dart';
 import '../report_management/admin_reports_screen.dart';
-import '../policy_simulator/policy_simulator_screen.dart';
+import '../monitoring/admin_monitoring_screen.dart';
 import '../../citizen/home/tabs/citizen_notifikasi_tab.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -656,7 +656,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
               children: [
                 _buildDashboardBody(),
                 const AdminReportsScreen(),
-                const PolicySimulatorScreen(),
+                const AdminMonitoringScreen(isEmbedded: true),
                 const CitizenNotifikasiTab(),
                 _buildAdminProfileBody(),
               ],

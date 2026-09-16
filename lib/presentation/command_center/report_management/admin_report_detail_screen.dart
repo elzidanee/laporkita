@@ -8,6 +8,7 @@ import 'package:latlong2/latlong.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/report_model.dart';
 import '../../../data/repositories/report_repository.dart';
+import 'admin_report_history_screen.dart';
 import 'admin_verification_action_screen.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -818,7 +819,14 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
             child: SizedBox(
               height: 44,
               child: OutlinedButton.icon(
-                onPressed: () => _showHistoryModal(r),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => AdminReportHistoryScreen(report: r),
+                    ),
+                  );
+                },
                 icon: const Icon(Icons.history_rounded, size: 18, color: Color(0xFF515151)),
                 label: Text(
                   'Riwayat',
@@ -999,117 +1007,6 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
                   ),
                 ],
               ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  void _showHistoryModal(ReportModel r) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        final history = r.statusHistory;
-
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Riwayat Perubahan Status',
-                    style: GoogleFonts.poppins(
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded),
-                    onPressed: () => Navigator.pop(ctx),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              if (history.isEmpty) ...[
-                Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Center(
-                    child: Text(
-                      'Belum ada riwayat perubahan status lanjutan.',
-                      style: GoogleFonts.poppins(color: Colors.grey, fontSize: 13),
-                    ),
-                  ),
-                ),
-              ] else ...[
-                Flexible(
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: history.length,
-                    separatorBuilder: (context, index) => const Divider(height: 16),
-                    itemBuilder: (context, index) {
-                      final h = history[index];
-                      return Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFE8F5E9),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.update_rounded,
-                              size: 16,
-                              color: AppColors.greenPrimary,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  h.targetStatus.displayName,
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.black,
-                                  ),
-                                ),
-                                if (h.note != null && h.note!.isNotEmpty)
-                                  Text(
-                                    h.note!,
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 12,
-                                      color: Colors.black87,
-                                    ),
-                                  ),
-                                Text(
-                                  'Oleh: ${h.actorName ?? "Petugas"} • ${_formatDateTimeCompact(h.createdAt)}',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 11,
-                                    color: Colors.black54,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-              ],
             ],
           ),
         );
