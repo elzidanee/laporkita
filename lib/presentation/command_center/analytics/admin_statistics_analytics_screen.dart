@@ -415,49 +415,55 @@ class _AdminStatisticsAnalyticsScreenState
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Left Column: Total Laporan, Big Number, Trend
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Total Laporan',
-              style: GoogleFonts.poppins(
-                fontSize: 15,
-                fontWeight: FontWeight.w400,
-                color: Colors.black,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              _formatNumber(_totalLaporan),
-              style: GoogleFonts.poppins(
-                fontSize: 25,
-                fontWeight: FontWeight.w600,
-                color: Colors.black,
-                letterSpacing: 0.5,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Icon(
-                  _trendIsUp
-                      ? Icons.arrow_upward_rounded
-                      : Icons.arrow_downward_rounded,
-                  size: 15,
-                  color: _trendIsUp ? _greenPrimary : const Color(0xFFC60D05),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Total Laporan',
+                style: GoogleFonts.poppins(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w400,
+                  color: Colors.black,
                 ),
-                const SizedBox(width: 3),
-                Text(
-                  _trendText,
-                  style: GoogleFonts.poppins(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                _formatNumber(_totalLaporan),
+                style: GoogleFonts.poppins(
+                  fontSize: 25,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(
+                    _trendIsUp
+                        ? Icons.arrow_upward_rounded
+                        : Icons.arrow_downward_rounded,
+                    size: 15,
                     color: _trendIsUp ? _greenPrimary : const Color(0xFFC60D05),
                   ),
-                ),
-              ],
-            ),
-          ],
+                  const SizedBox(width: 3),
+                  Flexible(
+                    child: Text(
+                      _trendText,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: _trendIsUp ? _greenPrimary : const Color(0xFFC60D05),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
 
         // Right: Range Filter Dropdown

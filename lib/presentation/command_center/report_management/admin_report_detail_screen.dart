@@ -206,7 +206,7 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
               Text(
                 _formatCodeWithHash(r.reportCode),
                 style: GoogleFonts.poppins(
-                  fontSize: 14,
+                  fontSize: 15,
                   fontWeight: FontWeight.w400,
                   color: Colors.black,
                 ),
@@ -215,8 +215,8 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
               Text(
                 r.categoryName,
                 style: GoogleFonts.poppins(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 25,
+                  fontWeight: FontWeight.w600,
                   color: Colors.black,
                   letterSpacing: 0.5,
                 ),
@@ -225,9 +225,9 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
               Text(
                 r.addressText ?? 'Jl. Ahmad Yani no. 15',
                 style: GoogleFonts.poppins(
-                  fontSize: 14,
+                  fontSize: 15,
                   fontWeight: FontWeight.w300,
-                  color: const Color(0xFF4A4A4A),
+                  color: Colors.black,
                 ),
               ),
             ],
@@ -235,9 +235,49 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
         ),
         const SizedBox(width: 12),
 
-        // Right: Status Badge (Pill)
-        _buildDetailStatusBadge(r.status),
+        // Right: Priority Badge matching Figma node 627:883
+        _buildPriorityBadge(r),
       ],
+    );
+  }
+
+  Widget _buildPriorityBadge(ReportModel r) {
+    final urgencyVal = r.urgencyScore ?? 4.2;
+    String label;
+    Color bg;
+    Color text;
+
+    if (urgencyVal >= 4.0 || (r.damageSeverity ?? 0) >= 0.7) {
+      label = 'Prioritas Tinggi';
+      bg = const Color(0xFFFFE9E9);
+      text = const Color(0xFFC60D05);
+    } else if (urgencyVal >= 2.5) {
+      label = 'Sedang';
+      bg = const Color(0xFFFFF9E9);
+      text = const Color(0xFFF2AE01);
+    } else {
+      label = 'Rendah';
+      bg = const Color(0xFFE8F5E9);
+      text = const Color(0xFF2E7D32);
+    }
+
+    return Container(
+      height: 28,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(19.88),
+      ),
+      child: Center(
+        child: Text(
+          label,
+          style: GoogleFonts.poppins(
+            fontSize: 10.6,
+            fontWeight: FontWeight.normal,
+            color: text,
+          ),
+        ),
+      ),
     );
   }
 

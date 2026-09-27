@@ -595,13 +595,15 @@ class _AdminMonitoringScreenState extends State<AdminMonitoringScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Statistik Proses',
-                      style: GoogleFonts.poppins(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black,
-                        letterSpacing: 0.3,
+                    Flexible(
+                      child: Text(
+                        'Statistik Proses',
+                        style: GoogleFonts.poppins(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black,
+                          letterSpacing: 0.3,
+                        ),
                       ),
                     ),
                     GestureDetector(

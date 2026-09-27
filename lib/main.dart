@@ -25,6 +25,7 @@ import 'presentation/citizen/validation/beri_validasi_screen.dart';
 import 'presentation/citizen/validation/validation_success_screen.dart';
 import 'presentation/citizen/navigation/route_picker_screen.dart';
 import 'presentation/command_center/report_management/admin_reports_screen.dart';
+import 'presentation/command_center/report_management/government_reports_screen.dart';
 import 'presentation/command_center/report_management/admin_report_detail_screen.dart';
 import 'presentation/auth/bloc/auth_bloc.dart';
 import 'presentation/reports/bloc/report_bloc.dart';
@@ -130,6 +131,8 @@ Widget? _resolveScreen(RouteSettings settings) {
         initialStatusFilter: initialStatus,
         initialOpdFilter: initialOpd,
       );
+    case '/government-reports':
+      return const GovernmentReportsScreen();
     case '/admin-report-detail':
       if (settings.arguments is ReportModel) {
         return AdminReportDetailScreen(report: settings.arguments as ReportModel);

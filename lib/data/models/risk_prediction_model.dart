@@ -71,7 +71,9 @@ class RiskPredictionResult {
           'Pantau kondisi wilayah secara berkala.',
       factors: factorsMap,
       rainfallMm: (weather['rainfall_mm'] as num?)?.toDouble() ?? 0.0,
-      temperatureC: (weather['temperature_c'] as num?)?.toDouble() ?? 27.0,
+      temperatureC: (weather['temperature_c'] as num?)?.toDouble() ??
+          (weather['temperature_celsius'] as num?)?.toDouble() ??
+          27.0,
       weatherCondition: weather['condition'] as String? ?? 'Berawan',
       reportDensity: (data['report_density'] as num?)?.toInt() ?? 0,
     );
@@ -94,6 +96,8 @@ class ZoneMetricsModel {
   final String stressLevel;
   final String weatherCondition;
   final double rainfallMm;
+  final double temperatureC;
+  final int? humidityPercentage;
   final DateTime? updatedAt;
 
   const ZoneMetricsModel({
@@ -106,6 +110,8 @@ class ZoneMetricsModel {
     required this.stressLevel,
     required this.weatherCondition,
     required this.rainfallMm,
+    this.temperatureC = 27.0,
+    this.humidityPercentage,
     this.updatedAt,
   });
 
@@ -135,6 +141,10 @@ class ZoneMetricsModel {
           'low',
       weatherCondition: weather['condition'] as String? ?? 'Berawan',
       rainfallMm: (weather['rainfall_mm'] as num?)?.toDouble() ?? 0.0,
+      temperatureC: (weather['temperature_celsius'] as num?)?.toDouble() ??
+          (weather['temperature_c'] as num?)?.toDouble() ??
+          27.0,
+      humidityPercentage: (weather['humidity_percentage'] as num?)?.toInt(),
       updatedAt: json['updated_at'] != null
           ? DateTime.tryParse(json['updated_at'].toString())
           : (metric['recorded_at'] != null
@@ -144,4 +154,33 @@ class ZoneMetricsModel {
   }
 
   int get floodRiskPercent => (floodRiskProbability * 100).round();
+
+  /// Mengonversi model metrik zona ke [RiskPredictionResult] untuk kartu dashboard warga
+  RiskPredictionResult toRiskPredictionResult() {
+    final String rec;
+    if (floodRiskProbability >= 0.6 || stressLevel == 'high') {
+      rec = 'Risiko genangan tinggi. Waspada banjir dan hindari saluran air yang tersumbat.';
+    } else if (floodRiskProbability >= 0.3 || stressLevel == 'medium') {
+      rec = 'Potensi genangan sedang saat hujan deras. Berhati-hati saat berkendara.';
+    } else {
+      rec = weatherCondition.toLowerCase().contains('hujan')
+          ? 'Hujan diperkirakan turun di wilayah ini. Sediakan payung atau jas hujan saat beraktivitas.'
+          : 'Kondisi cuaca dan wilayah terpantau aman dan kondusif.';
+    }
+
+    return RiskPredictionResult(
+      floodRiskProbability: floodRiskProbability,
+      riskLevel: stressLevel,
+      stressLevel: stressLevel,
+      recommendation: rec,
+      factors: {
+        'rainfall_impact': (rainfallMm / 100.0).clamp(0.0, 1.0),
+        'traffic_impact': trafficDensity.clamp(0.0, 1.0),
+      },
+      rainfallMm: rainfallMm,
+      temperatureC: temperatureC,
+      weatherCondition: weatherCondition,
+      reportDensity: reportDensity,
+    );
+  }
 }
