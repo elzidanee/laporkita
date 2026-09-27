@@ -159,8 +159,8 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = context.read<AuthBloc>().state;
-    String adminName = 'Admin Utama';
-    String adminEmail = 'admin@laporkita.go.id';
+    String adminName = 'Pemirintah Kota Malang';
+    String adminEmail = 'pemerintahkotamalang@laporkita.go.id';
 
     if (authState is AuthAuthenticated) {
       if (authState.user.fullName.isNotEmpty) {
@@ -218,7 +218,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
 
               const SizedBox(height: 32),
 
-              // ── SECTION 1: PENGATURAN SISTEM ──────────────────────────
+              // ── SECTION 1: PENGATURAN SISTEM (Figma Node 660:5454) ───
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
@@ -233,43 +233,22 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
               const SizedBox(height: 14),
 
               _buildMenuCard(
-                icon: Icons.people_alt_outlined,
-                title: 'Manajemen Pengguna',
-                onTap: widget.onUserManagementTap ??
-                    () => _showFeatureDialog(
-                          'Manajemen Pengguna',
-                          'Kelola akun operator OPD, petugas lapangan, dan akun warga yang terdaftar pada sistem LaporKita.',
-                        ),
-              ),
-              const SizedBox(height: 12),
-
-              _buildMenuCard(
-                icon: Icons.lock_outline_rounded,
-                title: 'Role & Permission',
-                onTap: () => _showFeatureDialog(
-                  'Role & Permission',
-                  'Konfigurasi hak akses hak istimewa Super Admin, Operator Dinas, dan Petugas Teknis.',
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              _buildMenuCard(
-                icon: Icons.account_balance_outlined,
-                title: 'OPD & Wilayah',
+                icon: Icons.people_outline_rounded,
+                title: 'Kelola OPD',
                 onTap: widget.onAgenciesTap ??
                     () => _showFeatureDialog(
-                          'OPD & Wilayah',
+                          'Kelola OPD',
                           'Daftar instansi penanggung jawab (DPUPR, Dishub, Diskominfo) dan pemetaan wilayah kerja se-Kota Malang.',
                         ),
               ),
               const SizedBox(height: 12),
 
               _buildMenuCard(
-                icon: Icons.fact_check_outlined,
-                title: 'Kategori & Prioritas',
+                icon: Icons.assignment_outlined,
+                title: 'Kategori laporan',
                 onTap: widget.onCategoriesTap ??
                     () => _showFeatureDialog(
-                          'Kategori & Prioritas',
+                          'Kategori Laporan',
                           'Pengaturan taksonomi kategori laporan, SLA waktu respon, dan bobot prioritas kegawatan laporan warga.',
                         ),
               ),
@@ -293,10 +272,30 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
                   'Status koneksi API backend LaporKita, webhook dispatcher, dan layanan AI duplicate detector.',
                 ),
               ),
+              const SizedBox(height: 12),
+
+              _buildMenuCard(
+                icon: Icons.shield_outlined,
+                title: 'Keamanan',
+                onTap: () => _showFeatureDialog(
+                  'Keamanan',
+                  'Konfigurasi otentikasi dua faktor (2FA), manajemen sesi login, dan enkripsi data pelapor.',
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              _buildMenuCard(
+                icon: Icons.help_outline_rounded,
+                title: 'Backup & Data',
+                onTap: () => _showFeatureDialog(
+                  'Backup & Data',
+                  'Manajemen arsip data laporan warga, export rekapan spreadsheet, dan pencadangan database berkala.',
+                ),
+              ),
 
               const SizedBox(height: 30),
 
-              // ── SECTION 2: LAINNYA ───────────────────────────────────
+              // ── SECTION 2: LAINNYA (Figma Node 660:5455) ─────────────
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
@@ -343,47 +342,42 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
     );
   }
 
-  // ── TOP APP BAR (Matching Figma node 568:2831) ─────────────────
+  // ── TOP APP BAR (Matching Figma node 656:5277) ─────────────────
   Widget _buildTopAppBar() {
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        Align(
-          alignment: Alignment.centerLeft,
-          child: GestureDetector(
+    return SizedBox(
+      height: 44,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          InkWell(
             onTap: _handleBack,
+            borderRadius: BorderRadius.circular(20.5),
             child: Container(
               width: 41,
               height: 41,
-              decoration: BoxDecoration(
-                color: Colors.transparent,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: const Color(0xFFEDEDED),
-                  width: 1.0,
-                ),
-              ),
               alignment: Alignment.center,
               child: const Icon(
-                Icons.arrow_back_ios_new_rounded,
-                size: 18,
+                Icons.chevron_left_rounded,
+                size: 34,
                 color: Colors.black,
               ),
             ),
           ),
-        ),
-        Center(
-          child: Text(
-            'Profile',
-            style: GoogleFonts.poppins(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: Colors.black,
-              letterSpacing: 0.4,
+          Expanded(
+            child: Text(
+              'Profile',
+              style: GoogleFonts.poppins(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: Colors.black,
+                letterSpacing: 0.4,
+              ),
+              textAlign: TextAlign.center,
             ),
           ),
-        ),
-      ],
+          const SizedBox(width: 41, height: 41),
+        ],
+      ),
     );
   }
 
@@ -477,13 +471,13 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
     );
   }
 
-  // ── LOGOUT BUTTON (Matching Figma node 568:2896) ───────────────
+  // ── LOGOUT BUTTON (Matching Figma node 660:5447) ───────────────
   Widget _buildLogoutButton() {
     return GestureDetector(
       onTap: _confirmLogout,
       child: Container(
         width: double.infinity,
-        constraints: const BoxConstraints(maxWidth: 320),
+        constraints: const BoxConstraints(maxWidth: 309),
         height: 53,
         decoration: BoxDecoration(
           color: _logoutBg,
@@ -503,7 +497,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
             Text(
               'Keluar',
               style: GoogleFonts.poppins(
-                fontSize: 18,
+                fontSize: 20,
                 fontWeight: FontWeight.w600,
                 color: _logoutBorder,
               ),

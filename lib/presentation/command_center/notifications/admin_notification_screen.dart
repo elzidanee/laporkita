@@ -301,19 +301,27 @@ class _AdminNotificationScreenState extends State<AdminNotificationScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(
-            Icons.chevron_left_rounded,
-            size: 32,
-            color: Colors.black,
+        leadingWidth: 56,
+        leading: Center(
+          child: InkWell(
+            onTap: () {
+              if (widget.onBack != null) {
+                widget.onBack!();
+              } else if (Navigator.canPop(context)) {
+                Navigator.pop(context);
+              }
+            },
+            borderRadius: BorderRadius.circular(20.5),
+            child: const SizedBox(
+              width: 41,
+              height: 41,
+              child: Icon(
+                Icons.chevron_left_rounded,
+                size: 34,
+                color: Colors.black,
+              ),
+            ),
           ),
-          onPressed: () {
-            if (widget.onBack != null) {
-              widget.onBack!();
-            } else if (Navigator.canPop(context)) {
-              Navigator.pop(context);
-            }
-          },
         ),
         centerTitle: true,
         title: Text(
@@ -325,6 +333,9 @@ class _AdminNotificationScreenState extends State<AdminNotificationScreen> {
             letterSpacing: 0.4,
           ),
         ),
+        actions: const [
+          SizedBox(width: 56),
+        ],
       ),
       body: SafeArea(
         child: _isLoading
@@ -395,40 +406,59 @@ class _AdminNotificationScreenState extends State<AdminNotificationScreen> {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 5,
-              offset: const Offset(0, 1),
+              offset: const Offset(0, 0),
             ),
           ],
         ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Left Custom Icon
-            Container(
-              width: 44,
-              height: 44,
-              alignment: Alignment.center,
-              child: _buildTypeIcon(item.type),
+            // Left Custom Icon (Figma size ~40-50px)
+            SizedBox(
+              width: 46,
+              height: 46,
+              child: Center(
+                child: _buildTypeIcon(item.type),
+              ),
             ),
             const SizedBox(width: 10),
 
-            // Content Column
+            // Content & Time
             Expanded(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    item.title,
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      fontWeight: isUnread ? FontWeight.w700 : FontWeight.w600,
-                      color: Colors.black,
-                      letterSpacing: 0.2,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          item.title,
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            fontWeight:
+                                isUnread ? FontWeight.w700 : FontWeight.w600,
+                            color: Colors.black,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        item.timeStr,
+                        style: GoogleFonts.poppins(
+                          fontSize: 9,
+                          fontWeight:
+                              isUnread ? FontWeight.w600 : FontWeight.w400,
+                          color: _textGrey,
+                        ),
+                        textAlign: TextAlign.right,
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 3),
                   Text(
@@ -437,25 +467,10 @@ class _AdminNotificationScreenState extends State<AdminNotificationScreen> {
                       fontSize: 11,
                       fontWeight: isUnread ? FontWeight.w400 : FontWeight.w300,
                       color: _textGrey,
-                      height: 1.3,
+                      height: 1.35,
                     ),
                   ),
                 ],
-              ),
-            ),
-            const SizedBox(width: 8),
-
-            // Top-right timestamp
-            Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Text(
-                item.timeStr,
-                style: GoogleFonts.poppins(
-                  fontSize: 10,
-                  fontWeight: isUnread ? FontWeight.w600 : FontWeight.w400,
-                  color: _textGrey,
-                ),
-                textAlign: TextAlign.right,
               ),
             ),
           ],
@@ -470,7 +485,7 @@ class _AdminNotificationScreenState extends State<AdminNotificationScreen> {
       case AdminNotifType.newReport:
         return const Icon(
           Icons.warning_amber_rounded,
-          size: 34,
+          size: 35,
           color: Color(0xFFF59E0B),
         );
 
@@ -478,16 +493,16 @@ class _AdminNotificationScreenState extends State<AdminNotificationScreen> {
       case AdminNotifType.aiVerification:
         return const Icon(
           Icons.auto_awesome_rounded,
-          size: 32,
-          color: Color(0xFF0284C7),
+          size: 34,
+          color: Color(0xFF007DFE),
         );
 
       // 3. Laporan diteruskan ke Dinas PUPR / OPD: Document List Gold
       case AdminNotifType.forwardedAgency:
         return const Icon(
           Icons.assignment_outlined,
-          size: 32,
-          color: Color(0xFFD97706),
+          size: 34,
+          color: Color(0xFFF59E0B),
         );
 
       // 4. Petugas mulai mengerjakan: Tools / Wrench Blue
@@ -495,15 +510,15 @@ class _AdminNotificationScreenState extends State<AdminNotificationScreen> {
         return const Icon(
           Icons.build_outlined,
           size: 32,
-          color: Color(0xFF1976D2),
+          color: Color(0xFF007DFE),
         );
 
       // 5. Laporan selesai dikerjakan: Alert Circle Red
       case AdminNotifType.workCompleted:
         return const Icon(
           Icons.error_outline_rounded,
-          size: 34,
-          color: Color(0xFFE53935),
+          size: 36,
+          color: Color(0xFFFF3D00),
         );
     }
   }

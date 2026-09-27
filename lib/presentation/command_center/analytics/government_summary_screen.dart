@@ -503,30 +503,78 @@ class _GovernmentSummaryScreenState extends State<GovernmentSummaryScreen> {
   // ── 4. DONUT CHART SECTION (DISTRIBUSI KATEGORI) ───────────────────
   Widget _buildDonutChartSection() {
     final liveTotalReports =
-        _reports.isEmpty ? '2.458' : '${2458 + _reports.length}';
+        _reports.isEmpty ? '2.458' : '${_reports.length}';
 
-    const categoryStats = [
-      _CategoryLegendItem(
-          name: 'Jalan',
-          percent: '45%',
-          color: Color(0xFFFF0000)), // Red
-      _CategoryLegendItem(
-          name: 'Lapu Jalan',
-          percent: '20%',
-          color: Color(0xFFFFA500)), // Orange
-      _CategoryLegendItem(
-          name: 'Trotoar',
-          percent: '20%',
-          color: Color(0xFF00E676)), // Green
-      _CategoryLegendItem(
-          name: 'Taman',
-          percent: '20%',
-          color: Color(0xFF0066FF)), // Blue
-      _CategoryLegendItem(
-          name: 'Lainya',
-          percent: '20%',
-          color: Color(0xFFE000FF)), // Magenta
-    ];
+    List<_CategoryLegendItem> categoryStats;
+    if (_reports.isNotEmpty) {
+      int jalan = 0, lampu = 0, trotoar = 0, taman = 0, lainnya = 0;
+      for (final r in _reports) {
+        final cat = r.categoryName.toLowerCase();
+        if (cat.contains('jalan')) {
+          jalan++;
+        } else if (cat.contains('lampu') || cat.contains('penerangan')) {
+          lampu++;
+        } else if (cat.contains('trotoar')) {
+          trotoar++;
+        } else if (cat.contains('taman') || cat.contains('pohon')) {
+          taman++;
+        } else {
+          lainnya++;
+        }
+      }
+      final total = _reports.length;
+      final jPct = total > 0 ? ((jalan / total) * 100).round() : 0;
+      final lPct = total > 0 ? ((lampu / total) * 100).round() : 0;
+      final trPct = total > 0 ? ((trotoar / total) * 100).round() : 0;
+      final tmPct = total > 0 ? ((taman / total) * 100).round() : 0;
+      final lnPct = total > 0 ? ((lainnya / total) * 100).round() : 0;
+
+      categoryStats = [
+        _CategoryLegendItem(
+            name: 'Jalan',
+            percent: '$jPct%',
+            color: const Color(0xFFFF0000)),
+        _CategoryLegendItem(
+            name: 'Lampu Jalan',
+            percent: '$lPct%',
+            color: const Color(0xFFFFA500)),
+        _CategoryLegendItem(
+            name: 'Trotoar',
+            percent: '$trPct%',
+            color: const Color(0xFF00E676)),
+        _CategoryLegendItem(
+            name: 'Taman',
+            percent: '$tmPct%',
+            color: const Color(0xFF0066FF)),
+        _CategoryLegendItem(
+            name: 'Lainnya',
+            percent: '$lnPct%',
+            color: const Color(0xFFE000FF)),
+      ];
+    } else {
+      categoryStats = const [
+        _CategoryLegendItem(
+            name: 'Jalan',
+            percent: '45%',
+            color: Color(0xFFFF0000)), // Red
+        _CategoryLegendItem(
+            name: 'Lapu Jalan',
+            percent: '20%',
+            color: Color(0xFFFFA500)), // Orange
+        _CategoryLegendItem(
+            name: 'Trotoar',
+            percent: '20%',
+            color: Color(0xFF00E676)), // Green
+        _CategoryLegendItem(
+            name: 'Taman',
+            percent: '20%',
+            color: Color(0xFF0066FF)), // Blue
+        _CategoryLegendItem(
+            name: 'Lainya',
+            percent: '20%',
+            color: Color(0xFFE000FF)), // Magenta
+      ];
+    }
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -622,12 +670,52 @@ class _GovernmentSummaryScreenState extends State<GovernmentSummaryScreen> {
 
   // ── 5. TOP REGIONS CARD ───────────────────────────────────────────
   Widget _buildTopRegionsCard() {
-    const regions = [
-      _RegionItem(rank: '1', name: 'Klojen', count: '248 Laporan'),
-      _RegionItem(rank: '2', name: 'Lowokwaru', count: '194 Laporan'),
-      _RegionItem(rank: '3', name: 'Blimbing', count: '172 Laporan'),
-      _RegionItem(rank: '4', name: 'Kedung Kandang', count: '156 Laporan'),
-    ];
+    List<_RegionItem> regions;
+    if (_reports.isNotEmpty) {
+      int klojen = 0, lowokwaru = 0, blimbing = 0, kedungkandang = 0;
+      for (final r in _reports) {
+        final addr = (r.addressText ?? '').toLowerCase();
+        if (addr.contains('klojen')) {
+          klojen++;
+        } else if (addr.contains('lowokwaru')) {
+          lowokwaru++;
+        } else if (addr.contains('blimbing')) {
+          blimbing++;
+        } else if (addr.contains('kedung') || addr.contains('kandang')) {
+          kedungkandang++;
+        } else {
+          if (r.latitude > -7.96) {
+            lowokwaru++;
+          } else if (r.longitude > 112.64) {
+            blimbing++;
+          } else {
+            klojen++;
+          }
+        }
+      }
+      final raw = [
+        {'name': 'Klojen', 'count': klojen},
+        {'name': 'Lowokwaru', 'count': lowokwaru},
+        {'name': 'Blimbing', 'count': blimbing},
+        {'name': 'Kedung Kandang', 'count': kedungkandang},
+      ];
+      raw.sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
+      regions = [
+        for (int i = 0; i < raw.length; i++)
+          _RegionItem(
+            rank: '${i + 1}',
+            name: raw[i]['name'] as String,
+            count: '${raw[i]['count']} Laporan',
+          ),
+      ];
+    } else {
+      regions = const [
+        _RegionItem(rank: '1', name: 'Klojen', count: '248 Laporan'),
+        _RegionItem(rank: '2', name: 'Lowokwaru', count: '194 Laporan'),
+        _RegionItem(rank: '3', name: 'Blimbing', count: '172 Laporan'),
+        _RegionItem(rank: '4', name: 'Kedung Kandang', count: '156 Laporan'),
+      ];
+    }
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),

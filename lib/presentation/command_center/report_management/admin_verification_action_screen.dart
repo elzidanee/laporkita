@@ -11,17 +11,17 @@ import 'admin_assign_report_screen.dart';
 import 'admin_duplicate_detection_screen.dart';
 
 // ─────────────────────────────────────────────────────────────
-//  Verifikasi AI / Human | Admin (Figma: node 554-321 & 554-511)
+//  Verifikasi AI / Human | Admin (Figma: node 627-1029 & 627-1160)
 // ─────────────────────────────────────────────────────────────
 
 class AdminVerificationActionScreen extends StatefulWidget {
   final ReportModel report;
-  final int initialTabIndex; // 0: AI Verification, 1: Manual Review (default 1)
+  final int initialTabIndex; // 0: AI Verification, 1: Manual Review (default 0)
 
   const AdminVerificationActionScreen({
     super.key,
     required this.report,
-    this.initialTabIndex = 1,
+    this.initialTabIndex = 0,
   });
 
   @override
@@ -34,7 +34,7 @@ class _AdminVerificationActionScreenState
   late int _activeTabIndex;
   bool _isProcessing = false;
 
-  // Manual Review Form State (Figma Node 554:511)
+  // Manual Review Form State (Figma Node 627:1160)
   bool _manualPhotoValid = true; // Foto sesuai laporan
   bool _manualGpsValid = true; // Lokasi sesuai
   bool _manualIsDuplicate = false; // Laporan duplikat
@@ -62,8 +62,9 @@ class _AdminVerificationActionScreenState
         : 'Jalan Rusak';
 
     // Inferred priority based on report urgency score if available
-    if (widget.report.urgencyScore != null) {
-      final score = widget.report.urgencyScore!;
+    final rawScore = widget.report.urgencyScore;
+    if (rawScore != null) {
+      final score = rawScore <= 10.0 ? (rawScore * 10).round() : rawScore.round();
       if (score >= 70) {
         _selectedPriority = 'Tinggi';
       } else if (score >= 40) {
@@ -136,11 +137,11 @@ class _AdminVerificationActionScreenState
     );
   }
 
-  // ── TOP BAR (Figma Node 554:578) ──────────────────────────────────
+  // ── TOP BAR (Figma Node 627:1096 & 627:1165) ─────────────────────
 
   Widget _buildTopBar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
       child: SizedBox(
         height: 44,
         child: Row(
@@ -148,14 +149,14 @@ class _AdminVerificationActionScreenState
           children: [
             InkWell(
               onTap: () => Navigator.pop(context),
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(20.5),
               child: Container(
-                width: 40,
-                height: 40,
-                alignment: Alignment.centerLeft,
+                width: 41,
+                height: 41,
+                alignment: Alignment.center,
                 child: const Icon(
-                  Icons.arrow_back_ios_new_rounded,
-                  size: 22,
+                  Icons.chevron_left_rounded,
+                  size: 34,
                   color: Colors.black,
                 ),
               ),
@@ -163,7 +164,7 @@ class _AdminVerificationActionScreenState
             IconButton(
               icon: const Icon(
                 Icons.share_outlined,
-                size: 22,
+                size: 24,
                 color: Colors.black,
               ),
               onPressed: () {
@@ -188,7 +189,7 @@ class _AdminVerificationActionScreenState
     );
   }
 
-  // ── TAB BAR (Figma Node 554:586 & 554:589) ────────────────────────
+  // ── TAB BAR (Figma Node 627:1104 & 627:1173) ──────────────────────
 
   Widget _buildTabBar() {
     return Column(
@@ -200,18 +201,17 @@ class _AdminVerificationActionScreenState
                 onTap: () => setState(() => _activeTabIndex = 0),
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: Center(
-                    child: Text(
-                      'AI Verification',
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: _activeTabIndex == 0
-                            ? FontWeight.w600
-                            : FontWeight.w400,
-                        color: _activeTabIndex == 0
-                            ? const Color(0xFF1D9C51)
-                            : const Color(0xFF8F8F8F),
-                      ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    'AI Verification',
+                    style: GoogleFonts.poppins(
+                      fontSize: 17,
+                      fontWeight: _activeTabIndex == 0
+                          ? FontWeight.w500
+                          : FontWeight.w400,
+                      color: _activeTabIndex == 0
+                          ? const Color(0xFF1D9C51)
+                          : const Color(0xFF8F8F8F),
                     ),
                   ),
                 ),
@@ -222,18 +222,17 @@ class _AdminVerificationActionScreenState
                 onTap: () => setState(() => _activeTabIndex = 1),
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: Center(
-                    child: Text(
-                      'Manual Review',
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: _activeTabIndex == 1
-                            ? FontWeight.w600
-                            : FontWeight.w400,
-                        color: _activeTabIndex == 1
-                            ? const Color(0xFF1D9C51)
-                            : const Color(0xFF8F8F8F),
-                      ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    'Manual Review',
+                    style: GoogleFonts.poppins(
+                      fontSize: 17,
+                      fontWeight: _activeTabIndex == 1
+                          ? FontWeight.w500
+                          : FontWeight.w400,
+                      color: _activeTabIndex == 1
+                          ? const Color(0xFF1D9C51)
+                          : const Color(0xFF8F8F8F),
                     ),
                   ),
                 ),
@@ -241,11 +240,11 @@ class _AdminVerificationActionScreenState
             ),
           ],
         ),
-        // Indicator underline + horizontal separator (Figma node 554:585 & 554:589)
+        // Indicator underline + horizontal separator (Figma node 627:1103 & 627:1107)
         Stack(
           children: [
             Container(
-              height: 1.2,
+              height: 1.0,
               color: const Color(0xFFE0DFDF),
             ),
             AnimatedAlign(
@@ -256,11 +255,14 @@ class _AdminVerificationActionScreenState
                   : Alignment.centerRight,
               child: FractionallySizedBox(
                 widthFactor: 0.5,
-                child: Container(
-                  height: 3.0,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1D9C51),
-                    borderRadius: BorderRadius.circular(2),
+                child: Center(
+                  child: Container(
+                    height: 3.0,
+                    width: 151,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1D9C51),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                 ),
               ),
@@ -271,7 +273,7 @@ class _AdminVerificationActionScreenState
     );
   }
 
-  // ── REPORT HEADER (Figma Node 607:3311) ───────────────────────────
+  // ── REPORT HEADER (Figma Node 627:1126 & 627:1184) ────────────────
 
   Widget _buildReportHeader() {
     final reportCode = widget.report.reportCode.isNotEmpty
@@ -292,7 +294,9 @@ class _AdminVerificationActionScreenState
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                reportCode.startsWith('#') ? reportCode : '#$reportCode',
+                reportCode.startsWith('#')
+                    ? reportCode
+                    : '#${reportCode.replaceAll('_', '-')}',
                 style: GoogleFonts.poppins(
                   fontSize: 15,
                   fontWeight: FontWeight.w400,
@@ -304,18 +308,18 @@ class _AdminVerificationActionScreenState
               Text(
                 _selectedCategory,
                 style: GoogleFonts.poppins(
-                  fontSize: 24,
+                  fontSize: 25,
                   fontWeight: FontWeight.w600,
                   color: Colors.black,
                   height: 1.2,
-                  letterSpacing: 0.3,
+                  letterSpacing: 0.5,
                 ),
               ),
               const SizedBox(height: 3),
               Text(
                 address,
                 style: GoogleFonts.poppins(
-                  fontSize: 14,
+                  fontSize: 15,
                   fontWeight: FontWeight.w300,
                   color: Colors.black,
                   height: 1.4,
@@ -329,45 +333,41 @@ class _AdminVerificationActionScreenState
 
         const SizedBox(width: 12),
 
-        // Right Badge: Status (Figma Node 607:3316)
-        _buildHeaderStatusBadge(),
+        // Right Badge: Priority (Figma Node 627:1268 & 627:1271)
+        _buildHeaderPriorityBadge(),
       ],
     );
   }
 
-  Widget _buildHeaderStatusBadge() {
-    final status = widget.report.status;
-    Color bgColor = const Color(0xFFFFF9E9);
-    Color textColor = const Color(0xFFF2AE01);
-    String label = 'Sedang Diproses';
+  Widget _buildHeaderPriorityBadge() {
+    final priority = _selectedPriority;
+    Color bgColor = const Color(0xFFFFE9E9);
+    Color textColor = const Color(0xFFC60D05);
+    String label = 'Prioritas Tinggi';
 
-    if (status == ReportStatus.completed || status == ReportStatus.resolved) {
+    if (priority == 'Sedang') {
+      bgColor = const Color(0xFFFFF8E6);
+      textColor = const Color(0xFFF2AE01);
+      label = 'Prioritas Sedang';
+    } else if (priority == 'Rendah') {
       bgColor = const Color(0xFFE6F7ED);
       textColor = const Color(0xFF1D9C51);
-      label = 'Selesai';
-    } else if (status == ReportStatus.rejected) {
-      bgColor = const Color(0xFFFFEBEB);
-      textColor = const Color(0xFFE53935);
-      label = 'Ditolak';
-    } else if (status == ReportStatus.pendingVerification) {
-      bgColor = const Color(0xFFFFF8E6);
-      textColor = const Color(0xFFE68A00);
-      label = 'Menunggu Verifikasi';
+      label = 'Prioritas Rendah';
     }
 
     return Container(
       height: 28,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(19.88),
       ),
       child: Text(
         label,
         style: GoogleFonts.poppins(
-          fontSize: 11,
-          fontWeight: FontWeight.w500,
+          fontSize: 10.6,
+          fontWeight: FontWeight.w400,
           color: textColor,
           height: 1.0,
         ),
@@ -952,7 +952,7 @@ class _AdminVerificationActionScreenState
     );
   }
 
-  // ── PRIORITY PILL (Figma Node 607:3425) ───────────────────────────
+  // ── PRIORITY PILL (Figma Node 627:1229) ───────────────────────────
 
   Widget _buildPriorityPill(String label, Color activeColor,
       {bool isEnabled = true}) {
@@ -966,6 +966,7 @@ class _AdminVerificationActionScreenState
           duration: const Duration(milliseconds: 180),
           height: 42,
           alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 4),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(25),
@@ -976,26 +977,31 @@ class _AdminVerificationActionScreenState
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
               if (isSelected)
                 Icon(
                   Icons.check_circle_rounded,
                   color: activeColor,
-                  size: 20,
+                  size: 18,
                 )
               else
                 const Icon(
                   Icons.circle_outlined,
                   color: Color(0xFF8F8F8F),
-                  size: 20,
+                  size: 18,
                 ),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: isSelected ? activeColor : const Color(0xFF515151),
+              const SizedBox(width: 5),
+              Flexible(
+                child: Text(
+                  label,
+                  style: GoogleFonts.poppins(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w500,
+                    color: isSelected ? activeColor : const Color(0xFF515151),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -1104,22 +1110,25 @@ class _AdminVerificationActionScreenState
     );
   }
 
-  // ── TAB 1: AI VERIFICATION (Figma Node 554:321 & 554:334) ─────────
+  // ── TAB 1: AI VERIFICATION (Figma Node 627:1029) ─────────────────
 
   Widget _buildAiVerificationTab() {
     final r = widget.report;
     final confidenceScore = r.rawAiConfidenceScore != null
         ? (r.rawAiConfidenceScore! * 100).round()
         : 98;
-    final urgencyScore = (r.urgencyScore ?? 85).round();
+    final rawUrgency = widget.report.urgencyScore;
+    final urgencyScore = rawUrgency != null
+        ? (rawUrgency <= 10.0 ? (rawUrgency * 10).round() : rawUrgency.round())
+        : 85;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Card 1: Hasil AI Verification
+        // Card 1: Hasil AI Verification (Figma Node 627:1035)
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 19),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(10),
@@ -1159,7 +1168,7 @@ class _AdminVerificationActionScreenState
 
         const SizedBox(height: 20),
 
-        // Card 2: Analisis AI
+        // Card 2: Analisis AI (Figma Node 627:1108)
         Container(
           width: double.infinity,
           padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
@@ -1191,27 +1200,27 @@ class _AdminVerificationActionScreenState
                 'Kerusakan terdeteksi : $_selectedCategory',
                 style: GoogleFonts.poppins(
                   fontSize: 12,
-                  fontWeight: FontWeight.w400,
+                  fontWeight: FontWeight.w300,
                   color: Colors.black,
-                  height: 1.5,
+                  height: 1.6,
                 ),
               ),
               Text(
                 'Model : YOLOv11 + Gemini 2.5 Flash',
                 style: GoogleFonts.poppins(
                   fontSize: 12,
-                  fontWeight: FontWeight.w400,
+                  fontWeight: FontWeight.w300,
                   color: Colors.black,
-                  height: 1.5,
+                  height: 1.6,
                 ),
               ),
               Text(
                 'Waktu Proses : 4.21 detik',
                 style: GoogleFonts.poppins(
                   fontSize: 12,
-                  fontWeight: FontWeight.w400,
+                  fontWeight: FontWeight.w300,
                   color: Colors.black,
-                  height: 1.5,
+                  height: 1.6,
                 ),
               ),
               const SizedBox(height: 16),
@@ -1255,15 +1264,15 @@ class _AdminVerificationActionScreenState
                 ),
               ),
               const SizedBox(height: 18),
-              // Button "Lihat detail Analisis"
+              // Button "Lihat detail Analisis" (Figma Node 627:1117)
               SizedBox(
                 width: double.infinity,
-                height: 48,
+                height: 49,
                 child: OutlinedButton(
                   onPressed: _showAiDetailModal,
                   style: OutlinedButton.styleFrom(
                     side:
-                        const BorderSide(color: Color(0xFF1976D2), width: 0.8),
+                        const BorderSide(color: Color(0xFF1976D2), width: 0.5),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(15),
                     ),
@@ -1271,8 +1280,8 @@ class _AdminVerificationActionScreenState
                   child: Text(
                     'Lihat detail Analisis',
                     style: GoogleFonts.poppins(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w400,
                       color: const Color(0xFF1976D2),
                     ),
                   ),
@@ -1288,17 +1297,25 @@ class _AdminVerificationActionScreenState
   Widget _buildVerificationRow(String label, String value) {
     return Row(
       children: [
-        const Icon(
-          Icons.check_circle_rounded,
-          color: Color(0xFF1D9C51),
-          size: 22,
+        Container(
+          width: 24,
+          height: 24,
+          decoration: const BoxDecoration(
+            color: Color(0xFF1D9C51),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.check_rounded,
+            color: Colors.white,
+            size: 16,
+          ),
         ),
         const SizedBox(width: 14),
         Expanded(
           child: Text(
             label,
             style: GoogleFonts.poppins(
-              fontSize: 14,
+              fontSize: 15,
               fontWeight: FontWeight.w400,
               color: Colors.black,
             ),
@@ -1307,7 +1324,7 @@ class _AdminVerificationActionScreenState
         Text(
           value,
           style: GoogleFonts.poppins(
-            fontSize: 14,
+            fontSize: 15,
             fontWeight: FontWeight.w500,
             color: const Color(0xFF1D9C51),
           ),
@@ -1398,7 +1415,7 @@ class _AdminVerificationActionScreenState
 
     return Column(
       children: [
-        // 1. Setujui & Teruskan (Figma Node 554:602)
+        // 1. Setujui & Teruskan (Figma Node 627:1120 & 627:1178)
         SizedBox(
           width: double.infinity,
           height: 49,
@@ -1425,16 +1442,16 @@ class _AdminVerificationActionScreenState
                 : Text(
                     'Setujui & Teruskan',
                     style: GoogleFonts.poppins(
-                      fontSize: 16,
+                      fontSize: 17,
                       fontWeight: FontWeight.w500,
                       color: Colors.white,
                     ),
                   ),
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
 
-        // 2. Tolak Laporan (Figma Node 554:604)
+        // 2. Tolak Laporan (Figma Node 627:1122 & 627:1180)
         SizedBox(
           width: double.infinity,
           height: 49,
@@ -1449,16 +1466,16 @@ class _AdminVerificationActionScreenState
             child: Text(
               'Tolak Laporan',
               style: GoogleFonts.poppins(
-                fontSize: 16,
+                fontSize: 17,
                 fontWeight: FontWeight.w500,
                 color: const Color(0xFFC60D05),
               ),
             ),
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
 
-        // 3. Meminta Revisi (Figma Node 554:606)
+        // 3. Meminta Revisi (Figma Node 627:1124 & 627:1182)
         SizedBox(
           width: double.infinity,
           height: 49,
@@ -1473,7 +1490,7 @@ class _AdminVerificationActionScreenState
             child: Text(
               'Meminta Revisi',
               style: GoogleFonts.poppins(
-                fontSize: 16,
+                fontSize: 17,
                 fontWeight: FontWeight.w500,
                 color: const Color(0xFFF2AE01),
               ),

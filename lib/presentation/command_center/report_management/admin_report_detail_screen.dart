@@ -144,47 +144,65 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
     );
   }
 
-  // ── TOP APP BAR ────────────────────────────────────────────────────
+  // ── TOP APP BAR (Figma node 627:946) ──────────────────────────────
 
   Widget _buildTopAppBar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      padding: const EdgeInsets.only(left: 12, right: 16, top: 6, bottom: 8),
+      child: Stack(
+        alignment: Alignment.center,
         children: [
-          // Back Button
-          IconButton(
-            icon: const Icon(Icons.chevron_left_rounded, size: 30, color: Colors.black),
-            onPressed: () => Navigator.pop(context),
-          ),
-          // Title
-          Text(
-            'Detail Laporan',
-            style: GoogleFonts.poppins(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: Colors.black,
-              letterSpacing: 0.4,
+          // Circular Back Button (Figma node 627:947)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(20.5),
+              onTap: () => Navigator.pop(context),
+              child: Container(
+                width: 41,
+                height: 41,
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.chevron_left_rounded,
+                  size: 34,
+                  color: Colors.black,
+                ),
+              ),
             ),
           ),
-          // Share Button
-          IconButton(
-            icon: const Icon(Icons.share_outlined, size: 22, color: Colors.black),
-            onPressed: () {
-              Clipboard.setData(
-                ClipboardData(
-                  text:
-                      'Laporan ${_currentReport.reportCode}: ${_currentReport.categoryName} di ${_currentReport.addressText ?? "Malang"}',
-                ),
-              );
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Tautan dan info laporan disalin ke clipboard'),
-                  duration: Duration(seconds: 2),
-                  backgroundColor: AppColors.greenPrimary,
-                ),
-              );
-            },
+          // Centered Title (Figma node 627:950)
+          Center(
+            child: Text(
+              'Detail Laporan',
+              style: GoogleFonts.poppins(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: Colors.black,
+                letterSpacing: 0.4,
+              ),
+            ),
+          ),
+          // Share Button (Figma node 627:951)
+          Align(
+            alignment: Alignment.centerRight,
+            child: IconButton(
+              icon: const Icon(Icons.share_outlined, size: 24, color: Colors.black),
+              onPressed: () {
+                Clipboard.setData(
+                  ClipboardData(
+                    text:
+                        'Laporan ${_formatCodeWithHash(_currentReport.reportCode)}: ${_currentReport.categoryName} di ${_currentReport.addressText ?? "Malang"}',
+                  ),
+                );
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Tautan dan info laporan disalin ke clipboard'),
+                    duration: Duration(seconds: 2),
+                    backgroundColor: AppColors.greenPrimary,
+                  ),
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -281,61 +299,6 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
     );
   }
 
-  Widget _buildDetailStatusBadge(ReportStatus status) {
-    Color bg;
-    Color text;
-    String label;
-
-    switch (status) {
-      case ReportStatus.pendingVerification:
-        bg = const Color(0xFFFFF9E9);
-        text = const Color(0xFFF2AE01);
-        label = 'Menunggu verifikasi';
-        break;
-      case ReportStatus.inProgress:
-        bg = const Color(0xFFFFF9E9);
-        text = const Color(0xFFF2AE01);
-        label = 'Sedang Diproses';
-        break;
-      case ReportStatus.assigned:
-        bg = const Color(0xFFE8F3FF);
-        text = const Color(0xFF1976D2);
-        label = 'Diteruskan';
-        break;
-      case ReportStatus.completed:
-      case ReportStatus.resolved:
-        bg = const Color(0xFFE6F7ED);
-        text = const Color(0xFF1D9C51);
-        label = 'Selesai';
-        break;
-      case ReportStatus.rejected:
-      case ReportStatus.disputed:
-        bg = const Color(0xFFFFEBEB);
-        text = AppColors.statusDanger;
-        label = 'Ditolak';
-        break;
-      default:
-        bg = const Color(0xFFF5F5F5);
-        text = const Color(0xFF757575);
-        label = status.displayName;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        label,
-        style: GoogleFonts.poppins(
-          fontSize: 11,
-          fontWeight: FontWeight.w500,
-          color: text,
-        ),
-      ),
-    );
-  }
 
   // ── HERO IMAGE WITH WATERMARK ──────────────────────────────────────
 
@@ -434,10 +397,10 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
 
   Widget _buildDetailWatermarkBadge(ReportModel r) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+      padding: const EdgeInsets.only(left: 6, top: 5.5, right: 10, bottom: 4.5),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(7),
+        color: Colors.black.withValues(alpha: 0.50),
+        borderRadius: BorderRadius.circular(7.1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -446,8 +409,8 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
             decoration: BoxDecoration(
-              color: const Color(0xFF42A54B).withValues(alpha: 0.75),
-              borderRadius: BorderRadius.circular(5),
+              color: const Color(0xFF42A54B).withValues(alpha: 0.60),
+              borderRadius: BorderRadius.circular(8.7),
               border: Border.all(color: const Color(0xFF62D26D), width: 0.35),
             ),
             child: Text(
@@ -456,6 +419,7 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
                 fontSize: 6.5,
                 color: Colors.white,
                 fontWeight: FontWeight.w600,
+                letterSpacing: 0.1,
               ),
             ),
           ),
@@ -463,24 +427,25 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
           Text(
             _formatCodeWithHash(r.reportCode),
             style: GoogleFonts.poppins(
-              fontSize: 7.2,
+              fontSize: 6.8,
               color: Colors.white,
               fontWeight: FontWeight.w400,
             ),
           ),
-          const SizedBox(height: 1),
+          const SizedBox(height: 2),
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               const Icon(Icons.location_on, size: 8, color: Colors.white),
               const SizedBox(width: 3),
               SizedBox(
-                width: 90,
+                width: 95,
                 child: Text(
                   r.addressText ?? 'Jl. Ahmad Yani No.15 Malang',
                   style: GoogleFonts.poppins(
-                    fontSize: 6.5,
+                    fontSize: 6.2,
                     color: Colors.white,
+                    fontWeight: FontWeight.w300,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -488,7 +453,7 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 1),
+          const SizedBox(height: 2),
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -497,13 +462,14 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
               Text(
                 _formatDateTimeFull(r.createdAt),
                 style: GoogleFonts.poppins(
-                  fontSize: 6.5,
+                  fontSize: 6.2,
                   color: Colors.white,
+                  fontWeight: FontWeight.w300,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 1),
+          const SizedBox(height: 2),
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -512,23 +478,25 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
               Text(
                 r.categoryName,
                 style: GoogleFonts.poppins(
-                  fontSize: 6.5,
+                  fontSize: 6.2,
                   color: Colors.white,
+                  fontWeight: FontWeight.w300,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 1),
+          const SizedBox(height: 2),
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.gps_fixed_rounded, size: 8, color: Colors.white),
+              const Icon(Icons.memory_rounded, size: 8, color: Colors.white),
               const SizedBox(width: 3),
               Text(
                 '${r.latitude.toStringAsFixed(6)},${r.longitude.toStringAsFixed(6)}',
                 style: GoogleFonts.poppins(
-                  fontSize: 6.8,
+                  fontSize: 6.5,
                   color: Colors.white,
+                  fontWeight: FontWeight.w300,
                 ),
               ),
             ],
@@ -538,7 +506,7 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
     );
   }
 
-  // ── DESKRIPSI SECTION ──────────────────────────────────────────────
+  // ── DESKRIPSI SECTION (Figma node 627:877) ─────────────────────────
 
   Widget _buildDescriptionSection(ReportModel r) {
     return Column(
@@ -548,11 +516,12 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
           'Deskripsi :',
           style: GoogleFonts.poppins(
             fontSize: 13,
-            fontWeight: FontWeight.w500,
+            fontWeight: FontWeight.w300,
             color: Colors.black,
+            height: 1.6,
           ),
         ),
-        const SizedBox(height: 3),
+        const SizedBox(height: 2),
         Text(
           r.description != null && r.description!.trim().isNotEmpty
               ? r.description!
@@ -560,15 +529,15 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
           style: GoogleFonts.poppins(
             fontSize: 13,
             fontWeight: FontWeight.w300,
-            color: const Color(0xFF2B2B2B),
-            height: 1.55,
+            color: Colors.black,
+            height: 1.6,
           ),
         ),
       ],
     );
   }
 
-  // ── KEY-VALUES ATTRIBUTES LIST (Figma node 551:233) ─────────────────
+  // ── KEY-VALUES ATTRIBUTES LIST (Figma node 627:979) ─────────────────
 
   Widget _buildKeyValuesList(ReportModel r) {
     final urgencyVal = r.urgencyScore ?? 4.2;
@@ -608,7 +577,7 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
             textAlign: TextAlign.end,
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 13),
         _buildDetailRow(
           label: 'Pelapor',
           valueWidget: Text(
@@ -623,7 +592,7 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
             textAlign: TextAlign.end,
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 13),
         _buildDetailRow(
           label: 'Kategori',
           valueWidget: Text(
@@ -638,7 +607,7 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
             textAlign: TextAlign.end,
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 13),
         _buildDetailRow(
           label: 'Prioritas AI',
           valueWidget: Text.rich(
@@ -667,7 +636,7 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
             textAlign: TextAlign.end,
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 13),
         _buildDetailRow(
           label: 'OPD Tujuan',
           valueWidget: Text(
@@ -682,7 +651,7 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
             textAlign: TextAlign.end,
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 13),
         _buildDetailRow(
           label: 'Koordinat',
           valueWidget: Text(
@@ -716,7 +685,7 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
             color: Colors.black,
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 8),
         Expanded(
           child: Row(
             mainAxisAlignment: MainAxisAlignment.end,
@@ -738,7 +707,7 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
     );
   }
 
-  // ── "LIHAT PADA PETA" BUTTON ───────────────────────────────────────
+  // ── "LIHAT PADA PETA" BUTTON (Figma node 627:1016) ──────────────────
 
   Widget _buildMapButton(ReportModel r) {
     return SizedBox(
@@ -747,7 +716,7 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
       child: OutlinedButton(
         onPressed: () => _showMapModal(r),
         style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: Color(0xFF1D9C51), width: 1.2),
+          side: const BorderSide(color: Color(0xFF1D9C51), width: 1.0),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15),
           ),
@@ -756,7 +725,7 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
         child: Text(
           'Lihat Pada Peta',
           style: GoogleFonts.poppins(
-            fontSize: 16,
+            fontSize: 17,
             fontWeight: FontWeight.w500,
             color: const Color(0xFF1D9C51),
           ),
@@ -765,7 +734,7 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
     );
   }
 
-  // ── AI VERIFICATION CARD (Figma node 551:123) ──────────────────────
+  // ── AI VERIFICATION CARD (Figma node 627:886) ──────────────────────
 
   Widget _buildAiVerificationCard(ReportModel r) {
     final confPercent = ((r.aiConfidenceScore ?? 0.98) * 100).toInt();
@@ -783,7 +752,7 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
           ),
         ],
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -834,7 +803,7 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
           child: Text(
             label,
             style: GoogleFonts.poppins(
-              fontSize: 14,
+              fontSize: 15,
               fontWeight: FontWeight.w400,
               color: Colors.black,
             ),
@@ -843,7 +812,7 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
         Text(
           value,
           style: GoogleFonts.poppins(
-            fontSize: 14,
+            fontSize: 15,
             fontWeight: FontWeight.w500,
             color: const Color(0xFF1D9C51),
           ),
@@ -852,15 +821,18 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
     );
   }
 
-  // ── BOTTOM ACTION BAR ──────────────────────────────────────────────
+  // ── BOTTOM ACTION BAR (Figma node 627:1018) ────────────────────────
 
   Widget _buildBottomActionBar(ReportModel r) {
+    final isFinished = r.status == ReportStatus.completed ||
+        r.status == ReportStatus.resolved;
+
     return Container(
       padding: EdgeInsets.only(
         left: 20,
         right: 20,
-        top: 10,
-        bottom: MediaQuery.of(context).padding.bottom + 10,
+        top: 12,
+        bottom: MediaQuery.of(context).padding.bottom + 12,
       ),
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -877,12 +849,12 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
       ),
       child: Row(
         children: [
-          // 1. Riwayat Button
+          // 1. Riwayat Button (Figma node 627:1019)
           Expanded(
             flex: 3,
             child: SizedBox(
               height: 44,
-              child: OutlinedButton.icon(
+              child: OutlinedButton(
                 onPressed: () {
                   Navigator.push(
                     context,
@@ -891,137 +863,162 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
                     ),
                   );
                 },
-                icon: const Icon(Icons.history_rounded, size: 18, color: Color(0xFF515151)),
-                label: Text(
-                  'Riwayat',
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w400,
-                    color: const Color(0xFF515151),
-                  ),
-                ),
                 style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Color(0xFF515151), width: 0.9),
+                  side: const BorderSide(color: Color(0xFF515151), width: 1.0),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
                   backgroundColor: Colors.white,
-                  padding: EdgeInsets.zero,
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.history_rounded,
+                      size: 20,
+                      color: Color(0xFF515151),
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        'Riwayat',
+                        style: GoogleFonts.poppins(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w400,
+                          color: const Color(0xFF515151),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
           const SizedBox(width: 8),
 
-          // 2. Catatan Button
+          // 2. Catatan Button (Figma node 627:1023)
           Expanded(
             flex: 3,
             child: SizedBox(
               height: 44,
-              child: OutlinedButton.icon(
+              child: OutlinedButton(
                 onPressed: () => _showNotesModal(r),
-                icon: const Icon(Icons.article_outlined, size: 18, color: Color(0xFF515151)),
-                label: Text(
-                  'Catatan',
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w400,
-                    color: const Color(0xFF515151),
-                  ),
-                ),
                 style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Color(0xFF515151), width: 0.9),
+                  side: const BorderSide(color: Color(0xFF515151), width: 1.0),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
                   backgroundColor: Colors.white,
-                  padding: EdgeInsets.zero,
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.article_outlined,
+                      size: 20,
+                      color: Color(0xFF515151),
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        'Catatan',
+                        style: GoogleFonts.poppins(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w400,
+                          color: const Color(0xFF515151),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
           const SizedBox(width: 8),
 
-          // 3. Tindak Lanjut Button (Nonaktif jika sudah ditandai selesai)
+          // 3. Tindak Lanjut Button (Figma node 627:1027)
           Expanded(
             flex: 4,
             child: SizedBox(
               height: 44,
-              child: Builder(
-                builder: (ctx) {
-                  final isFinished = r.status == ReportStatus.completed ||
-                      r.status == ReportStatus.resolved;
-
-                  return ElevatedButton(
-                    onPressed: isFinished
-                        ? () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Laporan ini telah selesai dan tidak dapat diproses atau ditindaklanjuti lagi.',
-                                ),
-                                backgroundColor: Color(0xFF64748B),
-                                duration: Duration(seconds: 2),
-                              ),
-                            );
-                          }
-                        : () async {
-                            final updated = await Navigator.push<ReportModel>(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    AdminVerificationActionScreen(report: r),
-                              ),
-                            );
-                            if (updated != null && mounted) {
-                              setState(() => _currentReport = updated);
-                              _refreshDetail();
-                            }
-                          },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isFinished
-                          ? const Color(0xFFE2E8F0)
-                          : const Color(0xFF1D9C51),
-                      foregroundColor: isFinished
-                          ? const Color(0xFF94A3B8)
-                          : Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        side: BorderSide(
-                          color: isFinished
-                              ? const Color(0xFFCBD5E1)
-                              : const Color(0xFFBCFFC2),
-                          width: 0.8,
-                        ),
+              child: ElevatedButton(
+                onPressed: isFinished
+                    ? () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Laporan ini telah selesai dan tidak dapat diproses atau ditindaklanjuti lagi.',
+                            ),
+                            backgroundColor: Color(0xFF64748B),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      }
+                    : () async {
+                        final updated = await Navigator.push<ReportModel>(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => AdminVerificationActionScreen(
+                              report: r,
+                              initialTabIndex: 0,
+                            ),
+                          ),
+                        );
+                        if (updated != null && mounted) {
+                          setState(() => _currentReport = updated);
+                          _refreshDetail();
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isFinished
+                      ? const Color(0xFFE2E8F0)
+                      : const Color(0xFF1D9C51),
+                  foregroundColor:
+                      isFinished ? const Color(0xFF94A3B8) : Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    side: BorderSide(
+                      color: isFinished
+                          ? const Color(0xFFCBD5E1)
+                          : const Color(0xFFBCFFC2),
+                      width: 1.0,
+                    ),
+                  ),
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (isFinished) ...[
+                      const Icon(
+                        Icons.check_circle_outline_rounded,
+                        size: 16,
+                        color: Color(0xFF94A3B8),
                       ),
-                      elevation: 0,
-                      padding: EdgeInsets.zero,
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        if (isFinished) ...[
-                          const Icon(
-                            Icons.check_circle_outline_rounded,
-                            size: 16,
-                            color: Color(0xFF94A3B8),
-                          ),
-                          const SizedBox(width: 6),
-                        ],
-                        Text(
-                          isFinished ? 'Selesai' : 'Tindak Lanjut',
-                          style: GoogleFonts.poppins(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                            color: isFinished
-                                ? const Color(0xFF94A3B8)
-                                : Colors.white,
-                          ),
+                      const SizedBox(width: 4),
+                    ],
+                    Flexible(
+                      child: Text(
+                        isFinished ? 'Selesai' : 'Tindak Lanjut',
+                        style: GoogleFonts.poppins(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          color:
+                              isFinished ? const Color(0xFF94A3B8) : Colors.white,
                         ),
-                      ],
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  );
-                },
+                  ],
+                ),
               ),
             ),
           ),
@@ -1124,6 +1121,7 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
 
   void _showNotesModal(ReportModel r) {
     final noteController = TextEditingController();
+    bool isSubmitting = false;
 
     showModalBottomSheet(
       context: context,
@@ -1165,7 +1163,7 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
                   ),
                   const SizedBox(height: 8),
                   SizedBox(
-                    height: 180,
+                    height: 200,
                     child: _isLoadingComments
                         ? const Center(
                             child: CircularProgressIndicator(
@@ -1190,22 +1188,49 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
                                   final c = _comments[index];
                                   final author = c['user']?['full_name'] ??
                                       c['author_name'] ??
-                                      'Admin';
-                                  final content = c['content'] ?? c['message'] ?? '';
+                                      'Petugas / Admin';
+                                  final content =
+                                      c['content'] ?? c['message'] ?? '';
+                                  final createdAtStr = c['created_at'];
+                                  String timeStr = '';
+                                  if (createdAtStr != null) {
+                                    final dt = DateTime.tryParse(
+                                        createdAtStr.toString());
+                                    if (dt != null) {
+                                      timeStr = _formatDateTimeCompact(dt);
+                                    }
+                                  }
                                   return Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        author,
-                                        style: GoogleFonts.poppins(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            author,
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.black87,
+                                            ),
+                                          ),
+                                          if (timeStr.isNotEmpty)
+                                            Text(
+                                              timeStr,
+                                              style: GoogleFonts.poppins(
+                                                fontSize: 10.5,
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                        ],
                                       ),
+                                      const SizedBox(height: 2),
                                       Text(
                                         content,
                                         style: GoogleFonts.poppins(
-                                          fontSize: 12,
+                                          fontSize: 12.5,
                                           color: Colors.black87,
                                         ),
                                       ),
@@ -1240,26 +1265,48 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
                           backgroundColor: AppColors.greenPrimary,
                           foregroundColor: Colors.white,
                         ),
-                        icon: const Icon(Icons.send_rounded, size: 18),
-                        onPressed: () async {
-                          final text = noteController.text.trim();
-                          if (text.isEmpty) return;
-                          final scaffoldMessenger = ScaffoldMessenger.of(context);
-                          final nav = Navigator.of(ctx);
-                          try {
-                            final repo = context.read<ReportRepository>();
-                            await repo.addComment(r.id, text);
-                            noteController.clear();
-                            nav.pop();
-                            _loadComments();
-                            scaffoldMessenger.showSnackBar(
-                              const SnackBar(
-                                content: Text('Catatan berhasil ditambahkan'),
-                                backgroundColor: AppColors.greenPrimary,
-                              ),
-                            );
-                          } catch (_) {}
-                        },
+                        icon: isSubmitting
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.send_rounded, size: 18),
+                        onPressed: isSubmitting
+                            ? null
+                            : () async {
+                                final text = noteController.text.trim();
+                                if (text.isEmpty) return;
+                                setModalState(() => isSubmitting = true);
+                                final scaffoldMessenger =
+                                    ScaffoldMessenger.of(context);
+                                try {
+                                  final repo = context.read<ReportRepository>();
+                                  final res =
+                                      await repo.addComment(r.id, text);
+                                  noteController.clear();
+                                  setModalState(() {
+                                    _comments.add(res);
+                                    isSubmitting = false;
+                                  });
+                                  if (mounted) {
+                                    setState(() {});
+                                    _loadComments();
+                                  }
+                                  scaffoldMessenger.showSnackBar(
+                                    const SnackBar(
+                                      content:
+                                          Text('Catatan berhasil ditambahkan'),
+                                      backgroundColor: AppColors.greenPrimary,
+                                    ),
+                                  );
+                                } catch (_) {
+                                  setModalState(() => isSubmitting = false);
+                                }
+                              },
                       ),
                     ],
                   ),
@@ -1272,13 +1319,14 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
     );
   }
 
-
   // ── HELPERS ────────────────────────────────────────────────────────
 
   String _formatCodeWithHash(String code) {
-    if (code.isEmpty) return '#LP-2026-000000';
-    if (code.startsWith('#')) return code;
-    return '#$code';
+    if (code.isEmpty) return '#LP-2026-002487';
+    var cleaned = code.trim();
+    if (cleaned.startsWith('#')) cleaned = cleaned.substring(1);
+    cleaned = cleaned.replaceAll('_', '-');
+    return '#$cleaned';
   }
 
   String _formatDateTimeCompact(DateTime dt) {
@@ -1295,8 +1343,8 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
   String _formatDateTimeFull(DateTime dt) {
     const days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
     const months = [
-      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+      'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
     ];
     final dayName = days[dt.weekday - 1];
     final monthName = months[dt.month - 1];
