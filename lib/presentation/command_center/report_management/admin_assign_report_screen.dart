@@ -114,24 +114,127 @@ class _AdminAssignReportScreenState extends State<AdminAssignReportScreen> {
           ? '$noteText (Prioritas: $_selectedPriority$petugasInfo)'
           : 'Penugasan laporan ke $_selectedOpd (Prioritas: $_selectedPriority$petugasInfo)';
 
-      await repo.updateReportStatus(
+      final updatedReport = await repo.updateReportStatus(
         widget.report.id,
         'assigned',
         notes: combinedNote,
         assignedAgencyId: _selectedOpd,
       );
 
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            'Laporan berhasil ditugaskan ke $_selectedOpd',
-            style: GoogleFonts.poppins(fontSize: 13),
-          ),
-          backgroundColor: _greenPrimary,
-        ),
+      if (!mounted) return;
+
+      // Tampilkan Pop Up Dialog Berhasil Ditugaskan
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogCtx) {
+          return Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            backgroundColor: Colors.white,
+            elevation: 8,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 26),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 68,
+                    height: 68,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFE6F7ED),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.check_circle_rounded,
+                      color: Color(0xFF1D9C51),
+                      size: 42,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    'Berhasil Ditugaskan!',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.poppins(
+                      fontSize: 19,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Laporan ${_formatCodeWithHash(widget.report.reportCode)} telah berhasil ditugaskan ke $_selectedOpd untuk penanganan lebih lanjut.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w400,
+                      color: const Color(0xFF515151),
+                      height: 1.45,
+                    ),
+                  ),
+                  if (_selectedPetugas != null) ...[
+                    const SizedBox(height: 14),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.person_outline_rounded,
+                              size: 16, color: Color(0xFF1D9C51)),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Petugas: ${_selectedPetugas!['name']}',
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(dialogCtx);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1D9C51),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: const BorderSide(color: Color(0xFFC9E1BF), width: 0.5),
+                        ),
+                      ),
+                      child: Text(
+                        'Kembali ke Beranda',
+                        style: GoogleFonts.poppins(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       );
 
-      navigator.pop(true);
+      if (mounted) {
+        navigator.pop(updatedReport);
+      }
     } catch (e) {
       messenger.showSnackBar(
         SnackBar(

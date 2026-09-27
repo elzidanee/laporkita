@@ -1550,13 +1550,15 @@ class _AdminVerificationActionScreenState
 
         if (result != null && mounted) {
           nav.pop(result);
+        } else if (mounted) {
+          setState(() => _isProcessing = false);
         }
         return;
       }
 
       // If no duplicates detected, proceed directly to AdminAssignReportScreen (Figma Node 559:1020)
       if (mounted) {
-        final result = await Navigator.push<bool>(
+        final result = await Navigator.push<ReportModel>(
           context,
           MaterialPageRoute(
             builder: (_) => AdminAssignReportScreen(
@@ -1566,8 +1568,10 @@ class _AdminVerificationActionScreenState
             ),
           ),
         );
-        if (result == true && mounted) {
-          nav.pop(true);
+        if (result != null && mounted) {
+          nav.pop(result);
+        } else if (mounted) {
+          setState(() => _isProcessing = false);
         }
       }
     } catch (e) {

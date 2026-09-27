@@ -130,33 +130,30 @@ class ReportRemoteDatasource {
     }
 
     if (isLocalFileValid) {
-      final String currentUrl = result.photoUrl ?? '';
-      if (currentUrl.isEmpty) {
-        return ReportModel(
-          id: result.id,
-          reportCode: result.reportCode,
-          reporterId: result.reporterId,
-          categoryId: result.categoryId,
-          status: result.status,
-          latitude: result.latitude,
-          longitude: result.longitude,
-          addressText: result.addressText,
-          description: result.description,
-          directPhotoUrl: photoPath,
-          supportCount: result.supportCount,
-          viewCount: result.viewCount,
-          urgencyScore: result.urgencyScore,
-          needsManualReview: result.needsManualReview,
-          createdAt: result.createdAt,
-          updatedAt: result.updatedAt,
-          category: result.category,
-          reporter: result.reporter,
-          assignedAgency: result.assignedAgency,
-          media: result.media,
-          statusHistory: result.statusHistory,
-          count: result.count,
-        );
-      }
+      return ReportModel(
+        id: result.id,
+        reportCode: result.reportCode,
+        reporterId: result.reporterId,
+        categoryId: result.categoryId,
+        status: result.status,
+        latitude: result.latitude,
+        longitude: result.longitude,
+        addressText: result.addressText,
+        description: result.description,
+        directPhotoUrl: photoPath,
+        supportCount: result.supportCount,
+        viewCount: result.viewCount,
+        urgencyScore: result.urgencyScore,
+        needsManualReview: result.needsManualReview,
+        createdAt: result.createdAt,
+        updatedAt: result.updatedAt,
+        category: result.category,
+        reporter: result.reporter,
+        assignedAgency: result.assignedAgency,
+        media: result.media,
+        statusHistory: result.statusHistory,
+        count: result.count,
+      );
     }
 
     return result;

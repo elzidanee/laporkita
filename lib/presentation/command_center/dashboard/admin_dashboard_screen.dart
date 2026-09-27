@@ -14,6 +14,7 @@ import '../monitoring/admin_monitoring_screen.dart';
 import '../notifications/admin_notification_screen.dart';
 import '../profile/admin_profile_screen.dart';
 import '../analytics/admin_statistics_analytics_screen.dart';
+import '../../shared_widgets/report_thumbnail_image.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Admin Dashboard Screen  (Figma: node 481-6023)
@@ -1425,44 +1426,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   }
 
   Widget _buildThumbnailImage(ReportModel r) {
-    Widget placeholder() => Container(
-          color: const Color(0xFFEAEAEA),
-          child: const Center(
-            child:
-                Icon(Icons.image_outlined, size: 24, color: Color(0xFF9E9E9E)),
-          ),
-        );
-
-    final localPath = r.directPhotoUrl;
-    bool isLocalValid = false;
-    if (localPath != null &&
-        localPath.isNotEmpty &&
-        !localPath.startsWith('http')) {
-      try {
-        isLocalValid = File(localPath).existsSync();
-      } catch (_) {}
-    }
-    if (isLocalValid && localPath != null) {
-      return Image.file(
-        File(localPath),
-        fit: BoxFit.cover,
-        errorBuilder: (context, e, s) => placeholder(),
-      );
-    }
-
-    final photoUrl = r.formattedPhotoUrl ?? r.photoUrl ?? '';
-    if (photoUrl.isNotEmpty && photoUrl.startsWith('http')) {
-      return Image.network(
-        photoUrl,
-        fit: BoxFit.cover,
-        errorBuilder: (context, e, s) => placeholder(),
-      );
-    }
-
-    return Image.network(
-      ReportModel.getCategoryFallbackImage(r.categoryName),
+    return ReportThumbnailImage(
+      report: r,
       fit: BoxFit.cover,
-      errorBuilder: (context, e, s) => placeholder(),
     );
   }
 

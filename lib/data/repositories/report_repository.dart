@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../core/network/api_response.dart';
@@ -124,10 +125,30 @@ class ReportRepository {
 
     // 1. Prioritaskan data riil dari backend database
     for (final r in remoteData) {
-      _cachedReports[r.id] = r;
-      if (!seenIds.contains(r.id)) {
-        seenIds.add(r.id);
-        merged.add(r);
+      ReportModel reportToAdd = r;
+      // Periksa apakah perangkat lokal memiliki berkas foto asli dari kamera untuk laporan ini
+      final existingLocal = _submittedReports.cast<ReportModel?>().firstWhere(
+        (sub) =>
+            sub != null &&
+            (sub.id == r.id ||
+                (sub.reportCode.isNotEmpty && sub.reportCode == r.reportCode)),
+        orElse: () => null,
+      );
+      if (existingLocal?.directPhotoUrl != null) {
+        final localPath = existingLocal!.directPhotoUrl!;
+        if (!localPath.startsWith('http')) {
+          try {
+            if (File(localPath).existsSync()) {
+              reportToAdd = reportToAdd.copyWith(directPhotoUrl: localPath);
+            }
+          } catch (_) {}
+        }
+      }
+
+      _cachedReports[reportToAdd.id] = reportToAdd;
+      if (!seenIds.contains(reportToAdd.id)) {
+        seenIds.add(reportToAdd.id);
+        merged.add(reportToAdd);
       }
     }
 
@@ -393,6 +414,24 @@ class ReportRepository {
       }
     }
 
+    if (result.directPhotoUrl == null || result.directPhotoUrl!.startsWith('http')) {
+      final existingLocal = _submittedReports.cast<ReportModel?>().firstWhere(
+        (sub) =>
+            sub != null &&
+            (sub.id == result.id ||
+                (sub.reportCode.isNotEmpty && sub.reportCode == result.reportCode)),
+        orElse: () => null,
+      );
+      if (existingLocal?.directPhotoUrl != null &&
+          !existingLocal!.directPhotoUrl!.startsWith('http')) {
+        try {
+          if (File(existingLocal.directPhotoUrl!).existsSync()) {
+            result = result.copyWith(directPhotoUrl: existingLocal.directPhotoUrl);
+          }
+        } catch (_) {}
+      }
+    }
+
     return result;
   }
 
@@ -408,7 +447,7 @@ class ReportRepository {
   }) async {
     await _ensureStorageLoaded();
 
-    final result = await _datasource.submitReport(
+    var result = await _datasource.submitReport(
       categoryId: categoryId,
       latitude: latitude,
       longitude: longitude,
@@ -418,6 +457,14 @@ class ReportRepository {
       photoUrl: photoUrl,
       idempotencyKey: idempotencyKey,
     );
+
+    if (photoPath != null && photoPath.isNotEmpty && !photoPath.startsWith('http')) {
+      try {
+        if (File(photoPath).existsSync()) {
+          result = result.copyWith(directPhotoUrl: photoPath);
+        }
+      } catch (_) {}
+    }
 
     _submittedReports.removeWhere((item) => item.id == result.id);
     _submittedReports.insert(0, result);

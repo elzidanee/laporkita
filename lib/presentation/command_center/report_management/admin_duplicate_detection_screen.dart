@@ -527,7 +527,7 @@ class _AdminDuplicateDetectionScreenState
       return;
     }
     final nav = Navigator.of(context);
-    final result = await Navigator.push<bool>(
+    final result = await Navigator.push<ReportModel>(
       context,
       MaterialPageRoute(
         builder: (_) => AdminAssignReportScreen(
@@ -536,8 +536,8 @@ class _AdminDuplicateDetectionScreenState
       ),
     );
 
-    if (result == true && mounted) {
-      nav.pop(true);
+    if (result != null && mounted) {
+      nav.pop(result);
     }
   }
 
