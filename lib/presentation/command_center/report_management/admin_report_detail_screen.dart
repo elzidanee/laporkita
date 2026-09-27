@@ -902,42 +902,86 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
           ),
           const SizedBox(width: 8),
 
-          // 3. Tindak Lanjut Button
+          // 3. Tindak Lanjut Button (Nonaktif jika sudah ditandai selesai)
           Expanded(
             flex: 4,
             child: SizedBox(
               height: 44,
-              child: ElevatedButton(
-                onPressed: () async {
-                  final updated = await Navigator.push<ReportModel>(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => AdminVerificationActionScreen(report: r),
+              child: Builder(
+                builder: (ctx) {
+                  final isFinished = r.status == ReportStatus.completed ||
+                      r.status == ReportStatus.resolved;
+
+                  return ElevatedButton(
+                    onPressed: isFinished
+                        ? () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Laporan ini telah selesai dan tidak dapat diproses atau ditindaklanjuti lagi.',
+                                ),
+                                backgroundColor: Color(0xFF64748B),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          }
+                        : () async {
+                            final updated = await Navigator.push<ReportModel>(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    AdminVerificationActionScreen(report: r),
+                              ),
+                            );
+                            if (updated != null && mounted) {
+                              setState(() => _currentReport = updated);
+                              _refreshDetail();
+                            }
+                          },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isFinished
+                          ? const Color(0xFFE2E8F0)
+                          : const Color(0xFF1D9C51),
+                      foregroundColor: isFinished
+                          ? const Color(0xFF94A3B8)
+                          : Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        side: BorderSide(
+                          color: isFinished
+                              ? const Color(0xFFCBD5E1)
+                              : const Color(0xFFBCFFC2),
+                          width: 0.8,
+                        ),
+                      ),
+                      elevation: 0,
+                      padding: EdgeInsets.zero,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (isFinished) ...[
+                          const Icon(
+                            Icons.check_circle_outline_rounded,
+                            size: 16,
+                            color: Color(0xFF94A3B8),
+                          ),
+                          const SizedBox(width: 6),
+                        ],
+                        Text(
+                          isFinished ? 'Selesai' : 'Tindak Lanjut',
+                          style: GoogleFonts.poppins(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                            color: isFinished
+                                ? const Color(0xFF94A3B8)
+                                : Colors.white,
+                          ),
+                        ),
+                      ],
                     ),
                   );
-                  if (updated != null && mounted) {
-                    setState(() => _currentReport = updated);
-                    _refreshDetail();
-                  }
                 },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1D9C51),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    side: const BorderSide(color: Color(0xFFBCFFC2), width: 0.8),
-                  ),
-                  elevation: 0,
-                  padding: EdgeInsets.zero,
-                ),
-                child: Text(
-                  'Tindak Lanjut',
-                  style: GoogleFonts.poppins(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.white,
-                  ),
-                ),
               ),
             ),
           ),

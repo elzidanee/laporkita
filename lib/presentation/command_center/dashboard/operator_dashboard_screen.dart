@@ -8,6 +8,7 @@ import '../../../data/repositories/report_repository.dart';
 import '../../../data/repositories/notification_repository.dart';
 import '../../auth/bloc/auth_bloc.dart';
 import '../../reports/bloc/report_bloc.dart';
+import '../report_management/admin_verification_action_screen.dart';
 
 class OperatorDashboardScreen extends StatefulWidget {
   const OperatorDashboardScreen({super.key});
@@ -328,6 +329,74 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
                         ],
                       ),
                     ),
+                    if (report.needsManualReview) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF1F2),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: AppColors.statusDanger.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.warning_amber_rounded,
+                                color: AppColors.statusDanger, size: 22),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: const [
+                                  Text(
+                                    'Perlu Review Manual',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.statusDanger,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Laporan ditandai untuk peninjauan verifikator manual.',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: AppColors.neutral700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            ElevatedButton(
+                              onPressed: () async {
+                                Navigator.pop(modalContext);
+                                final updated = await Navigator.push<ReportModel>(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => AdminVerificationActionScreen(
+                                      report: report,
+                                      initialTabIndex: 1,
+                                    ),
+                                  ),
+                                );
+                                if (updated != null && mounted) {
+                                  _fetchLiveDashboardData();
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF1D9C51),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                elevation: 0,
+                              ),
+                              child: const Text('Buka Review', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 18),
 
                     // Select Target Status
@@ -1145,7 +1214,24 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () => _showUpdateStatusModal(r),
+          onTap: () async {
+            if (r.needsManualReview) {
+              final updated = await Navigator.push<ReportModel>(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => AdminVerificationActionScreen(
+                    report: r,
+                    initialTabIndex: 1,
+                  ),
+                ),
+              );
+              if (updated != null && mounted) {
+                _fetchLiveDashboardData();
+              }
+            } else {
+              _showUpdateStatusModal(r);
+            }
+          },
           child: Padding(
             padding: const EdgeInsets.all(14.0),
             child: Column(

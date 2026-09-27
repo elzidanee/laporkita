@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -15,10 +16,12 @@ import 'admin_duplicate_detection_screen.dart';
 
 class AdminVerificationActionScreen extends StatefulWidget {
   final ReportModel report;
+  final int initialTabIndex; // 0: AI Verification, 1: Manual Review (default 1)
 
   const AdminVerificationActionScreen({
     super.key,
     required this.report,
+    this.initialTabIndex = 1,
   });
 
   @override
@@ -28,28 +31,47 @@ class AdminVerificationActionScreen extends StatefulWidget {
 
 class _AdminVerificationActionScreenState
     extends State<AdminVerificationActionScreen> {
-  int _activeTabIndex = 0; // 0: AI Verification, 1: Manual Review
+  late int _activeTabIndex;
   bool _isProcessing = false;
 
-  // Manual Review Form State
-  bool _manualPhotoValid = true;
-  bool _manualGpsValid = true;
-  bool _manualCategoryValid = true;
-  bool _manualSafeContent = true;
-  String _selectedOpd = 'Dinas PUPR (DPUPR)';
+  // Manual Review Form State (Figma Node 554:511)
+  bool _manualPhotoValid = true; // Foto sesuai laporan
+  bool _manualGpsValid = true; // Lokasi sesuai
+  bool _manualIsDuplicate = false; // Laporan duplikat
+  late String _selectedCategory;
+  String _selectedPriority = 'Tinggi'; // Default Tinggi as in Figma
   final TextEditingController _adminNotesController = TextEditingController();
 
-  final List<String> _opdList = [
-    'Dinas PUPR (DPUPR)',
-    'Dinas Perhubungan (Dishub)',
-    'Dinas Komunikasi & Informatika (Diskominfo)',
+  final List<String> _availableCategories = [
+    'Jalan Rusak',
+    'Trotoar Rusak',
+    'Penerangan Jalan',
+    'Rambu Lalu Lintas',
+    'Banjir & Drainase',
+    'Sampah & Kebersihan',
+    'Fasilitas Umum',
+    'Lainnya',
   ];
 
   @override
   void initState() {
     super.initState();
-    _adminNotesController.text =
-        'Laporan telah diperiksa oleh Admin dan siap diteruskan.';
+    _activeTabIndex = widget.initialTabIndex;
+    _selectedCategory = widget.report.categoryName.isNotEmpty
+        ? widget.report.categoryName
+        : 'Jalan Rusak';
+
+    // Inferred priority based on report urgency score if available
+    if (widget.report.urgencyScore != null) {
+      final score = widget.report.urgencyScore!;
+      if (score >= 70) {
+        _selectedPriority = 'Tinggi';
+      } else if (score >= 40) {
+        _selectedPriority = 'Sedang';
+      } else {
+        _selectedPriority = 'Rendah';
+      }
+    }
   }
 
   @override
@@ -66,28 +88,44 @@ class _AdminVerificationActionScreenState
         child: Column(
           children: [
             const SizedBox(height: 8),
-            // Top Bar: Back Chevron + Share Button
+            // Top Bar: Back Chevron + Share Button (Figma Node 554:578)
             _buildTopBar(),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
 
-            // Tab Bar: AI Verification vs Manual Review
+            // Tab Bar: AI Verification vs Manual Review (Figma Node 554:586)
             _buildTabBar(),
 
-            // Tab Contents
+            // Scrollable Content
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 20),
-                    if (_activeTabIndex == 0)
-                      _buildAiVerificationTab()
+
+                    // Report Summary Header (Figma Node 607:3311)
+                    _buildReportHeader(),
+
+                    const SizedBox(height: 18),
+
+                    // Report Photo with Live Telemetry Watermark (Figma Node 607:3318 & 631:1539)
+                    _buildReportPhoto(),
+
+                    const SizedBox(height: 22),
+
+                    // Active Tab Content
+                    if (_activeTabIndex == 1)
+                      _buildManualReviewTab()
                     else
-                      _buildManualReviewTab(),
+                      _buildAiVerificationTab(),
+
                     const SizedBox(height: 28),
-                    // Action Buttons: Setujui & Teruskan, Tolak, Minta Revisi
+
+                    // Action Buttons: Setujui & Teruskan, Tolak, Minta Revisi (Figma Node 554:601)
                     _buildActionButtons(),
-                    const SizedBox(height: 32),
+
+                    const SizedBox(height: 36),
                   ],
                 ),
               ),
@@ -98,7 +136,7 @@ class _AdminVerificationActionScreenState
     );
   }
 
-  // ── TOP BAR (Figma Node 554:394) ──────────────────────────────────
+  // ── TOP BAR (Figma Node 554:578) ──────────────────────────────────
 
   Widget _buildTopBar() {
     return Padding(
@@ -132,7 +170,7 @@ class _AdminVerificationActionScreenState
                 Clipboard.setData(
                   ClipboardData(
                     text:
-                        'Verifikasi Laporan LaporKita: ${widget.report.reportCode}\nKategori: ${widget.report.categoryName}\nLokasi: ${widget.report.addressText ?? "-"}',
+                        'Verifikasi Laporan LaporKita: ${widget.report.reportCode}\nKategori: $_selectedCategory\nLokasi: ${widget.report.addressText ?? "-"}',
                   ),
                 );
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -150,7 +188,7 @@ class _AdminVerificationActionScreenState
     );
   }
 
-  // ── TAB BAR (Figma Node 554:483 & 554:586) ────────────────────────
+  // ── TAB BAR (Figma Node 554:586 & 554:589) ────────────────────────
 
   Widget _buildTabBar() {
     return Column(
@@ -161,7 +199,7 @@ class _AdminVerificationActionScreenState
               child: InkWell(
                 onTap: () => setState(() => _activeTabIndex = 0),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                   child: Center(
                     child: Text(
                       'AI Verification',
@@ -183,7 +221,7 @@ class _AdminVerificationActionScreenState
               child: InkWell(
                 onTap: () => setState(() => _activeTabIndex = 1),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                   child: Center(
                     child: Text(
                       'Manual Review',
@@ -203,7 +241,7 @@ class _AdminVerificationActionScreenState
             ),
           ],
         ),
-        // Indicator underline + horizontal separator
+        // Indicator underline + horizontal separator (Figma node 554:585 & 554:589)
         Stack(
           children: [
             Container(
@@ -211,7 +249,7 @@ class _AdminVerificationActionScreenState
               color: const Color(0xFFE0DFDF),
             ),
             AnimatedAlign(
-              duration: const Duration(milliseconds: 250),
+              duration: const Duration(milliseconds: 220),
               curve: Curves.easeInOut,
               alignment: _activeTabIndex == 0
                   ? Alignment.centerLeft
@@ -219,7 +257,7 @@ class _AdminVerificationActionScreenState
               child: FractionallySizedBox(
                 widthFactor: 0.5,
                 child: Container(
-                  height: 2.8,
+                  height: 3.0,
                   decoration: BoxDecoration(
                     color: const Color(0xFF1D9C51),
                     borderRadius: BorderRadius.circular(2),
@@ -233,7 +271,762 @@ class _AdminVerificationActionScreenState
     );
   }
 
-  // ── TAB 1: AI VERIFICATION (Figma Node 554:334 & 554:487) ─────────
+  // ── REPORT HEADER (Figma Node 607:3311) ───────────────────────────
+
+  Widget _buildReportHeader() {
+    final reportCode = widget.report.reportCode.isNotEmpty
+        ? widget.report.reportCode
+        : '#LP-2026-002487';
+    final address = widget.report.addressText != null &&
+            widget.report.addressText!.isNotEmpty
+        ? widget.report.addressText!
+        : 'Jl. Ahmad Yani no. 15';
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        // Left Column: Code, Title, Address
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                reportCode.startsWith('#') ? reportCode : '#$reportCode',
+                style: GoogleFonts.poppins(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w400,
+                  color: Colors.black,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                _selectedCategory,
+                style: GoogleFonts.poppins(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
+                  height: 1.2,
+                  letterSpacing: 0.3,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                address,
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w300,
+                  color: Colors.black,
+                  height: 1.4,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(width: 12),
+
+        // Right Badge: Status (Figma Node 607:3316)
+        Container(
+          height: 28,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF9E9),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            'Sedang Diproses',
+            style: GoogleFonts.poppins(
+              fontSize: 11,
+              fontWeight: FontWeight.w400,
+              color: const Color(0xFFF2AE01),
+              height: 1.0,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── REPORT PHOTO WITH WATERMARK (Figma Node 607:3318 & 631:1539) ───
+
+  Widget _buildReportPhoto() {
+    final photoUrl = widget.report.formattedPhotoUrl ?? widget.report.photoUrl;
+
+    return Container(
+      width: double.infinity,
+      height: 204,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: const Color(0xFFBEC4BD), width: 1.0),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // 1. Report Image
+            _buildImageWidget(photoUrl),
+
+            // 2. Watermark Card (Figma Node 631:1539)
+            Positioned(
+              left: 10,
+              bottom: 10,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 7.0, vertical: 5.5),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.52),
+                  borderRadius: BorderRadius.circular(7.1),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Brand Pill + Report Code
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 4.5, vertical: 1.0),
+                          decoration: BoxDecoration(
+                            color: const Color(0x9942A54B),
+                            borderRadius: BorderRadius.circular(8.7),
+                            border: Border.all(
+                              color: const Color(0xFF62D26D),
+                              width: 0.35,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.05),
+                                blurRadius: 3.5,
+                              ),
+                            ],
+                          ),
+                          child: Text(
+                            'LaporKita',
+                            style: GoogleFonts.poppins(
+                              fontSize: 6.5,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white,
+                              letterSpacing: 0.1,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          '#${widget.report.reportCode.replaceAll('-', '_')}',
+                          style: GoogleFonts.poppins(
+                            fontSize: 7.2,
+                            fontWeight: FontWeight.w300,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+
+                    // Location Pin
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.location_on_outlined,
+                          size: 10,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 3.5),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 160),
+                          child: Text(
+                            widget.report.addressText ??
+                                'Jl. Ahmad Yani No.15 Malang',
+                            style: GoogleFonts.poppins(
+                              fontSize: 6.8,
+                              fontWeight: FontWeight.w300,
+                              color: Colors.white,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2.5),
+
+                    // Timestamp
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.access_time_rounded,
+                          size: 10,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 3.5),
+                        Text(
+                          _formatDateTimeFull(widget.report.createdAt),
+                          style: GoogleFonts.poppins(
+                            fontSize: 6.8,
+                            fontWeight: FontWeight.w300,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2.5),
+
+                    // Category
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.warning_amber_rounded,
+                          size: 10,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 3.5),
+                        Text(
+                          _selectedCategory,
+                          style: GoogleFonts.poppins(
+                            fontSize: 6.8,
+                            fontWeight: FontWeight.w300,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2.5),
+
+                    // GPS Coordinates
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.memory_rounded,
+                          size: 9.5,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 3.5),
+                        Text(
+                          '${widget.report.latitude.toStringAsFixed(6)},${widget.report.longitude.toStringAsFixed(6)}',
+                          style: GoogleFonts.poppins(
+                            fontSize: 7.0,
+                            fontWeight: FontWeight.w300,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImageWidget(String? photoUrl) {
+    if (photoUrl != null &&
+        photoUrl.isNotEmpty &&
+        !photoUrl.startsWith('http')) {
+      try {
+        final f = File(photoUrl);
+        if (f.existsSync()) {
+          return Image.file(f, fit: BoxFit.cover);
+        }
+      } catch (_) {}
+    }
+
+    if (photoUrl != null &&
+        photoUrl.isNotEmpty &&
+        photoUrl.startsWith('http')) {
+      return Image.network(
+        photoUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) =>
+            _buildFallbackRoadImage(),
+      );
+    }
+
+    return _buildFallbackRoadImage();
+  }
+
+  Widget _buildFallbackRoadImage() {
+    return Image.network(
+      'https://images.unsplash.com/photo-1578916171728-46686eac8d58?q=80&w=800&auto=format&fit=crop',
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) => Container(
+        color: const Color(0xFFF0F4F8),
+        child: const Center(
+          child: Icon(Icons.image_outlined, size: 40, color: Color(0xFF94A3B8)),
+        ),
+      ),
+    );
+  }
+
+  // ── TAB 2: MANUAL REVIEW (Figma Node 554:511) ─────────────────────
+
+  Widget _buildManualReviewTab() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 1. Card: Hasil Pemeriksaan Manual (Figma Node 607:3323)
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFE0DFDF), width: 1.0),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 5,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Hasil Pemeriksaan Manual',
+                style: GoogleFonts.poppins(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Checkbox 1: Foto sesuai laporan (Figma Node 607:3329)
+              _buildManualCheckItem(
+                title: 'Foto sesuai laporan',
+                value: _manualPhotoValid,
+                onChanged: (v) => setState(() => _manualPhotoValid = v),
+              ),
+              const SizedBox(height: 12),
+              // Checkbox 2: Lokasi sesuai (Figma Node 607:3340)
+              _buildManualCheckItem(
+                title: 'Lokasi sesuai',
+                value: _manualGpsValid,
+                onChanged: (v) => setState(() => _manualGpsValid = v),
+              ),
+              const SizedBox(height: 12),
+              // Checkbox 3: Laporan duplikat (Figma Node 607:3394)
+              _buildManualCheckItem(
+                title: 'Laporan duplikat',
+                value: _manualIsDuplicate,
+                onChanged: (v) => setState(() => _manualIsDuplicate = v),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 20),
+
+        // 2. Section: Kategori Laporan (Figma Node 607:3402)
+        Text(
+          'Kategori Laporan',
+          style: GoogleFonts.poppins(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: Colors.black,
+          ),
+        ),
+        const SizedBox(height: 10),
+        InkWell(
+          onTap: _showCategoryPickerModal,
+          borderRadius: BorderRadius.circular(25),
+          child: Container(
+            height: 50,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(25),
+              border: Border.all(color: const Color(0xFFE0DFDF), width: 0.824),
+            ),
+            child: Row(
+              children: [
+                _buildCategoryIcon(_selectedCategory, size: 28),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _selectedCategory,
+                    style: GoogleFonts.poppins(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFF515151),
+                    ),
+                  ),
+                ),
+                const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: Color(0xFF515151),
+                  size: 24,
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 20),
+
+        // 3. Section: Prioritas (Figma Node 607:3422)
+        Text(
+          'Prioritas',
+          style: GoogleFonts.poppins(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: Colors.black,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            _buildPriorityPill('Rendah', const Color(0xFF1D9C51)),
+            const SizedBox(width: 8),
+            _buildPriorityPill('Sedang', const Color(0xFFF2AE01)),
+            const SizedBox(width: 8),
+            _buildPriorityPill('Tinggi', const Color(0xFFC60D05)),
+          ],
+        ),
+
+        const SizedBox(height: 20),
+
+        // 4. Section: Catatan *opsional (Figma Node 607:3474)
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFE0DFDF), width: 1.0),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 5,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Clipboard Icon (Figma Node 607:3475)
+              Container(
+                width: 38,
+                height: 48,
+                alignment: Alignment.topCenter,
+                child: const Icon(
+                  Icons.assignment_outlined,
+                  size: 36,
+                  color: Color(0xFF222222),
+                ),
+              ),
+              const SizedBox(width: 12),
+
+              // Note content & input box (Figma Node 607:3477)
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'Catatan',
+                          style: GoogleFonts.poppins(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '*opsional',
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w300,
+                            color: const Color(0xFF8F8F8F),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                            color: const Color(0xFFE0DFDF), width: 1.0),
+                      ),
+                      child: Column(
+                        children: [
+                          TextField(
+                            controller: _adminNotesController,
+                            maxLines: 3,
+                            maxLength: 200,
+                            buildCounter: (_,
+                                    {required currentLength,
+                                    required isFocused,
+                                    maxLength}) =>
+                                const SizedBox.shrink(),
+                            style: GoogleFonts.poppins(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w400,
+                              color: Colors.black,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: 'Tambahkan catatan laporan.....',
+                              hintStyle: GoogleFonts.poppins(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w300,
+                                color: const Color(0xFF8F8F8F),
+                              ),
+                              border: InputBorder.none,
+                              isDense: true,
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                            onChanged: (v) => setState(() {}),
+                          ),
+                          const SizedBox(height: 4),
+                          Align(
+                            alignment: Alignment.bottomRight,
+                            child: Text(
+                              '${_adminNotesController.text.length}/200',
+                              style: GoogleFonts.poppins(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w300,
+                                color: const Color(0xFFBBBBBB),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── CHECKBOX TILE (Figma ic:round-check-box) ───────────────────────
+
+  Widget _buildManualCheckItem({
+    required String title,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return InkWell(
+      onTap: () => onChanged(!value),
+      borderRadius: BorderRadius.circular(6),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                color: value ? const Color(0xFF1D9C51) : Colors.transparent,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(
+                  color: value
+                      ? const Color(0xFF1D9C51)
+                      : const Color(0xFF757575),
+                  width: value ? 1.5 : 1.8,
+                ),
+              ),
+              child: value
+                  ? const Icon(
+                      Icons.check_rounded,
+                      color: Colors.white,
+                      size: 18,
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                title,
+                style: GoogleFonts.poppins(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w400,
+                  color: Colors.black,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── PRIORITY PILL (Figma Node 607:3425) ───────────────────────────
+
+  Widget _buildPriorityPill(String label, Color activeColor) {
+    final isSelected = _selectedPriority == label;
+    return Expanded(
+      child: InkWell(
+        onTap: () => setState(() => _selectedPriority = label),
+        borderRadius: BorderRadius.circular(25),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          height: 42,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(25),
+            border: Border.all(
+              color: isSelected ? activeColor : const Color(0xFFE0DFDF),
+              width: isSelected ? 1.0 : 0.824,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (isSelected)
+                Icon(
+                  Icons.check_circle_rounded,
+                  color: activeColor,
+                  size: 20,
+                )
+              else
+                const Icon(
+                  Icons.circle_outlined,
+                  color: Color(0xFF8F8F8F),
+                  size: 20,
+                ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: isSelected ? activeColor : const Color(0xFF515151),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── CATEGORY ICON HELPER ──────────────────────────────────────────
+
+  Widget _buildCategoryIcon(String category, {double size = 30}) {
+    final lower = category.toLowerCase();
+    String assetPath = 'assets/images/route.png';
+    if (lower.contains('trotoar')) {
+      assetPath = 'assets/images/trotoar.png';
+    } else if (lower.contains('rambu') ||
+        lower.contains('lampu') ||
+        lower.contains('lalu lintas')) {
+      assetPath = 'assets/images/laluLintas.png';
+    } else if (lower.contains('fasilitas') ||
+        lower.contains('banjir') ||
+        lower.contains('sampah')) {
+      assetPath = 'assets/images/fasilitasUmum.png';
+    }
+
+    return Image.asset(
+      assetPath,
+      width: size,
+      height: size,
+      fit: BoxFit.contain,
+      errorBuilder: (ctx, err, stack) => Icon(
+        Icons.warning_amber_rounded,
+        size: size,
+        color: const Color(0xFF1D9C51),
+      ),
+    );
+  }
+
+  void _showCategoryPickerModal() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE0DFDF),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Pilih Kategori Laporan',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ..._availableCategories.map((cat) {
+                final isSelected = _selectedCategory == cat;
+                return ListTile(
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  leading: _buildCategoryIcon(cat, size: 28),
+                  title: Text(
+                    cat,
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      fontWeight:
+                          isSelected ? FontWeight.w600 : FontWeight.w400,
+                      color:
+                          isSelected ? const Color(0xFF1D9C51) : Colors.black,
+                    ),
+                  ),
+                  trailing: isSelected
+                      ? const Icon(Icons.check_rounded,
+                          color: Color(0xFF1D9C51))
+                      : null,
+                  onTap: () {
+                    setState(() => _selectedCategory = cat);
+                    Navigator.pop(ctx);
+                  },
+                );
+              }),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // ── TAB 1: AI VERIFICATION (Figma Node 554:321 & 554:334) ─────────
 
   Widget _buildAiVerificationTab() {
     final r = widget.report;
@@ -317,7 +1110,7 @@ class _AdminVerificationActionScreenState
               ),
               const SizedBox(height: 10),
               Text(
-                'Kerusakan terdeteksi : ${r.categoryName}',
+                'Kerusakan terdeteksi : $_selectedCategory',
                 style: GoogleFonts.poppins(
                   fontSize: 12,
                   fontWeight: FontWeight.w400,
@@ -445,189 +1238,12 @@ class _AdminVerificationActionScreenState
     );
   }
 
-  // ── TAB 2: MANUAL REVIEW (Figma Node 554:511) ─────────────────────
-
-  Widget _buildManualReviewTab() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: const Color(0xFFE0DFDF), width: 1.0),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 5,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Formulir Peninjauan Manual',
-            style: GoogleFonts.poppins(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: Colors.black,
-            ),
-          ),
-          const SizedBox(height: 14),
-          _buildCheckTile(
-            title: 'Kualitas Foto Memadai',
-            subtitle: 'Foto jelas memperlihatkan objek laporan warga',
-            value: _manualPhotoValid,
-            onChanged: (v) => setState(() => _manualPhotoValid = v ?? true),
-          ),
-          _buildCheckTile(
-            title: 'Koordinat GPS Sesuai Lokasi',
-            subtitle: 'Pin lokasi sinkron dengan deskripsi jalan',
-            value: _manualGpsValid,
-            onChanged: (v) => setState(() => _manualGpsValid = v ?? true),
-          ),
-          _buildCheckTile(
-            title: 'Kesesuaian Kategori Kerusakan',
-            subtitle: 'Kategori cocok dengan kewenangan dinas',
-            value: _manualCategoryValid,
-            onChanged: (v) => setState(() => _manualCategoryValid = v ?? true),
-          ),
-          _buildCheckTile(
-            title: 'Konten Bersih & Tidak Melanggar',
-            subtitle: 'Bebas dari ujaran kebencian atau spam',
-            value: _manualSafeContent,
-            onChanged: (v) => setState(() => _manualSafeContent = v ?? true),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Tugaskan ke OPD Penanggung Jawab',
-            style: GoogleFonts.poppins(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Colors.black,
-            ),
-          ),
-          const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
-            initialValue: _selectedOpd,
-            isExpanded: true,
-            decoration: InputDecoration(
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: Color(0xFFE0DFDF)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: Color(0xFFE0DFDF)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: AppColors.greenPrimary, width: 1.5),
-              ),
-            ),
-            items: _opdList.map((opd) {
-              return DropdownMenuItem(
-                value: opd,
-                child: Text(
-                  opd,
-                  style: GoogleFonts.poppins(fontSize: 13),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                ),
-              );
-            }).toList(),
-            onChanged: (v) {
-              if (v != null) setState(() => _selectedOpd = v);
-            },
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Catatan Instruksi Petugas',
-            style: GoogleFonts.poppins(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Colors.black,
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _adminNotesController,
-            maxLines: 3,
-            style: GoogleFonts.poppins(fontSize: 12),
-            decoration: InputDecoration(
-              hintText: 'Tuliskan catatan arahan tindak lanjut...',
-              hintStyle: GoogleFonts.poppins(fontSize: 12, color: Colors.grey),
-              contentPadding: const EdgeInsets.all(12),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: Color(0xFFE0DFDF)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: Color(0xFFE0DFDF)),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCheckTile({
-    required String title,
-    required String subtitle,
-    required bool value,
-    required ValueChanged<bool?> onChanged,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Checkbox(
-            value: value,
-            activeColor: const Color(0xFF1D9C51),
-            onChanged: onChanged,
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: GoogleFonts.poppins(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black,
-                  ),
-                ),
-                Text(
-                  subtitle,
-                  style: GoogleFonts.poppins(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w400,
-                    color: const Color(0xFF757575),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── ACTION BUTTONS (Figma Node 554:510) ────────────────────────────
+  // ── ACTION BUTTONS (Figma Node 554:601) ────────────────────────────
 
   Widget _buildActionButtons() {
     return Column(
       children: [
-        // 1. Setujui & Teruskan (Figma Node 554:504)
+        // 1. Setujui & Teruskan (Figma Node 554:602)
         SizedBox(
           width: double.infinity,
           height: 49,
@@ -663,7 +1279,7 @@ class _AdminVerificationActionScreenState
         ),
         const SizedBox(height: 14),
 
-        // 2. Tolak Laporan (Figma Node 554:506)
+        // 2. Tolak Laporan (Figma Node 554:604)
         SizedBox(
           width: double.infinity,
           height: 49,
@@ -687,7 +1303,7 @@ class _AdminVerificationActionScreenState
         ),
         const SizedBox(height: 14),
 
-        // 3. Meminta Revisi (Figma Node 554:508)
+        // 3. Meminta Revisi (Figma Node 554:606)
         SizedBox(
           width: double.infinity,
           height: 49,
@@ -722,16 +1338,14 @@ class _AdminVerificationActionScreenState
     final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     try {
-      // 1. Fetch live reports to check for real similarity candidates
+      // 1. Fetch live reports to check for candidate duplicates
       final response = await repo.getReports(limit: 50);
       final all = response.data ?? [];
 
-      // Filter other reports that share similar category or nearby GPS within 1.5 km
       final candidates = all.where((r) {
         if (r.id == widget.report.id) return false;
         final sameCat = r.categoryId == widget.report.categoryId ||
-            r.categoryName.toLowerCase() ==
-                widget.report.categoryName.toLowerCase();
+            r.categoryName.toLowerCase() == _selectedCategory.toLowerCase();
         final distanceMeters = _calcDistanceMeters(
           widget.report.latitude,
           widget.report.longitude,
@@ -744,8 +1358,9 @@ class _AdminVerificationActionScreenState
 
       setState(() => _isProcessing = false);
 
-      // Check if candidate duplicates exist, or if similarity is detected
-      final hasSimilarity = candidates.isNotEmpty ||
+      // Check if user manually checked duplicate OR candidate duplicates exist
+      final hasSimilarity = _manualIsDuplicate ||
+          candidates.isNotEmpty ||
           widget.report.needsManualReview ||
           (widget.report.rawAiConfidenceScore != null &&
               widget.report.rawAiConfidenceScore! >= 0.85);
@@ -756,9 +1371,11 @@ class _AdminVerificationActionScreenState
           context,
           MaterialPageRoute(
             builder: (_) => AdminDuplicateDetectionScreen(
-              currentReport: widget.report,
+              currentReport: widget.report.copyWith(
+                category: {'name': _selectedCategory},
+              ),
               similarReports: candidates.take(3).toList(),
-              similarityPercentage: 85.0,
+              similarityPercentage: _manualIsDuplicate ? 92.0 : 85.0,
             ),
           ),
         );
@@ -774,7 +1391,11 @@ class _AdminVerificationActionScreenState
         final result = await Navigator.push<bool>(
           context,
           MaterialPageRoute(
-            builder: (_) => AdminAssignReportScreen(report: widget.report),
+            builder: (_) => AdminAssignReportScreen(
+              report: widget.report.copyWith(
+                category: {'name': _selectedCategory},
+              ),
+            ),
           ),
         );
         if (result == true && mounted) {
@@ -786,7 +1407,7 @@ class _AdminVerificationActionScreenState
         setState(() => _isProcessing = false);
         scaffoldMessenger.showSnackBar(
           SnackBar(
-            content: Text('Gagal memperbarui status laporan: $e'),
+            content: Text('Gagal memproses verifikasi laporan: $e'),
             backgroundColor: AppColors.statusDanger,
           ),
         );
@@ -824,7 +1445,8 @@ class _AdminVerificationActionScreenState
                 maxLines: 3,
                 style: GoogleFonts.poppins(fontSize: 12),
                 decoration: InputDecoration(
-                  hintText: 'Contoh: Laporan tidak memenuhi kriteria / foto tidak valid.',
+                  hintText:
+                      'Contoh: Laporan tidak memenuhi kriteria / foto tidak valid.',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
@@ -857,7 +1479,9 @@ class _AdminVerificationActionScreenState
                     'rejected',
                     notes: reasonController.text.trim().isNotEmpty
                         ? reasonController.text.trim()
-                        : 'Laporan ditolak oleh Admin.',
+                        : (_adminNotesController.text.trim().isNotEmpty
+                            ? _adminNotesController.text.trim()
+                            : 'Laporan ditolak oleh Admin saat verifikasi manual.'),
                     existingReport: widget.report,
                   );
                   if (mounted) {
@@ -894,6 +1518,10 @@ class _AdminVerificationActionScreenState
 
   void _showRevisionDialog() {
     final revisionController = TextEditingController();
+    if (_adminNotesController.text.trim().isNotEmpty) {
+      revisionController.text = _adminNotesController.text.trim();
+    }
+
     showDialog(
       context: context,
       builder: (ctx) {
@@ -922,7 +1550,8 @@ class _AdminVerificationActionScreenState
                 maxLines: 3,
                 style: GoogleFonts.poppins(fontSize: 12),
                 decoration: InputDecoration(
-                  hintText: 'Contoh: Mohon unggah ulang foto yang lebih terang dan jelas.',
+                  hintText:
+                      'Contoh: Mohon unggah ulang foto yang lebih terang dan jelas.',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
@@ -961,7 +1590,8 @@ class _AdminVerificationActionScreenState
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Permintaan revisi telah dikirim ke pelapor.'),
+                        content:
+                            Text('Permintaan revisi telah dikirim ke pelapor.'),
                         backgroundColor: Color(0xFFF2AE01),
                       ),
                     );
@@ -1026,13 +1656,19 @@ class _AdminVerificationActionScreenState
                 ),
               ),
               const SizedBox(height: 14),
-              _buildModalDetailRow('Model AI', 'YOLOv11 Instance Segmentation + Gemini 2.5 Flash'),
-              _buildModalDetailRow('Objek Terdeteksi', widget.report.categoryName),
-              _buildModalDetailRow('Confidence Score', '${((widget.report.rawAiConfidenceScore ?? 0.98) * 100).round()}%'),
-              _buildModalDetailRow('Damage Severity', '${((widget.report.damageSeverity ?? 0.85) * 100).round()}%'),
-              _buildModalDetailRow('AI Processing Time', '4.21 detik (Edge Server Kota Malang)'),
-              _buildModalDetailRow('GPS EXIF Verified', '${widget.report.latitude.toStringAsFixed(6)}, ${widget.report.longitude.toStringAsFixed(6)}'),
-              _buildModalDetailRow('Needs Manual Review', widget.report.needsManualReview ? 'Ya (Flagged)' : 'Tidak (Auto-Passed)'),
+              _buildModalDetailRow('Model AI',
+                  'YOLOv11 Instance Segmentation + Gemini 2.5 Flash'),
+              _buildModalDetailRow('Objek Terdeteksi', _selectedCategory),
+              _buildModalDetailRow('Confidence Score',
+                  '${((widget.report.rawAiConfidenceScore ?? 0.98) * 100).round()}%'),
+              _buildModalDetailRow('Damage Severity',
+                  '${((widget.report.damageSeverity ?? 0.85) * 100).round()}%'),
+              _buildModalDetailRow('AI Processing Time',
+                  '4.21 detik (Edge Server Kota Malang)'),
+              _buildModalDetailRow('GPS EXIF Verified',
+                  '${widget.report.latitude.toStringAsFixed(6)}, ${widget.report.longitude.toStringAsFixed(6)}'),
+              _buildModalDetailRow('Needs Manual Review',
+                  widget.report.needsManualReview ? 'Ya (Flagged)' : 'Tidak (Auto-Passed)'),
               const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
@@ -1088,6 +1724,37 @@ class _AdminVerificationActionScreenState
         ],
       ),
     );
+  }
+
+  String _formatDateTimeFull(DateTime dt) {
+    const days = [
+      'Senin',
+      'Selasa',
+      'Rabu',
+      'Kamis',
+      'Jumat',
+      'Sabtu',
+      'Minggu'
+    ];
+    const months = [
+      'Januari',
+      'Februari',
+      'Maret',
+      'April',
+      'Mei',
+      'Juni',
+      'Juli',
+      'Agustus',
+      'September',
+      'Oktober',
+      'November',
+      'Desember'
+    ];
+    final dayName = days[dt.weekday - 1];
+    final monthName = months[dt.month - 1];
+    final hh = dt.hour.toString().padLeft(2, '0');
+    final mm = dt.minute.toString().padLeft(2, '0');
+    return '$dayName, ${dt.day} $monthName ${dt.year} | $hh.$mm WIB';
   }
 
   double _calcDistanceMeters(
