@@ -47,7 +47,29 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
       final repo = context.read<ReportRepository>();
       final fresh = await repo.getReportById(_currentReport.id);
       if (mounted) {
-        setState(() => _currentReport = fresh);
+        setState(() {
+          _currentReport = _currentReport.copyWith(
+            status: fresh.status,
+            damageSeverity: fresh.damageSeverity ?? _currentReport.damageSeverity,
+            urgencyScore: fresh.urgencyScore ?? _currentReport.urgencyScore,
+            statusHistory: fresh.statusHistory.isNotEmpty
+                ? fresh.statusHistory
+                : _currentReport.statusHistory,
+            category: fresh.category ?? _currentReport.category,
+            assignedAgency:
+                fresh.assignedAgency ?? _currentReport.assignedAgency,
+            addressText: fresh.addressText ?? _currentReport.addressText,
+            description: fresh.description ?? _currentReport.description,
+            directPhotoUrl:
+                fresh.directPhotoUrl ?? _currentReport.directPhotoUrl,
+            supportCount: fresh.supportCount > 0
+                ? fresh.supportCount
+                : _currentReport.supportCount,
+            viewCount: fresh.viewCount > 0
+                ? fresh.viewCount
+                : _currentReport.viewCount,
+          );
+        });
       }
     } catch (_) {}
     if (mounted) {
@@ -260,39 +282,20 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
   }
 
   Widget _buildPriorityBadge(ReportModel r) {
-    final urgencyVal = r.urgencyScore ?? 4.2;
-    String label;
-    Color bg;
-    Color text;
-
-    if (urgencyVal >= 4.0 || (r.damageSeverity ?? 0) >= 0.7) {
-      label = 'Prioritas Tinggi';
-      bg = const Color(0xFFFFE9E9);
-      text = const Color(0xFFC60D05);
-    } else if (urgencyVal >= 2.5) {
-      label = 'Sedang';
-      bg = const Color(0xFFFFF9E9);
-      text = const Color(0xFFF2AE01);
-    } else {
-      label = 'Rendah';
-      bg = const Color(0xFFE8F5E9);
-      text = const Color(0xFF2E7D32);
-    }
-
     return Container(
       height: 28,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: bg,
+        color: r.priorityBgColor,
         borderRadius: BorderRadius.circular(19.88),
       ),
       child: Center(
         child: Text(
-          label,
+          r.priorityLabel,
           style: GoogleFonts.poppins(
             fontSize: 10.6,
             fontWeight: FontWeight.normal,
-            color: text,
+            color: r.priorityColor,
           ),
         ),
       ),
@@ -540,24 +543,9 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
   // ── KEY-VALUES ATTRIBUTES LIST (Figma node 627:979) ─────────────────
 
   Widget _buildKeyValuesList(ReportModel r) {
-    final urgencyVal = r.urgencyScore ?? 4.2;
-    String priorityText;
-    Color priorityColor;
-    int scoreOutOf100;
-
-    if (urgencyVal >= 4.0) {
-      priorityText = 'Tinggi';
-      priorityColor = const Color(0xFFC60D05);
-      scoreOutOf100 = 85;
-    } else if (urgencyVal >= 2.5) {
-      priorityText = 'Sedang';
-      priorityColor = const Color(0xFFF2AE01);
-      scoreOutOf100 = 60;
-    } else {
-      priorityText = 'Rendah';
-      priorityColor = AppColors.greenPrimary;
-      scoreOutOf100 = 35;
-    }
+    final priorityText = r.priorityLabel.replaceAll('Prioritas ', '');
+    final priorityColor = r.priorityColor;
+    final scoreOutOf100 = r.priorityScoreOutOf100;
 
     final opdName = r.assignedAgency?['name'] ?? _inferOpd(r.categoryName);
 

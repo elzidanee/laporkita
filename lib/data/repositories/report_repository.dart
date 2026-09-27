@@ -28,6 +28,16 @@ class ReportRepository {
         _notificationRepository =
             notificationRepository ?? NotificationRepository();
 
+  void cacheReport(ReportModel report) {
+    _cachedReports[report.id] = report;
+  }
+
+  void cacheReports(Iterable<ReportModel> list) {
+    for (final r in list) {
+      _cachedReports[r.id] = r;
+    }
+  }
+
   List<ReportModel> get localSubmittedReports =>
       List.unmodifiable(_submittedReports);
 
@@ -213,6 +223,7 @@ class ReportRepository {
             supportCount: r.supportCount,
             viewCount: r.viewCount,
             urgencyScore: r.urgencyScore,
+            damageSeverity: r.damageSeverity,
             needsManualReview: isPending ? r.needsManualReview : false,
             createdAt: r.createdAt,
             updatedAt: overrideUpdatedAt,
@@ -399,6 +410,7 @@ class ReportRepository {
           supportCount: result.supportCount,
           viewCount: result.viewCount,
           urgencyScore: result.urgencyScore,
+          damageSeverity: result.damageSeverity,
           needsManualReview: overrideStatus == ReportStatus.pendingVerification
               ? result.needsManualReview
               : false,

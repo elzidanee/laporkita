@@ -115,15 +115,21 @@ class _GovernmentReportsScreenState extends State<GovernmentReportsScreen> {
 
       if (mounted) {
         final reports = results.data ?? [];
+        final listToUse = reports.isNotEmpty ? reports : _getFigmaMockReports();
+        reportRepo.cacheReports(listToUse);
         setState(() {
-          _allReports = reports.isNotEmpty ? reports : _getFigmaMockReports();
+          _allReports = listToUse;
           _isLoading = false;
         });
       }
     } catch (_) {
       if (mounted) {
+        final fallback = _getFigmaMockReports();
+        try {
+          context.read<ReportRepository>().cacheReports(fallback);
+        } catch (_) {}
         setState(() {
-          _allReports = _getFigmaMockReports();
+          _allReports = fallback;
           _isLoading = false;
         });
       }
@@ -145,11 +151,21 @@ class _GovernmentReportsScreenState extends State<GovernmentReportsScreen> {
         supportCount: 42,
         viewCount: 156,
         urgencyScore: 9.5,
+        damageSeverity: 0.95,
         needsManualReview: false,
         createdAt: DateTime(2026, 5, 12, 10, 30),
         updatedAt: DateTime(2026, 5, 12, 10, 30),
-        category: {'name': 'Jalan Rusak'},
-        assignedAgency: {'name': 'Dinas PUPR', 'acronym': 'DPUPR'},
+        category: const {'name': 'Jalan Rusak'},
+        assignedAgency: const {'name': 'Dinas PUPR', 'acronym': 'DPUPR'},
+        statusHistory: [
+          ReportStatusHistoryModel(
+            id: 'h-1',
+            reportId: 'rep-figma-1',
+            targetStatus: ReportStatus.inProgress,
+            note: 'Penugasan laporan ke Dinas PUPR (DPUPR) (Prioritas: Tinggi | Petugas: Andi Pratama)',
+            createdAt: DateTime(2026, 5, 12, 10, 30),
+          ),
+        ],
         directPhotoUrl:
             'https://images.unsplash.com/photo-1578916171728-46686eac8d58?q=80&w=600&auto=format&fit=crop',
       ),
@@ -165,12 +181,22 @@ class _GovernmentReportsScreenState extends State<GovernmentReportsScreen> {
         description: 'Atap dan bangku halte rusak parah terkena ranting pohon.',
         supportCount: 28,
         viewCount: 98,
-        urgencyScore: 6.5,
+        urgencyScore: 4.5,
+        damageSeverity: 0.55,
         needsManualReview: false,
         createdAt: DateTime(2026, 4, 4, 10, 23),
         updatedAt: DateTime(2026, 4, 4, 10, 23),
-        category: {'name': 'Halte rusak'},
-        assignedAgency: {'name': 'Dinas Perhubungan', 'acronym': 'Dishub'},
+        category: const {'name': 'Halte rusak'},
+        assignedAgency: const {'name': 'Dinas Perhubungan', 'acronym': 'Dishub'},
+        statusHistory: [
+          ReportStatusHistoryModel(
+            id: 'h-2',
+            reportId: 'rep-figma-2',
+            targetStatus: ReportStatus.assigned,
+            note: 'Penugasan laporan ke Dinas Perhubungan (Prioritas: Sedang)',
+            createdAt: DateTime(2026, 4, 4, 10, 23),
+          ),
+        ],
         directPhotoUrl:
             'https://images.unsplash.com/photo-1570125909232-eb263c188f7e?q=80&w=600&auto=format&fit=crop',
       ),
@@ -187,11 +213,21 @@ class _GovernmentReportsScreenState extends State<GovernmentReportsScreen> {
         supportCount: 35,
         viewCount: 140,
         urgencyScore: 9.0,
+        damageSeverity: 0.90,
         needsManualReview: false,
         createdAt: DateTime(2026, 5, 5, 11, 53),
         updatedAt: DateTime(2026, 5, 5, 11, 53),
-        category: {'name': 'Jalan Rusak'},
-        assignedAgency: {'name': 'Dinas PUPR', 'acronym': 'DPUPR'},
+        category: const {'name': 'Jalan Rusak'},
+        assignedAgency: const {'name': 'Dinas PUPR', 'acronym': 'DPUPR'},
+        statusHistory: [
+          ReportStatusHistoryModel(
+            id: 'h-3',
+            reportId: 'rep-figma-3',
+            targetStatus: ReportStatus.inProgress,
+            note: 'Penugasan laporan ke Dinas PUPR (Prioritas: Tinggi)',
+            createdAt: DateTime(2026, 5, 5, 11, 53),
+          ),
+        ],
         directPhotoUrl:
             'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?q=80&w=600&auto=format&fit=crop',
       ),
@@ -207,12 +243,22 @@ class _GovernmentReportsScreenState extends State<GovernmentReportsScreen> {
         description: 'Kaca pelindung dan tempat duduk halte bus hancur.',
         supportCount: 19,
         viewCount: 84,
-        urgencyScore: 6.0,
+        urgencyScore: 4.0,
+        damageSeverity: 0.50,
         needsManualReview: false,
         createdAt: DateTime(2026, 4, 28, 12, 41),
         updatedAt: DateTime(2026, 4, 28, 12, 41),
-        category: {'name': 'Halte bus rusak'},
-        assignedAgency: {'name': 'Dinas Perhubungan', 'acronym': 'Dishub'},
+        category: const {'name': 'Halte bus rusak'},
+        assignedAgency: const {'name': 'Dinas Perhubungan', 'acronym': 'Dishub'},
+        statusHistory: [
+          ReportStatusHistoryModel(
+            id: 'h-4',
+            reportId: 'rep-figma-4',
+            targetStatus: ReportStatus.assigned,
+            note: 'Penugasan laporan ke Dinas Perhubungan (Prioritas: Sedang)',
+            createdAt: DateTime(2026, 4, 28, 12, 41),
+          ),
+        ],
         directPhotoUrl:
             'https://images.unsplash.com/photo-1545558014-8692077e9b5c?q=80&w=600&auto=format&fit=crop',
       ),
@@ -228,17 +274,173 @@ class _GovernmentReportsScreenState extends State<GovernmentReportsScreen> {
         description: 'Paving block trotoar terangkat dan berserakan.',
         supportCount: 14,
         viewCount: 72,
-        urgencyScore: 7.2,
-        needsManualReview: false,
+        urgencyScore: 5.5,
+        damageSeverity: 0.65,
+        needsManualReview: true,
         createdAt: DateTime(2026, 4, 21, 11, 32),
         updatedAt: DateTime(2026, 4, 21, 11, 32),
-        category: {'name': 'Trotoar Rusak'},
-        assignedAgency: {'name': 'Dinas PUPR', 'acronym': 'DPUPR'},
+        category: const {'name': 'Trotoar Rusak'},
+        assignedAgency: const {'name': 'Dinas PUPR', 'acronym': 'DPUPR'},
+        statusHistory: [
+          ReportStatusHistoryModel(
+            id: 'h-5',
+            reportId: 'rep-figma-5',
+            targetStatus: ReportStatus.pendingVerification,
+            note: 'Menunggu review manual verifikator (Prioritas: Perlu Penanganan)',
+            createdAt: DateTime(2026, 4, 21, 11, 32),
+          ),
+        ],
         directPhotoUrl:
             'https://images.unsplash.com/photo-1513694203232-719a280e022f?q=80&w=600&auto=format&fit=crop',
       ),
+      ReportModel(
+        id: 'rep-figma-6',
+        reportCode: 'LP_2026_0024487',
+        reporterId: 'usr-1',
+        categoryId: 'cat-jalan',
+        status: ReportStatus.inProgress,
+        latitude: -6.382728,
+        longitude: 107.734682,
+        addressText: 'Jl. Ahmad Yani no. 15',
+        description: 'Jalan berlubang cukup dalam dan membahayakan pengendara.',
+        supportCount: 42,
+        viewCount: 156,
+        urgencyScore: 9.5,
+        damageSeverity: 0.95,
+        needsManualReview: false,
+        createdAt: DateTime(2026, 5, 12, 10, 30),
+        updatedAt: DateTime(2026, 5, 12, 10, 30),
+        category: const {'name': 'Jalan Rusak'},
+        assignedAgency: const {'name': 'Dinas PUPR', 'acronym': 'DPUPR'},
+        statusHistory: [
+          ReportStatusHistoryModel(
+            id: 'h-6',
+            reportId: 'rep-figma-6',
+            targetStatus: ReportStatus.inProgress,
+            note: 'Prioritas: Tinggi',
+            createdAt: DateTime(2026, 5, 12, 10, 30),
+          ),
+        ],
+        directPhotoUrl:
+            'https://images.unsplash.com/photo-1578916171728-46686eac8d58?q=80&w=600&auto=format&fit=crop',
+      ),
+      ReportModel(
+        id: 'rep-figma-7',
+        reportCode: 'LP_2026_0038217',
+        reporterId: 'usr-2',
+        categoryId: 'cat-halte',
+        status: ReportStatus.assigned,
+        latitude: -6.382728,
+        longitude: 107.278728,
+        addressText: 'Jl. soekarno hatta no.20 A',
+        description: 'Atap dan bangku halte rusak parah terkena ranting pohon.',
+        supportCount: 28,
+        viewCount: 98,
+        urgencyScore: 4.5,
+        damageSeverity: 0.55,
+        needsManualReview: false,
+        createdAt: DateTime(2026, 4, 4, 10, 23),
+        updatedAt: DateTime(2026, 4, 4, 10, 23),
+        category: const {'name': 'Halte rusak'},
+        assignedAgency: const {'name': 'Dinas Perhubungan', 'acronym': 'Dishub'},
+        statusHistory: [
+          ReportStatusHistoryModel(
+            id: 'h-7',
+            reportId: 'rep-figma-7',
+            targetStatus: ReportStatus.assigned,
+            note: 'Prioritas: Sedang',
+            createdAt: DateTime(2026, 4, 4, 10, 23),
+          ),
+        ],
+        directPhotoUrl:
+            'https://images.unsplash.com/photo-1570125909232-eb263c188f7e?q=80&w=600&auto=format&fit=crop',
+      ),
     ];
   }
+
+  // ── HELPER MAPPING & DETERMINASI BACKEND ────────────────────────────
+  String _getReportOpdName(ReportModel r) {
+    final agencyName =
+        (r.assignedAgency?['name'] as String? ?? '').toLowerCase();
+    final agencyType =
+        (r.assignedAgency?['type'] as String? ?? '').toLowerCase();
+    final agencyAcronym =
+        (r.assignedAgency?['acronym'] as String? ?? '').toLowerCase();
+    final cat = r.categoryName.toLowerCase();
+
+    if (agencyType.contains('pupr') ||
+        agencyAcronym.contains('pupr') ||
+        agencyName.contains('pupr') ||
+        agencyName.contains('pekerjaan umum') ||
+        cat.contains('jalan') ||
+        cat.contains('lubang') ||
+        cat.contains('jembatan')) {
+      return 'Dinas PUPR';
+    } else if (agencyType.contains('dishub') ||
+        agencyAcronym.contains('dishub') ||
+        agencyType.contains('perhubungan') ||
+        agencyName.contains('perhubungan') ||
+        cat.contains('halte') ||
+        cat.contains('rambu') ||
+        cat.contains('lampu') ||
+        cat.contains('lalu lintas')) {
+      return 'Dinas Perhubungan';
+    } else if (agencyType.contains('sda') ||
+        agencyName.contains('sda') ||
+        cat.contains('drainase') ||
+        cat.contains('banjir') ||
+        cat.contains('sungai')) {
+      return 'Dinas PU SDA';
+    } else if (agencyType.contains('dlh') ||
+        agencyName.contains('lingkungan') ||
+        cat.contains('sampah') ||
+        cat.contains('kebersihan')) {
+      return 'Dinas Lingkungan';
+    } else if (cat.contains('taman') || cat.contains('pohon')) {
+      return 'Dinas Pertamanan';
+    }
+    return 'Dinas PUPR';
+  }
+
+  bool _checkOpdMatch(ReportModel r, String filterOpd) {
+    if (filterOpd == 'Semua OPD' || filterOpd == 'OPD') return true;
+    final opdName = _getReportOpdName(r);
+    return opdName.toLowerCase() == filterOpd.toLowerCase();
+  }
+
+  bool _checkCategoryMatch(String reportCat, String filterCat) {
+    if (filterCat == 'Semua Kategori') return true;
+    final rCat = reportCat.toLowerCase();
+    final fCat = filterCat.toLowerCase();
+
+    if (fCat.contains('jalan') &&
+        (rCat.contains('jalan') ||
+            rCat.contains('lubang') ||
+            rCat.contains('aspal'))) {
+      return true;
+    }
+    if (fCat.contains('halte') && rCat.contains('halte')) {
+      return true;
+    }
+    if (fCat.contains('trotoar') &&
+        (rCat.contains('trotoar') || rCat.contains('pedestrian'))) {
+      return true;
+    }
+    if (fCat.contains('lampu') &&
+        (rCat.contains('lampu') || rCat.contains('penerangan'))) {
+      return true;
+    }
+    if (fCat.contains('drainase') &&
+        (rCat.contains('drainase') ||
+            rCat.contains('banjir') ||
+            rCat.contains('selokan'))) {
+      return true;
+    }
+    return rCat.contains(fCat) || fCat.contains(rCat);
+  }
+
+  /// Status prioritas riil disesuaikan dengan input dan metrik backend
+  String _getPriorityLabel(ReportModel r) => r.priorityLabel;
 
   // ── FILTERING LOGIC ────────────────────────────────────────────────
   List<ReportModel> get _filteredReports {
@@ -251,7 +453,9 @@ class _GovernmentReportsScreenState extends State<GovernmentReportsScreen> {
             r.categoryName.toLowerCase().contains(query) ||
             (r.addressText ?? '').toLowerCase().contains(query) ||
             (r.description ?? '').toLowerCase().contains(query) ||
-            r.reporterName.toLowerCase().contains(query);
+            r.reporterName.toLowerCase().contains(query) ||
+            _getReportOpdName(r).toLowerCase().contains(query) ||
+            _getPriorityLabel(r).toLowerCase().contains(query);
         if (!matchesQuery) return false;
       }
 
@@ -263,31 +467,17 @@ class _GovernmentReportsScreenState extends State<GovernmentReportsScreen> {
 
       // 3. OPD Filter (Row 1)
       if (_selectedOpd != 'Semua OPD') {
-        final agency =
-            r.assignedAgency?['name']?.toString().toLowerCase() ?? '';
-        final queryOpd = _selectedOpd.toLowerCase();
-        if (!agency.contains(queryOpd) && !queryOpd.contains(agency)) {
-          return false;
-        }
+        if (!_checkOpdMatch(r, _selectedOpd)) return false;
       }
 
       // 4. Category Filter (Row 2)
       if (_selectedCategory != 'Semua Kategori') {
-        final category = r.categoryName.toLowerCase();
-        final queryCat = _selectedCategory.toLowerCase();
-        if (!category.contains(queryCat) && !queryCat.contains(category)) {
-          return false;
-        }
+        if (!_checkCategoryMatch(r.categoryName, _selectedCategory)) return false;
       }
 
       // 5. Secondary OPD Filter (Row 2)
       if (_selectedOpdSecondary != 'OPD') {
-        final agency =
-            r.assignedAgency?['name']?.toString().toLowerCase() ?? '';
-        final queryOpd = _selectedOpdSecondary.toLowerCase();
-        if (!agency.contains(queryOpd) && !queryOpd.contains(agency)) {
-          return false;
-        }
+        if (!_checkOpdMatch(r, _selectedOpdSecondary)) return false;
       }
 
       // 6. Priority Filter (Row 2)
@@ -304,7 +494,9 @@ class _GovernmentReportsScreenState extends State<GovernmentReportsScreen> {
         if (_selectedFilterQuick == 'Terlama') {
           return a.createdAt.compareTo(b.createdAt);
         } else if (_selectedFilterQuick == 'Prioritas Tertinggi') {
-          return (b.urgencyScore ?? 0).compareTo(a.urgencyScore ?? 0);
+          final scoreA = (a.damageSeverity ?? 0) * 10 + (a.urgencyScore ?? 0);
+          final scoreB = (b.damageSeverity ?? 0) * 10 + (b.urgencyScore ?? 0);
+          return scoreB.compareTo(scoreA);
         } else if (_selectedFilterQuick == 'Paling Banyak Dukungan') {
           return b.supportCount.compareTo(a.supportCount);
         }
@@ -329,18 +521,6 @@ class _GovernmentReportsScreenState extends State<GovernmentReportsScreen> {
       default:
         return true;
     }
-  }
-
-  String _getPriorityLabel(ReportModel r) {
-    final urgency = r.urgencyScore ?? 5.0;
-    if (urgency >= 8.5) {
-      return 'Prioritas Tinggi';
-    } else if (urgency >= 7.0) {
-      return 'Perlu Penanganan';
-    } else if (urgency >= 5.0) {
-      return 'Sedang';
-    }
-    return 'Rendah';
   }
 
   void _handleBack() {
@@ -747,7 +927,7 @@ class _GovernmentReportsScreenState extends State<GovernmentReportsScreen> {
         Expanded(
           flex: 4,
           child: Container(
-            height: 32,
+            height: 36,
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(8.5),
@@ -785,7 +965,7 @@ class _GovernmentReportsScreenState extends State<GovernmentReportsScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.poppins(
-                          fontSize: 12,
+                          fontSize: 13,
                           fontWeight: FontWeight.w500,
                           color: const Color(0xFF515151),
                         ),
@@ -808,7 +988,7 @@ class _GovernmentReportsScreenState extends State<GovernmentReportsScreen> {
         Expanded(
           flex: 2,
           child: Container(
-            height: 32,
+            height: 36,
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(8.5),
@@ -846,7 +1026,7 @@ class _GovernmentReportsScreenState extends State<GovernmentReportsScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.poppins(
-                          fontSize: 12,
+                          fontSize: 13,
                           fontWeight: FontWeight.w500,
                           color: const Color(0xFF515151),
                         ),
@@ -869,7 +1049,7 @@ class _GovernmentReportsScreenState extends State<GovernmentReportsScreen> {
         Expanded(
           flex: 3,
           child: Container(
-            height: 32,
+            height: 36,
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(8.5),
@@ -907,7 +1087,7 @@ class _GovernmentReportsScreenState extends State<GovernmentReportsScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.poppins(
-                          fontSize: 12,
+                          fontSize: 13,
                           fontWeight: FontWeight.w500,
                           color: const Color(0xFF515151),
                         ),
@@ -931,8 +1111,7 @@ class _GovernmentReportsScreenState extends State<GovernmentReportsScreen> {
   // ── 5. REPORT CARD ITEM ────────────────────────────────────────────
   Widget _buildReportCard(ReportModel r) {
     final priority = _getPriorityLabel(r);
-    final opdName =
-        r.assignedAgency?['name']?.toString() ?? 'Dinas Terkait';
+    final opdName = _getReportOpdName(r);
 
     return Container(
       decoration: BoxDecoration(
@@ -965,83 +1144,89 @@ class _GovernmentReportsScreenState extends State<GovernmentReportsScreen> {
               children: [
                 // 1. Left Thumbnail with Geotag Stamp Overlay
                 _buildThumbnailWithStamp(r),
-                const SizedBox(width: 12),
+                const SizedBox(width: 13),
 
-                // 2. Middle & Right Info
+                // 2. Middle & Right Info (exact height 83px matching thumbnail)
                 Expanded(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Info Texts (Title, Address, Code)
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
+                  child: SizedBox(
+                    height: 83,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Left Column: Title, Address, Code
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    r.categoryName,
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black,
+                                      letterSpacing: 0.3,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    r.addressText ?? 'Jl. Ahmad Yani no. 15',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.normal,
+                                      color: const Color(0xFF333333),
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                              Text(
+                                _formatReportCode(r.reportCode),
+                                style: GoogleFonts.poppins(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: const Color(0xFF1D9C51),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+
+                        // Right Column: Priority Badge, Chevron, OPD
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              r.categoryName,
-                              style: GoogleFonts.poppins(
-                                fontSize: 14.5,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.black,
-                                letterSpacing: 0.3,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                            _buildPriorityBadge(priority),
+                            const Icon(
+                              Icons.chevron_right_rounded,
+                              size: 22,
+                              color: Color(0xFF515151),
                             ),
-                            const SizedBox(height: 3),
                             Text(
-                              r.addressText ?? 'Jl. Ahmad Yani no. 15',
+                              opdName,
                               style: GoogleFonts.poppins(
-                                fontSize: 11,
+                                fontSize: 9,
+                                color: const Color(0xFFA8A8A8),
                                 fontWeight: FontWeight.normal,
-                                color: const Color(0xFF333333),
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              _formatReportCode(r.reportCode),
-                              style: GoogleFonts.poppins(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                                color: const Color(0xFF1D9C51),
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
-                      ),
-                      const SizedBox(width: 8),
-
-                      // Meta Column (Priority Badge, Chevron, OPD)
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          _buildPriorityBadge(priority),
-                          const SizedBox(height: 10),
-                          const Icon(
-                            Icons.chevron_right_rounded,
-                            size: 20,
-                            color: Color(0xFF515151),
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            opdName,
-                            style: GoogleFonts.poppins(
-                              fontSize: 9.5,
-                              color: const Color(0xFFA8A8A8),
-                              fontWeight: FontWeight.normal,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -1054,11 +1239,15 @@ class _GovernmentReportsScreenState extends State<GovernmentReportsScreen> {
 
   // ── THUMBNAIL WITH GEOTAG STAMP OVERLAY ────────────────────────────
   Widget _buildThumbnailWithStamp(ReportModel r) {
-    return SizedBox(
+    return Container(
       width: 119,
-      height: 84,
-      child: ClipRRect(
+      height: 83,
+      decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFBEC4BD), width: 0.9),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(7.1),
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -1070,7 +1259,7 @@ class _GovernmentReportsScreenState extends State<GovernmentReportsScreen> {
               left: 3,
               bottom: 3,
               child: Container(
-                width: 72,
+                width: 76,
                 padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
                 decoration: BoxDecoration(
                   color: const Color(0x8C000000),
@@ -1088,7 +1277,7 @@ class _GovernmentReportsScreenState extends State<GovernmentReportsScreen> {
                         color: const Color(0x9942A54B),
                         borderRadius: BorderRadius.circular(3),
                         border: Border.all(
-                            color: const Color(0xFF62D26D), width: 0.2),
+                            color: const Color(0xFF62D26D), width: 0.15),
                       ),
                       child: const Text(
                         'LaporKita',
@@ -1303,7 +1492,9 @@ class _GovernmentReportsScreenState extends State<GovernmentReportsScreen> {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      height: 17,
+      padding: const EdgeInsets.symmetric(horizontal: 9),
+      alignment: Alignment.center,
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(15),
@@ -1311,8 +1502,8 @@ class _GovernmentReportsScreenState extends State<GovernmentReportsScreen> {
       child: Text(
         priority,
         style: GoogleFonts.poppins(
-          fontSize: 8.5,
-          fontWeight: FontWeight.w500,
+          fontSize: 8,
+          fontWeight: FontWeight.normal,
           color: textColor,
         ),
       ),

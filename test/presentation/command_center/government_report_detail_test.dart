@@ -217,5 +217,65 @@ void main() {
 
       expect(mockRepo.addCommentCalled, isTrue);
     });
+
+    testWidgets(
+        'Priority status in detail matches backend input (Prioritas Tinggi)',
+        (tester) async {
+      tester.view.physicalSize = const Size(412, 1400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final highPriorityReport = ReportModel(
+        id: 'rep-backend-high',
+        reportCode: 'LP_2026_009988',
+        reporterId: 'user-1',
+        categoryId: 'cat-1',
+        status: ReportStatus.inProgress,
+        latitude: -7.9540,
+        longitude: 112.6200,
+        addressText: 'Jl. Soekarno Hatta No. 88',
+        description: 'Jalan berlubang parah',
+        supportCount: 10,
+        viewCount: 50,
+        urgencyScore: 2.07, // Real backend score
+        damageSeverity: 0.75, // Severe damage from backend
+        needsManualReview: false,
+        createdAt: DateTime(2026, 5, 12, 10, 30),
+        updatedAt: DateTime(2026, 5, 12, 10, 30),
+        category: const {'name': 'Jalan Rusak'},
+        statusHistory: [
+          ReportStatusHistoryModel(
+            id: 'h-1',
+            reportId: 'rep-backend-high',
+            targetStatus: ReportStatus.inProgress,
+            note: 'Penugasan (Prioritas: Tinggi)',
+            createdAt: DateTime(2026, 5, 12, 10, 30),
+          ),
+        ],
+      );
+
+      final mockRepo = MockReportRepository();
+      await tester.pumpWidget(
+        MultiRepositoryProvider(
+          providers: [
+            RepositoryProvider<ReportRepository>.value(value: mockRepo),
+          ],
+          child: MaterialApp(
+            home: AdminReportDetailScreen(report: highPriorityReport),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Priority badge in header MUST be Prioritas Tinggi (NOT Rendah)
+      expect(find.text('Prioritas Tinggi'), findsOneWidget);
+      expect(find.text('Rendah'), findsNothing);
+
+      // Prioritas AI in attributes table MUST show Tinggi (NOT Rendah)
+      expect(find.textContaining('Tinggi'), findsWidgets);
+    });
   });
 }

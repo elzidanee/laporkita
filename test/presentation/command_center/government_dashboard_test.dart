@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:laporkita/core/network/api_response.dart';
 import 'package:laporkita/data/models/auth_token_model.dart';
@@ -114,9 +115,14 @@ void main() {
       expect(find.text('Dinas Lingkungan'), findsOneWidget);
       expect(find.text('Dinas Pertamanan'), findsOneWidget);
 
-      // 5. Peta sebaran laporan section
+      // 5. Peta sebaran laporan section (Real interactive FlutterMap)
       expect(find.text('Peta sebaran laporan'), findsOneWidget);
       expect(find.text('Lihat peta lengkap'), findsOneWidget);
+      expect(find.byType(FlutterMap), findsOneWidget);
+
+      // 6. AI Policy Intelligence Tools removed from dashboard
+      expect(find.text('AI Policy Intelligence Tools'), findsNothing);
+      expect(find.text('Policy Simulator'), findsNothing);
     });
 
     testWidgets('Renders 5-item Bottom Navigation Bar matching Figma 484:7833',

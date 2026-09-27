@@ -61,17 +61,13 @@ class _AdminVerificationActionScreenState
         ? widget.report.categoryName
         : 'Jalan Rusak';
 
-    // Inferred priority based on report urgency score if available
-    final rawScore = widget.report.urgencyScore;
-    if (rawScore != null) {
-      final score = rawScore <= 10.0 ? (rawScore * 10).round() : rawScore.round();
-      if (score >= 70) {
-        _selectedPriority = 'Tinggi';
-      } else if (score >= 40) {
-        _selectedPriority = 'Sedang';
-      } else {
-        _selectedPriority = 'Rendah';
-      }
+    final p = widget.report.priorityLabel;
+    if (p.contains('Tinggi')) {
+      _selectedPriority = 'Tinggi';
+    } else if (p.contains('Sedang') || p.contains('Penanganan')) {
+      _selectedPriority = 'Sedang';
+    } else if (p.contains('Rendah')) {
+      _selectedPriority = 'Rendah';
     }
   }
 

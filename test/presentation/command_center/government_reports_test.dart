@@ -139,5 +139,136 @@ void main() {
       // Verify pill updated
       expect(find.text('Sedang Diproses'), findsOneWidget);
     });
+
+    testWidgets(
+        'Backend priority status is correctly parsed from statusHistory note, damageSeverity, and urgencyScore',
+        (tester) async {
+      tester.view.physicalSize = const Size(412, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final customRepo = FakeBackendReportRepository(reports: [
+        ReportModel(
+          id: 'rep-real-1',
+          reportCode: 'LP_2026_000005',
+          reporterId: 'usr-real',
+          categoryId: 'cat-1',
+          status: ReportStatus.assigned,
+          latitude: -7.97813,
+          longitude: 112.656992,
+          addressText: 'Jl. Danau Ranau II No.20, Sawojajar, Kota Malang',
+          description: 'Jalan berlubang besar',
+          supportCount: 1,
+          viewCount: 10,
+          rawAiConfidenceScore: 0.88,
+          damageSeverity: 0.75,
+          urgencyScore: 2.07,
+          needsManualReview: false,
+          createdAt: DateTime.now().subtract(const Duration(hours: 3)),
+          updatedAt: DateTime.now(),
+          category: const {'name': 'Jalan Berlubang'},
+          assignedAgency: const {
+            'name':
+                'Dinas Pekerjaan Umum, Penataan Ruang, Perumahan dan Kawasan Permukiman (DPUPRPKP) Kota Malang',
+            'type': 'dpupr',
+          },
+          statusHistory: [
+            ReportStatusHistoryModel(
+              id: 'hist-1',
+              reportId: 'rep-real-1',
+              targetStatus: ReportStatus.assigned,
+              note:
+                  'Penugasan laporan ke Dinas PUPR (DPUPR) (Prioritas: Tinggi | Petugas: Andi Pratama)',
+              createdAt: DateTime.now(),
+            ),
+          ],
+        ),
+        ReportModel(
+          id: 'rep-real-2',
+          reportCode: 'LP_2026_000006',
+          reporterId: 'usr-real',
+          categoryId: 'cat-2',
+          status: ReportStatus.pendingVerification,
+          latitude: -7.98,
+          longitude: 112.63,
+          addressText: 'Jl. Ijen No. 12, Klojen, Kota Malang',
+          description: 'Trotoar amblas',
+          supportCount: 2,
+          viewCount: 12,
+          damageSeverity: 0.45,
+          urgencyScore: 3.5,
+          needsManualReview: true,
+          createdAt: DateTime.now().subtract(const Duration(hours: 1)),
+          updatedAt: DateTime.now(),
+          category: const {'name': 'Trotoar Rusak'},
+          assignedAgency: const {
+            'name': 'Dinas Pekerjaan Umum Kota Malang',
+            'type': 'dpupr',
+          },
+        ),
+      ]);
+
+      await tester.pumpWidget(
+        MultiRepositoryProvider(
+          providers: [
+            RepositoryProvider<ReportRepository>.value(value: customRepo),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: GovernmentReportsScreen(isEmbedded: false),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Verify real backend report values (appears in both thumbnail geotag and card body)
+      expect(find.text('#LP_2026_000005'), findsWidgets);
+      expect(find.text('Jalan Berlubang'), findsWidgets);
+      // Priority badge parsed from note & damage_severity (0.75)
+      expect(find.text('Prioritas Tinggi'), findsOneWidget);
+      // Mapped short OPD name from DPUPRPKP
+      expect(find.text('Dinas PUPR'), findsNWidgets(2));
+
+      // Second report with needsManualReview: true -> 'Perlu Penanganan'
+      expect(find.text('#LP_2026_000006'), findsWidgets);
+      expect(find.text('Perlu Penanganan'), findsOneWidget);
+
+      // Test Priority filter dropdown: select 'Prioritas Tinggi'
+      await tester.tap(find.text('Prioritas'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Prioritas Tinggi'), findsWidgets);
+      await tester.tap(find.text('Prioritas Tinggi').last);
+      await tester.pumpAndSettle();
+
+      // Now only the high-priority report is visible
+      expect(find.text('#LP_2026_000005'), findsWidgets);
+      expect(find.text('#LP_2026_000006'), findsNothing);
+    });
   });
 }
+
+class FakeBackendReportRepository extends Fake implements ReportRepository {
+  final List<ReportModel> reports;
+  FakeBackendReportRepository({required this.reports});
+
+  @override
+  Future<ApiResponse<List<ReportModel>>> getReports({
+    int limit = 20,
+    String? cursor,
+    String? status,
+    String? categoryId,
+    String? reporterId,
+    String sortBy = 'newest',
+  }) async {
+    return ApiResponse<List<ReportModel>>(
+      success: true,
+      data: reports,
+    );
+  }
+}
+

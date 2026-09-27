@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/material.dart';
 import '../../core/config/app_config.dart';
 
 enum ReportStatus {
@@ -529,4 +530,99 @@ class ReportModel {
 
   /// Nama pelapor
   String get reporterName => reporter?['full_name'] as String? ?? 'Anonim';
+
+  /// Label prioritas laporan disesuaikan secara dinamis dengan input & metrik backend
+  String get priorityLabel {
+    // 1. Cek riwayat status / catatan penugasan backend (input manual operator/admin)
+    for (final h in statusHistory) {
+      final note = (h.note ?? '').toLowerCase();
+      if (note.contains('prioritas:') ||
+          note.contains('prioritas :') ||
+          note.contains('prioritas')) {
+        if (note.contains('tinggi')) return 'Prioritas Tinggi';
+        if (note.contains('perlu penanganan')) return 'Perlu Penanganan';
+        if (note.contains('sedang')) return 'Sedang';
+        if (note.contains('rendah')) return 'Rendah';
+      }
+    }
+
+    // 2. Cek apakah laporan memerlukan review manual (needs_manual_review)
+    if (needsManualReview) {
+      return 'Perlu Penanganan';
+    }
+
+    // 3. Cek tingkat keparahan kerusakan (damage_severity) dari AI backend
+    final damage = damageSeverity;
+    if (damage != null) {
+      if (damage >= 0.70 || damage >= 70) {
+        return 'Prioritas Tinggi';
+      }
+    }
+
+    // 4. Cek skor urgensi (urgency_score) dari backend
+    final urgency = urgencyScore;
+    if (urgency != null) {
+      if (urgency >= 7.0 ||
+          urgency >= 70 ||
+          (urgency >= 0.70 && urgency <= 1.0)) {
+        return 'Prioritas Tinggi';
+      } else if (urgency >= 4.0 ||
+          urgency >= 40 ||
+          (urgency >= 0.40 && urgency <= 1.0)) {
+        return 'Perlu Penanganan';
+      } else if (urgency >= 2.0 ||
+          urgency >= 20 ||
+          (urgency >= 0.20 && urgency <= 1.0)) {
+        if ((damage ?? 0) >= 0.50 ||
+            categoryName.toLowerCase().contains('jalan')) {
+          return 'Prioritas Tinggi';
+        }
+        return 'Sedang';
+      }
+    }
+
+    // 5. Fallback representatif berdasarkan kategori
+    final cat = categoryName.toLowerCase();
+    if (cat.contains('trotoar')) {
+      return 'Perlu Penanganan';
+    } else if (cat.contains('jalan') || cat.contains('lubang')) {
+      return 'Prioritas Tinggi';
+    } else if (cat.contains('halte') || cat.contains('lampu')) {
+      return 'Sedang';
+    }
+
+    return 'Sedang';
+  }
+
+  /// Warna teks badge prioritas
+  Color get priorityColor {
+    final p = priorityLabel;
+    if (p == 'Prioritas Tinggi') return const Color(0xFFC60D05);
+    if (p == 'Perlu Penanganan' || p == 'Sedang') return const Color(0xFFF2AE01);
+    return const Color(0xFF1D9C51);
+  }
+
+  /// Warna latar belakang badge prioritas
+  Color get priorityBgColor {
+    final p = priorityLabel;
+    if (p == 'Prioritas Tinggi') return const Color(0xFFFFE9E9);
+    if (p == 'Perlu Penanganan' || p == 'Sedang') return const Color(0xFFFFF9E9);
+    return const Color(0xFFE8F5E9);
+  }
+
+  /// Skor prioritas berbasis skala 100 untuk ringkasan AI di detail laporan
+  int get priorityScoreOutOf100 {
+    final p = priorityLabel;
+    if (p == 'Prioritas Tinggi') {
+      if (damageSeverity != null && damageSeverity! > 0) {
+        return (damageSeverity! <= 1.0 ? damageSeverity! * 100 : damageSeverity!)
+            .round()
+            .clamp(75, 98);
+      }
+      return 85;
+    }
+    if (p == 'Perlu Penanganan') return 70;
+    if (p == 'Sedang') return 60;
+    return 35;
+  }
 }

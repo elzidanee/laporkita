@@ -1,8 +1,9 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../../core/theme/app_colors.dart';
+import 'package:latlong2/latlong.dart';
 import '../../../data/models/report_model.dart';
 import '../../../data/repositories/report_repository.dart';
 import '../../auth/bloc/auth_bloc.dart';
@@ -82,122 +83,6 @@ class _GovernmentDashboardScreenState
         setState(() => _isLoading = false);
       }
     }
-  }
-
-  void _showRiskPredictionModal() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          padding: const EdgeInsets.all(22.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.insights_rounded,
-                          color: Color(0xFFF2AE01), size: 24),
-                      const SizedBox(width: 10),
-                      Text(
-                        'Prediksi Risiko Wilayah (XGBoost)',
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.neutral900,
-                        ),
-                      ),
-                    ],
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded),
-                    onPressed: () => Navigator.pop(ctx),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Model AI XGBoost memprediksi indeks risiko banjir & kerusakan infrastruktur per kecamatan di Kota Malang:',
-                style: GoogleFonts.poppins(
-                    fontSize: 12, color: AppColors.neutral700),
-              ),
-              const SizedBox(height: 16),
-              _buildZoneRiskTile('Kecamatan Klojen', '0.78', 'RISIKO TINGGI',
-                  AppColors.statusDanger),
-              const SizedBox(height: 8),
-              _buildZoneRiskTile('Kecamatan Lowokwaru', '0.62', 'RISIKO SEDANG',
-                  const Color(0xFFF2AE01)),
-              const SizedBox(height: 8),
-              _buildZoneRiskTile('Kecamatan Blimbing', '0.55', 'RISIKO SEDANG',
-                  const Color(0xFFF2AE01)),
-              const SizedBox(height: 8),
-              _buildZoneRiskTile('Kecamatan Sukun', '0.30', 'RISIKO RENDAH',
-                  const Color(0xFF1D9C51)),
-              const SizedBox(height: 8),
-              _buildZoneRiskTile('Kecamatan Kedungkandang', '0.42',
-                  'RISIKO SEDANG', const Color(0xFFF2AE01)),
-              const SizedBox(height: 20),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildZoneRiskTile(
-      String zoneName, String riskIndex, String statusLabel, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.35)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                zoneName,
-                style: GoogleFonts.poppins(
-                    fontSize: 13, fontWeight: FontWeight.bold),
-              ),
-              Text(
-                'Indeks Risiko: $riskIndex',
-                style: GoogleFonts.poppins(
-                    fontSize: 11, color: AppColors.neutral700),
-              ),
-            ],
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              statusLabel,
-              style: GoogleFonts.poppins(
-                fontSize: 10,
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -392,11 +277,7 @@ class _GovernmentDashboardScreenState
 
                       // 4. Peta Sebaran Laporan Section
                       _buildPetaSebaranLaporan(),
-                      const SizedBox(height: 24),
-
-                      // 5. AI Policy Intelligence Quick Actions
-                      _buildAiPolicyToolsCard(),
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 28),
                     ],
                   ),
                 ),
@@ -1071,8 +952,116 @@ class _GovernmentDashboardScreenState
     return 'Dinas PUPR';
   }
 
-  // ── 4. PETA SEBARAN LAPORAN (FIGMA 484:6657) ──────────────────────
+  // ── 4. PETA SEBARAN LAPORAN (REAL FLUTTER_MAP) ────────────────────
   Widget _buildPetaSebaranLaporan() {
+    const centerPoint = LatLng(-7.983908, 112.621391); // Kota Malang
+
+    final List<Marker> markers = [];
+    if (_reports.isNotEmpty) {
+      for (final r in _reports) {
+        if (r.latitude != 0 && r.longitude != 0) {
+          final isTinggi = (r.urgencyScore != null &&
+                  (r.urgencyScore! >= 70 ||
+                      r.urgencyScore! >= 7.0 ||
+                      (r.damageSeverity != null &&
+                          r.damageSeverity! >= 0.70))) ||
+              r.status == ReportStatus.pendingVerification;
+          final isSedang = (r.urgencyScore != null &&
+                  (r.urgencyScore! >= 40 || r.urgencyScore! >= 4.0)) ||
+              r.status == ReportStatus.inProgress;
+
+          final color = isTinggi
+              ? const Color(0xFFC60D05)
+              : (isSedang
+                  ? const Color(0xFFF2AE01)
+                  : const Color(0xFF1D9C51));
+
+          markers.add(
+            Marker(
+              point: LatLng(r.latitude, r.longitude),
+              width: 32,
+              height: 32,
+              child: GestureDetector(
+                onTap: () => setState(() => _currentNavIndex = 3),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.25),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      Icons.priority_high_rounded,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+      }
+    }
+
+    if (markers.isEmpty) {
+      final defaultPoints = [
+        const LatLng(-7.975000, 112.628000), // Ahmad Yani / Klojen (Tinggi)
+        const LatLng(-7.982000, 112.618000), // Soekarno Hatta (Sedang)
+        const LatLng(-7.971000, 112.634000), // Blimbing (Rendah)
+        const LatLng(-7.992000, 112.616000), // Sukun (Sedang)
+        const LatLng(-7.990000, 112.632000), // Kedungkandang (Tinggi)
+      ];
+      final colors = [
+        const Color(0xFFC60D05),
+        const Color(0xFFF2AE01),
+        const Color(0xFF1D9C51),
+        const Color(0xFFF2AE01),
+        const Color(0xFFC60D05),
+      ];
+
+      for (int i = 0; i < defaultPoints.length; i++) {
+        markers.add(
+          Marker(
+            point: defaultPoints[i],
+            width: 32,
+            height: 32,
+            child: GestureDetector(
+              onTap: () => setState(() => _currentNavIndex = 3),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: colors[i],
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.25),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.priority_high_rounded,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+    }
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1113,113 +1102,73 @@ class _GovernmentDashboardScreenState
           ),
           const SizedBox(height: 14),
 
-          // Mini Map Graphic Container
-          InkWell(
-            onTap: () => setState(() => _currentNavIndex = 3),
+          // Real Interactive Map Container
+          ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: SizedBox(
-                height: 175,
-                width: double.infinity,
-                child: CustomPaint(
-                  size: const Size(double.infinity, 175),
-                  painter: _MiniMapPainter(),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+            child: SizedBox(
+              height: 190,
+              width: double.infinity,
+              child: Stack(
+                children: [
+                  FlutterMap(
+                    options: const MapOptions(
+                      initialCenter: centerPoint,
+                      initialZoom: 13.8,
+                      minZoom: 10.0,
+                      maxZoom: 18.0,
+                      interactionOptions: InteractionOptions(
+                        flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+                      ),
+                    ),
+                    children: [
+                      TileLayer(
+                        urlTemplate:
+                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        userAgentPackageName: 'com.laporkita.app',
+                      ),
+                      MarkerLayer(
+                        markers: markers,
+                      ),
+                    ],
+                  ),
 
-  // ── 5. AI POLICY INTELLIGENCE TOOLS CARD ──────────────────────────
-  Widget _buildAiPolicyToolsCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF0FDF4),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF86EFAC), width: 1.2),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.auto_awesome_rounded,
-                  color: Color(0xFF1D9C51), size: 20),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  'AI Policy Intelligence Tools',
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF14532D),
+                  // Overlay Button to open full map
+                  Positioned(
+                    bottom: 10,
+                    right: 10,
+                    child: Material(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      elevation: 2,
+                      child: InkWell(
+                        onTap: () => setState(() => _currentNavIndex = 3),
+                        borderRadius: BorderRadius.circular(20),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.fullscreen_rounded,
+                                  size: 16, color: Color(0xFF1D9C51)),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Perbesar',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFF1D9C51),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Simulasi kebijakan kota berbasis AI & evaluasi proyeksi risiko per wilayah secara prediktif.',
-            style: GoogleFonts.poppins(
-              fontSize: 11,
-              color: const Color(0xFF166534),
             ),
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              // 1. Policy Simulator Button
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () =>
-                      Navigator.pushNamed(context, '/policy-simulator'),
-                  icon: const Icon(Icons.psychology_rounded, size: 18),
-                  label: const Text('Policy Simulator'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1D9C51),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    textStyle: GoogleFonts.poppins(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              // 2. Risk Prediction Button
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _showRiskPredictionModal,
-                  icon: const Icon(Icons.insights_rounded,
-                      size: 18, color: Color(0xFFF2AE01)),
-                  label: const Text('Prediksi Risiko'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFB45309),
-                    side: const BorderSide(color: Color(0xFFFBBF24)),
-                    backgroundColor: Colors.white,
-                    textStyle: GoogleFonts.poppins(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-              ),
-            ],
           ),
         ],
       ),
@@ -1241,222 +1190,4 @@ class _OpdPerformance {
     required this.waktu,
     required this.kepuasan,
   });
-}
-
-/// Custom painter rendering the stylized mini-map preview of Kota Malang
-/// matching Figma Frame 484:6657 with roads, parks, river, and warning pins.
-class _MiniMapPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-
-    // 1. Base Map Color (Grey blocks)
-    final bgPaint = Paint()..color = const Color(0xFFE5E7EB);
-    canvas.drawRect(Rect.fromLTWH(0, 0, w, h), bgPaint);
-
-    // 2. Green Parks
-    final parkPaint = Paint()
-      ..color = const Color(0xFFD1FAE5)
-      ..style = PaintingStyle.fill;
-
-    // Top Right Park
-    final pathParkTopRight = Path()
-      ..moveTo(w * 0.58, 0)
-      ..lineTo(w * 0.75, 0)
-      ..lineTo(w * 0.70, h * 0.32)
-      ..lineTo(w * 0.54, h * 0.22)
-      ..close();
-    canvas.drawPath(pathParkTopRight, parkPaint);
-
-    // Right Edge Park
-    final pathParkRight = Path()
-      ..moveTo(w * 0.88, 0)
-      ..lineTo(w, 0)
-      ..lineTo(w, h * 0.85)
-      ..lineTo(w * 0.85, h * 0.85)
-      ..lineTo(w * 0.86, h * 0.52)
-      ..close();
-    canvas.drawPath(pathParkRight, parkPaint);
-
-    // Bottom Center Park
-    final pathParkBottom = Path()
-      ..moveTo(w * 0.52, h * 0.45)
-      ..lineTo(w * 0.76, h * 0.55)
-      ..lineTo(w * 0.70, h * 0.90)
-      ..lineTo(w * 0.48, h * 0.78)
-      ..close();
-    canvas.drawPath(pathParkBottom, parkPaint);
-
-    // 3. Water River Stream (Brantas river bend at bottom)
-    final riverPaint = Paint()
-      ..color = const Color(0xFFBAE6FD)
-      ..style = PaintingStyle.fill;
-    final riverPath = Path()
-      ..moveTo(0, h * 0.85)
-      ..quadraticBezierTo(w * 0.15, h * 0.65, w * 0.32, h * 0.72)
-      ..quadraticBezierTo(w * 0.45, h * 0.82, w * 0.58, h * 0.98)
-      ..lineTo(w * 0.60, h)
-      ..lineTo(0, h)
-      ..close();
-    canvas.drawPath(riverPath, riverPaint);
-
-    // 4. Roads (White lines with subtle border)
-    final roadBorderPaint = Paint()
-      ..color = const Color(0xFFCBD5E1)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 17
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    final roadSurfacePaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 14
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    final List<Path> roads = [
-      // Diagonal main road (Jl. Soekarno Hatta)
-      Path()
-        ..moveTo(w * 0.46, h * 0.98)
-        ..lineTo(w * 0.72, h * 0.15),
-      // East road (Jl. Ahmad Yasim)
-      Path()
-        ..moveTo(w * 0.60, h * 0.35)
-        ..lineTo(w * 0.98, h * 0.52),
-      // Sweeping south curved road (Jl. Ahmad Yani)
-      Path()
-        ..moveTo(w * 0.18, h * 0.78)
-        ..quadraticBezierTo(w * 0.35, h * 0.65, w * 0.58, h * 0.95),
-      // Left side connecting roads
-      Path()
-        ..moveTo(w * 0.05, h * 0.45)
-        ..lineTo(w * 0.30, h * 0.58)
-        ..lineTo(w * 0.54, h * 0.55),
-      Path()
-        ..moveTo(w * 0.30, h * 0.20)
-        ..quadraticBezierTo(w * 0.28, h * 0.42, w * 0.30, h * 0.75),
-      Path()
-        ..moveTo(w * 0.18, h * 0.10)
-        ..lineTo(w * 0.48, h * 0.35),
-      Path()
-        ..moveTo(w * 0.72, h * 0.15)
-        ..lineTo(w * 0.85, h * 0.32)
-        ..lineTo(w * 0.80, h * 0.75),
-      Path()
-        ..moveTo(w * 0.04, h * 0.28)
-        ..lineTo(w * 0.22, h * 0.78),
-    ];
-
-    for (final r in roads) {
-      canvas.drawPath(r, roadBorderPaint);
-    }
-    for (final r in roads) {
-      canvas.drawPath(r, roadSurfacePaint);
-    }
-
-    // 5. Warning Triangles (Orange & Red)
-    // Red markers
-    _drawWarningMarker(
-        canvas, Offset(w * 0.23, h * 0.73), const Color(0xFFEF4444));
-    _drawWarningMarker(
-        canvas, Offset(w * 0.75, h * 0.28), const Color(0xFFEF4444));
-
-    // Orange markers
-    _drawWarningMarker(
-        canvas, Offset(w * 0.27, h * 0.42), const Color(0xFFF59E0B));
-    _drawWarningMarker(
-        canvas, Offset(w * 0.41, h * 0.55), const Color(0xFFF59E0B));
-    _drawWarningMarker(
-        canvas, Offset(w * 0.61, h * 0.41), const Color(0xFFF59E0B));
-    _drawWarningMarker(
-        canvas, Offset(w * 0.52, h * 0.78), const Color(0xFFF59E0B));
-    _drawWarningMarker(
-        canvas, Offset(w * 0.87, h * 0.88), const Color(0xFFF59E0B));
-
-    // 6. Current GPS Location Puck
-    final puckCenter = Offset(w * 0.59, h * 0.53);
-
-    // Pulse ring
-    final pulsePaint = Paint()
-      ..color = const Color(0xFFBAE6FD).withValues(alpha: 0.85)
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(puckCenter, 11, pulsePaint);
-
-    // Center Blue dot
-    final centerPuckPaint = Paint()
-      ..color = const Color(0xFF1D70B8)
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(puckCenter, 5.5, centerPuckPaint);
-
-    // White dot inside
-    final innerDotPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(puckCenter, 2, innerDotPaint);
-
-    // 7. Street Labels painted with TextPainter
-    _drawStreetLabel(
-        canvas, Offset(w * 0.44, h * 0.45), 'Jl. soekarno hatta', -0.65);
-    _drawStreetLabel(
-        canvas, Offset(w * 0.72, h * 0.38), 'Jl. ahmad yasim', 0.35);
-    _drawStreetLabel(
-        canvas, Offset(w * 0.48, h * 0.88), 'Jl. Ahmad Yani', 0.40);
-  }
-
-  void _drawStreetLabel(
-      Canvas canvas, Offset pos, String text, double angle) {
-    final tp = TextPainter(
-      text: TextSpan(
-        text: text,
-        style: GoogleFonts.poppins(
-          fontSize: 8.5,
-          fontWeight: FontWeight.w600,
-          color: const Color(0xFF475569),
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-
-    canvas.save();
-    canvas.translate(pos.dx, pos.dy);
-    canvas.rotate(angle);
-    tp.paint(canvas, Offset(-tp.width / 2, -tp.height / 2));
-    canvas.restore();
-  }
-
-  void _drawWarningMarker(Canvas canvas, Offset center, Color color) {
-    const markerSize = 13.0;
-    final path = Path()
-      ..moveTo(center.dx, center.dy - markerSize * 0.6)
-      ..lineTo(center.dx + markerSize * 0.55, center.dy + markerSize * 0.5)
-      ..lineTo(center.dx - markerSize * 0.55, center.dy + markerSize * 0.5)
-      ..close();
-
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-    canvas.drawPath(path, paint);
-
-    // Exclamation mark
-    final textPainter = TextPainter(
-      text: const TextSpan(
-        text: '!',
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: 8.5,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    textPainter.paint(
-        canvas,
-        Offset(center.dx - textPainter.width / 2,
-            center.dy - textPainter.height / 2 + 1));
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
