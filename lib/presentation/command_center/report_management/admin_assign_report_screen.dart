@@ -84,6 +84,20 @@ class _AdminAssignReportScreenState extends State<AdminAssignReportScreen> {
   }
 
   Future<void> _submitAssignment() async {
+    final isCompleted = widget.report.status == ReportStatus.completed ||
+        widget.report.status == ReportStatus.resolved;
+    if (isCompleted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Laporan ini telah selesai dan tidak dapat ditugaskan atau diproses lagi.',
+            style: GoogleFonts.poppins(fontSize: 13),
+          ),
+          backgroundColor: _greenPrimary,
+        ),
+      );
+      return;
+    }
     if (_isSubmitting) return;
     setState(() => _isSubmitting = true);
 
@@ -133,6 +147,10 @@ class _AdminAssignReportScreenState extends State<AdminAssignReportScreen> {
   }
 
   void _showOpdPicker() {
+    if (widget.report.status == ReportStatus.completed ||
+        widget.report.status == ReportStatus.resolved) {
+      return;
+    }
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -216,6 +234,10 @@ class _AdminAssignReportScreenState extends State<AdminAssignReportScreen> {
   }
 
   void _showPetugasPicker() {
+    if (widget.report.status == ReportStatus.completed ||
+        widget.report.status == ReportStatus.resolved) {
+      return;
+    }
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -346,6 +368,9 @@ class _AdminAssignReportScreenState extends State<AdminAssignReportScreen> {
         ? report.addressText!
         : 'Jl. Ahmad Yani no. 15';
 
+    final isCompleted = report.status == ReportStatus.completed ||
+        report.status == ReportStatus.resolved;
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -424,20 +449,51 @@ class _AdminAssignReportScreenState extends State<AdminAssignReportScreen> {
                             vertical: 5,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFFF9E9),
+                            color: isCompleted
+                                ? const Color(0xFFE6F7ED)
+                                : const Color(0xFFFFF9E9),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
-                            'Sedang Diproses',
+                            isCompleted ? 'Selesai' : 'Sedang Diproses',
                             style: GoogleFonts.poppins(
                               fontSize: 11,
                               fontWeight: FontWeight.w400,
-                              color: _amberPrimary,
+                              color: isCompleted ? _greenPrimary : _amberPrimary,
                             ),
                           ),
                         ),
                       ],
                     ),
+
+                    if (isCompleted) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF0FDF4),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFF86EFAC)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.check_circle_rounded,
+                                color: Color(0xFF1D9C51), size: 22),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Laporan ini telah ditandai selesai sehingga tidak dapat diproses atau ditugaskan lagi.',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: const Color(0xFF166534),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
 
                     const SizedBox(height: 28),
 
@@ -751,6 +807,7 @@ class _AdminAssignReportScreenState extends State<AdminAssignReportScreen> {
                                   ),
                                   child: TextField(
                                     controller: _notesController,
+                                    enabled: !isCompleted,
                                     maxLines: 3,
                                     maxLength: 200,
                                     onChanged: (text) => setState(() {}),
@@ -798,38 +855,58 @@ class _AdminAssignReportScreenState extends State<AdminAssignReportScreen> {
               child: SizedBox(
                 width: double.infinity,
                 height: 49,
-                child: ElevatedButton(
-                  onPressed: _isSubmitting ? null : _submitAssignment,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _greenPrimary,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                      side: const BorderSide(
-                        color: Color(0xFFC9E1BF),
-                        width: 0.5,
-                      ),
-                    ),
-                  ),
-                  child: _isSubmitting
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2.5,
+                child: isCompleted
+                    ? ElevatedButton(
+                        onPressed: null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFE2E8F0),
+                          foregroundColor: const Color(0xFF94A3B8),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
                           ),
-                        )
-                      : Text(
-                          'Tugaskan Laporan',
+                        ),
+                        child: Text(
+                          'Laporan Sudah Selesai',
                           style: GoogleFonts.poppins(
                             fontSize: 17,
                             fontWeight: FontWeight.w500,
-                            color: Colors.white,
+                            color: const Color(0xFF94A3B8),
                           ),
                         ),
-                ),
+                      )
+                    : ElevatedButton(
+                        onPressed: _isSubmitting ? null : _submitAssignment,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _greenPrimary,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
+                            side: const BorderSide(
+                              color: Color(0xFFC9E1BF),
+                              width: 0.5,
+                            ),
+                          ),
+                        ),
+                        child: _isSubmitting
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2.5,
+                                ),
+                              )
+                            : Text(
+                                'Tugaskan Laporan',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.white,
+                                ),
+                              ),
+                      ),
               ),
             ),
           ],
@@ -922,7 +999,10 @@ class _AdminAssignReportScreenState extends State<AdminAssignReportScreen> {
 
     return Expanded(
       child: InkWell(
-        onTap: () => setState(() => _selectedPriority = label),
+        onTap: (widget.report.status == ReportStatus.completed ||
+                widget.report.status == ReportStatus.resolved)
+            ? null
+            : () => setState(() => _selectedPriority = label),
         borderRadius: BorderRadius.circular(25),
         child: Container(
           height: 42,

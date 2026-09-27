@@ -1175,8 +1175,19 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     required ReportStatus newStatus,
     String? note,
   }) async {
-    setState(() => _isUpdatingStatus = true);
     final messenger = ScaffoldMessenger.of(context);
+    if (_report?.status == ReportStatus.completed ||
+        _report?.status == ReportStatus.resolved) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Laporan ini telah selesai dan tidak dapat diproses lagi.'),
+          backgroundColor: AppColors.greenPrimary,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isUpdatingStatus = true);
     final repo = context.read<ReportRepository>();
     final reportBloc = context.read<ReportBloc>();
 

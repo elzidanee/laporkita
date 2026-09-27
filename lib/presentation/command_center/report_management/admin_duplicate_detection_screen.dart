@@ -516,6 +516,16 @@ class _AdminDuplicateDetectionScreenState
   // ── ACTION HANDLERS ────────────────────────────────────────────────
 
   Future<void> _handleNotDuplicate() async {
+    if (widget.currentReport.status == ReportStatus.completed ||
+        widget.currentReport.status == ReportStatus.resolved) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Laporan ini telah selesai dan tidak dapat diproses lagi.'),
+          backgroundColor: Color(0xFF1D9C51),
+        ),
+      );
+      return;
+    }
     final nav = Navigator.of(context);
     final result = await Navigator.push<bool>(
       context,
@@ -532,8 +542,18 @@ class _AdminDuplicateDetectionScreenState
   }
 
   Future<void> _handleDuplicate() async {
-    setState(() => _isProcessing = true);
     final scaffoldMessenger = ScaffoldMessenger.of(context);
+    if (widget.currentReport.status == ReportStatus.completed ||
+        widget.currentReport.status == ReportStatus.resolved) {
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(
+          content: Text('Laporan ini telah selesai dan tidak dapat diproses lagi.'),
+          backgroundColor: Color(0xFF1D9C51),
+        ),
+      );
+      return;
+    }
+    setState(() => _isProcessing = true);
     final nav = Navigator.of(context);
 
     try {

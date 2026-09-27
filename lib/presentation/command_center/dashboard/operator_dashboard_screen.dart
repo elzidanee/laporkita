@@ -170,6 +170,19 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
   }
 
   void _showUpdateStatusModal(ReportModel report) {
+    final isCompleted = report.status == ReportStatus.completed ||
+        report.status == ReportStatus.resolved;
+    if (isCompleted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Laporan ini telah selesai dan tidak dapat diproses atau ditindaklanjuti lagi.'),
+          backgroundColor: Color(0xFF1D9C51),
+        ),
+      );
+      return;
+    }
+
     ReportStatus targetStatus = report.status;
     final notesController = TextEditingController();
     String? completionPhotoPath;
@@ -700,12 +713,11 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
       case ReportStatus.inProgress:
         return [ReportStatus.completed];
       case ReportStatus.completed:
-        return [ReportStatus.resolved, ReportStatus.disputed];
-      case ReportStatus.disputed:
-        return [ReportStatus.inProgress, ReportStatus.completed];
       case ReportStatus.resolved:
       case ReportStatus.rejected:
         return [current];
+      case ReportStatus.disputed:
+        return [ReportStatus.inProgress, ReportStatus.completed];
     }
   }
 
@@ -1215,6 +1227,18 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: () async {
+            final isCompleted = r.status == ReportStatus.completed ||
+                r.status == ReportStatus.resolved;
+            if (isCompleted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                      'Laporan ini telah selesai dan tidak dapat diproses atau ditindaklanjuti lagi.'),
+                  backgroundColor: Color(0xFF1D9C51),
+                ),
+              );
+              return;
+            }
             if (r.needsManualReview) {
               final updated = await Navigator.push<ReportModel>(
                 context,
@@ -1327,28 +1351,54 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
                     ),
 
                     // Update Status Button CTA
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: statusColor.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.edit_note_rounded, size: 14, color: statusColor),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Update',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: statusColor,
+                    if (r.status == ReportStatus.completed ||
+                        r.status == ReportStatus.resolved)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE6F7ED),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            Icon(Icons.check_circle_outline_rounded,
+                                size: 14, color: Color(0xFF1D9C51)),
+                            SizedBox(width: 4),
+                            Text(
+                              'Selesai',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1D9C51),
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
+                      )
+                    else
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: statusColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.edit_note_rounded, size: 14, color: statusColor),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Update',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: statusColor,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ],

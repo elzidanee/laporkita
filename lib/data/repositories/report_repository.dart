@@ -535,19 +535,6 @@ class ReportRepository {
     final newStatusEnum = ReportStatus.fromString(newStatus);
     final now = DateTime.now();
 
-    ReportModel? updatedRemote;
-    try {
-      updatedRemote = await _datasource.updateReportStatus(
-        reportId,
-        newStatus,
-        notes: notes,
-        assignedAgencyId: assignedAgencyId,
-      );
-    } catch (e) {
-      debugPrint(
-          'ℹ️ [ReportRepository] updateReportStatus remote call notice: $e (Applying persistent verified sync)');
-    }
-
     ReportModel? old = existingReport ?? _cachedReports[reportId];
     if (old == null) {
       final subIdx = _submittedReports.indexWhere((r) => r.id == reportId);
@@ -560,6 +547,29 @@ class ReportRepository {
           old = mockList[mockIdx];
         }
       }
+    }
+
+    // Aturan Bisnis: Laporan yang sudah ditandai selesai tidak dapat diproses / ditindaklanjuti lagi
+    if (old != null &&
+        (old.status == ReportStatus.completed || old.status == ReportStatus.resolved) &&
+        newStatusEnum != ReportStatus.completed &&
+        newStatusEnum != ReportStatus.resolved) {
+      debugPrint(
+          '⚠️ [ReportRepository] Laporan ${old.reportCode} sudah selesai (${old.status.name}), tidak dapat diproses / ditindaklanjuti lagi.');
+      return old;
+    }
+
+    ReportModel? updatedRemote;
+    try {
+      updatedRemote = await _datasource.updateReportStatus(
+        reportId,
+        newStatus,
+        notes: notes,
+        assignedAgencyId: assignedAgencyId,
+      );
+    } catch (e) {
+      debugPrint(
+          'ℹ️ [ReportRepository] updateReportStatus remote call notice: $e (Applying persistent verified sync)');
     }
 
     ReportModel finalReport;

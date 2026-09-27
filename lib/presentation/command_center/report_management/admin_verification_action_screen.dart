@@ -330,25 +330,48 @@ class _AdminVerificationActionScreenState
         const SizedBox(width: 12),
 
         // Right Badge: Status (Figma Node 607:3316)
-        Container(
-          height: 28,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFF9E9),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text(
-            'Sedang Diproses',
-            style: GoogleFonts.poppins(
-              fontSize: 11,
-              fontWeight: FontWeight.w400,
-              color: const Color(0xFFF2AE01),
-              height: 1.0,
-            ),
-          ),
-        ),
+        _buildHeaderStatusBadge(),
       ],
+    );
+  }
+
+  Widget _buildHeaderStatusBadge() {
+    final status = widget.report.status;
+    Color bgColor = const Color(0xFFFFF9E9);
+    Color textColor = const Color(0xFFF2AE01);
+    String label = 'Sedang Diproses';
+
+    if (status == ReportStatus.completed || status == ReportStatus.resolved) {
+      bgColor = const Color(0xFFE6F7ED);
+      textColor = const Color(0xFF1D9C51);
+      label = 'Selesai';
+    } else if (status == ReportStatus.rejected) {
+      bgColor = const Color(0xFFFFEBEB);
+      textColor = const Color(0xFFE53935);
+      label = 'Ditolak';
+    } else if (status == ReportStatus.pendingVerification) {
+      bgColor = const Color(0xFFFFF8E6);
+      textColor = const Color(0xFFE68A00);
+      label = 'Menunggu Verifikasi';
+    }
+
+    return Container(
+      height: 28,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.poppins(
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
+          color: textColor,
+          height: 1.0,
+        ),
+      ),
     );
   }
 
@@ -572,12 +595,46 @@ class _AdminVerificationActionScreenState
     );
   }
 
-  // ── TAB 2: MANUAL REVIEW (Figma Node 554:511) ─────────────────────
-
   Widget _buildManualReviewTab() {
+    final isFinished = widget.report.status == ReportStatus.completed ||
+        widget.report.status == ReportStatus.resolved;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (isFinished) ...[
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0FDF4),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFF86EFAC), width: 1.0),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.check_circle_rounded,
+                  color: Color(0xFF1D9C51),
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Laporan ini telah selesai ditangani. Formulir ditampilkan dalam mode baca saja.',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
+                      color: const Color(0xFF166534),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+
         // 1. Card: Hasil Pemeriksaan Manual (Figma Node 607:3323)
         Container(
           width: double.infinity,
@@ -610,21 +667,27 @@ class _AdminVerificationActionScreenState
               _buildManualCheckItem(
                 title: 'Foto sesuai laporan',
                 value: _manualPhotoValid,
-                onChanged: (v) => setState(() => _manualPhotoValid = v),
+                onChanged: isFinished
+                    ? null
+                    : (v) => setState(() => _manualPhotoValid = v),
               ),
               const SizedBox(height: 12),
               // Checkbox 2: Lokasi sesuai (Figma Node 607:3340)
               _buildManualCheckItem(
                 title: 'Lokasi sesuai',
                 value: _manualGpsValid,
-                onChanged: (v) => setState(() => _manualGpsValid = v),
+                onChanged: isFinished
+                    ? null
+                    : (v) => setState(() => _manualGpsValid = v),
               ),
               const SizedBox(height: 12),
               // Checkbox 3: Laporan duplikat (Figma Node 607:3394)
               _buildManualCheckItem(
                 title: 'Laporan duplikat',
                 value: _manualIsDuplicate,
-                onChanged: (v) => setState(() => _manualIsDuplicate = v),
+                onChanged: isFinished
+                    ? null
+                    : (v) => setState(() => _manualIsDuplicate = v),
               ),
             ],
           ),
@@ -643,7 +706,7 @@ class _AdminVerificationActionScreenState
         ),
         const SizedBox(height: 10),
         InkWell(
-          onTap: _showCategoryPickerModal,
+          onTap: isFinished ? null : _showCategoryPickerModal,
           borderRadius: BorderRadius.circular(25),
           child: Container(
             height: 50,
@@ -667,9 +730,11 @@ class _AdminVerificationActionScreenState
                     ),
                   ),
                 ),
-                const Icon(
+                Icon(
                   Icons.keyboard_arrow_down_rounded,
-                  color: Color(0xFF515151),
+                  color: isFinished
+                      ? const Color(0xFFBDBDBD)
+                      : const Color(0xFF515151),
                   size: 24,
                 ),
               ],
@@ -691,11 +756,14 @@ class _AdminVerificationActionScreenState
         const SizedBox(height: 10),
         Row(
           children: [
-            _buildPriorityPill('Rendah', const Color(0xFF1D9C51)),
+            _buildPriorityPill('Rendah', const Color(0xFF1D9C51),
+                isEnabled: !isFinished),
             const SizedBox(width: 8),
-            _buildPriorityPill('Sedang', const Color(0xFFF2AE01)),
+            _buildPriorityPill('Sedang', const Color(0xFFF2AE01),
+                isEnabled: !isFinished),
             const SizedBox(width: 8),
-            _buildPriorityPill('Tinggi', const Color(0xFFC60D05)),
+            _buildPriorityPill('Tinggi', const Color(0xFFC60D05),
+                isEnabled: !isFinished),
           ],
         ),
 
@@ -764,7 +832,9 @@ class _AdminVerificationActionScreenState
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: isFinished
+                            ? const Color(0xFFF8FAFC)
+                            : Colors.white,
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
                             color: const Color(0xFFE0DFDF), width: 1.0),
@@ -773,6 +843,8 @@ class _AdminVerificationActionScreenState
                         children: [
                           TextField(
                             controller: _adminNotesController,
+                            enabled: !isFinished,
+                            readOnly: isFinished,
                             maxLines: 3,
                             maxLength: 200,
                             buildCounter: (_,
@@ -783,10 +855,14 @@ class _AdminVerificationActionScreenState
                             style: GoogleFonts.poppins(
                               fontSize: 13,
                               fontWeight: FontWeight.w400,
-                              color: Colors.black,
+                              color: isFinished
+                                  ? const Color(0xFF64748B)
+                                  : Colors.black,
                             ),
                             decoration: InputDecoration(
-                              hintText: 'Tambahkan catatan laporan.....',
+                              hintText: isFinished
+                                  ? 'Tidak ada catatan tambahan.'
+                                  : 'Tambahkan catatan laporan.....',
                               hintStyle: GoogleFonts.poppins(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w300,
@@ -828,10 +904,10 @@ class _AdminVerificationActionScreenState
   Widget _buildManualCheckItem({
     required String title,
     required bool value,
-    required ValueChanged<bool> onChanged,
+    required ValueChanged<bool>? onChanged,
   }) {
     return InkWell(
-      onTap: () => onChanged(!value),
+      onTap: onChanged != null ? () => onChanged(!value) : null,
       borderRadius: BorderRadius.circular(6),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
@@ -878,11 +954,13 @@ class _AdminVerificationActionScreenState
 
   // ── PRIORITY PILL (Figma Node 607:3425) ───────────────────────────
 
-  Widget _buildPriorityPill(String label, Color activeColor) {
+  Widget _buildPriorityPill(String label, Color activeColor,
+      {bool isEnabled = true}) {
     final isSelected = _selectedPriority == label;
     return Expanded(
       child: InkWell(
-        onTap: () => setState(() => _selectedPriority = label),
+        onTap:
+            isEnabled ? () => setState(() => _selectedPriority = label) : null,
         borderRadius: BorderRadius.circular(25),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
@@ -1241,6 +1319,83 @@ class _AdminVerificationActionScreenState
   // ── ACTION BUTTONS (Figma Node 554:601) ────────────────────────────
 
   Widget _buildActionButtons() {
+    final isFinished = widget.report.status == ReportStatus.completed ||
+        widget.report.status == ReportStatus.resolved;
+
+    if (isFinished) {
+      return Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0FDF4),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: const Color(0xFF86EFAC), width: 1.0),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.check_circle_rounded,
+                  color: Color(0xFF1D9C51),
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Laporan Selesai Ditangani',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF166534),
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        'Laporan ini telah ditandai selesai sehingga tidak dapat diproses atau ditindaklanjuti lagi.',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
+                          color: const Color(0xFF15803D),
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            height: 49,
+            child: OutlinedButton(
+              onPressed: () => Navigator.pop(context),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Color(0xFFE0DFDF), width: 1.0),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+              ),
+              child: Text(
+                'Kembali',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: const Color(0xFF515151),
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
     return Column(
       children: [
         // 1. Setujui & Teruskan (Figma Node 554:602)
@@ -1332,10 +1487,23 @@ class _AdminVerificationActionScreenState
   // ── ACTION LOGIC & DUPLICATE ROUTING ───────────────────────────────
 
   Future<void> _handleApproveAndForward() async {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    if (widget.report.status == ReportStatus.completed ||
+        widget.report.status == ReportStatus.resolved) {
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Laporan telah ditandai selesai dan tidak dapat diproses lebih lanjut.',
+          ),
+          backgroundColor: Color(0xFF64748B),
+        ),
+      );
+      return;
+    }
+
     setState(() => _isProcessing = true);
     final repo = context.read<ReportRepository>();
     final nav = Navigator.of(context);
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     try {
       // 1. Fetch live reports to check for candidate duplicates
@@ -1416,6 +1584,16 @@ class _AdminVerificationActionScreenState
   }
 
   void _showRejectDialog() {
+    if (widget.report.status == ReportStatus.completed ||
+        widget.report.status == ReportStatus.resolved) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Laporan ini telah selesai dan tidak dapat ditolak atau diproses lagi.'),
+          backgroundColor: Color(0xFF1D9C51),
+        ),
+      );
+      return;
+    }
     final reasonController = TextEditingController();
     showDialog(
       context: context,
@@ -1517,6 +1695,16 @@ class _AdminVerificationActionScreenState
   }
 
   void _showRevisionDialog() {
+    if (widget.report.status == ReportStatus.completed ||
+        widget.report.status == ReportStatus.resolved) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Laporan ini telah selesai dan tidak dapat direvisi atau diproses lagi.'),
+          backgroundColor: Color(0xFF1D9C51),
+        ),
+      );
+      return;
+    }
     final revisionController = TextEditingController();
     if (_adminNotesController.text.trim().isNotEmpty) {
       revisionController.text = _adminNotesController.text.trim();
