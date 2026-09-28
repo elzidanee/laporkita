@@ -1119,7 +1119,8 @@ class _AdminVerificationActionScreenState
               ),
             ),
           ),
-        );
+        ),
+      );
       },
     );
   }
