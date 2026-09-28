@@ -7,8 +7,5 @@ void main() async {
   final res = await req.close();
   final body = await res.transform(utf8.decoder).join();
   final swagger = jsonDecode(body);
-  print('POST /api/v1/reports:');
-  print(jsonEncode(swagger['paths']['/api/v1/reports']['post']));
-  print('POST /api/v1/reports/{id}/media:');
-  print(jsonEncode(swagger['paths']['/api/v1/reports/{id}/media']['post']));
+  print(jsonEncode(swagger['paths']['/api/v1/reports/{id}/media']));
 }

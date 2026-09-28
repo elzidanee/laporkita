@@ -247,9 +247,10 @@ class ReportRemoteDatasource {
     required String type,
   }) async {
     final compressedPath = await ImageUtils.compressIfNeeded(filePath);
+    final filename = '${type}_${DateTime.now().millisecondsSinceEpoch}.jpg';
     final formData = FormData.fromMap({
       'type': type,
-      'photo': await MultipartFile.fromFile(compressedPath),
+      'photo': await MultipartFile.fromFile(compressedPath, filename: filename),
     });
     final response = await _dioClient.post<Map<String, dynamic>>(
       '/reports/$reportId/media',

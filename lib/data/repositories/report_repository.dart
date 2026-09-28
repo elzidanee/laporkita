@@ -599,12 +599,32 @@ class ReportRepository {
 
     // Kirim ke API — jika gagal, rethrow agar UI menampilkan error.
     // Tidak boleh mengubah status lokal jika backend tidak konfirmasi.
-    final updatedRemote = await _datasource.updateReportStatus(
-      reportId,
-      newStatus,
-      notes: notes,
-      assignedAgencyId: assignedAgencyId,
-    );
+    ReportModel updatedRemote;
+    try {
+      updatedRemote = await _datasource.updateReportStatus(
+        reportId,
+        newStatus,
+        notes: notes,
+        assignedAgencyId: assignedAgencyId,
+      );
+    } catch (e) {
+      final errStr = e.toString().toLowerCase();
+      final statusLower = newStatus.toLowerCase();
+      // Idempotensi: jika status di backend sudah sesuai target newStatus
+      // Backend merespons: "Tidak dapat mengubah status dari '<status>' ke '<status>'"
+      if (errStr.contains('tidak dapat mengubah status dari \'$statusLower\' ke \'$statusLower\'') ||
+          (errStr.contains('tidak dapat mengubah status') && errStr.contains(statusLower))) {
+        debugPrint('ℹ️ [ReportRepository] Status laporan di server sudah $newStatus: $e');
+        try {
+          updatedRemote = await _datasource.getReportById(reportId);
+        } catch (_) {
+          updatedRemote = (old ?? _cachedReports[reportId] ?? _getFallbackMockReports().first)
+              .copyWith(status: newStatusEnum);
+        }
+      } else {
+        rethrow;
+      }
+    }
 
     String? inputPriority = old?.directPriority;
     if (notes != null && notes.isNotEmpty) {

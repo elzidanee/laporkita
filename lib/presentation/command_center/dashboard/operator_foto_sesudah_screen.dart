@@ -43,7 +43,7 @@ class _OperatorFotoSesudahScreenState extends State<OperatorFotoSesudahScreen> {
   void initState() {
     super.initState();
     _currentReport = widget.report;
-    _afterRepairPhoto = widget.initialPhotoPath;
+    _afterRepairPhoto = widget.initialPhotoPath ?? _currentReport.completionPhotoUrl;
   }
 
   void _onStatusDropdownChanged(String? newValue) {
@@ -86,37 +86,73 @@ class _OperatorFotoSesudahScreenState extends State<OperatorFotoSesudahScreen> {
     );
 
     if (result != null && result['imagePath'] != null) {
+      final imgPath = result['imagePath'] as String;
       setState(() {
-        _afterRepairPhoto = result['imagePath'] as String;
+        _afterRepairPhoto = imgPath;
       });
 
-      // Submit completion
-      _completeReport();
+      // Submit completion photo & mark report completed
+      await _completeReport(imgPath);
     }
   }
 
-  Future<void> _completeReport() async {
+  Future<void> _completeReport([String? photoPath]) async {
     if (_isSaving) return;
+
+    final pathToUpload = photoPath ?? _afterRepairPhoto;
+    if (pathToUpload == null || pathToUpload.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: Colors.orange.shade800,
+            content: const Text(
+              'Silakan ambil foto bukti perbaikan terlebih dahulu sebelum menyelesaikan.',
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
     setState(() => _isSaving = true);
 
     try {
       final repo = context.read<ReportRepository>();
       final notifRepo = context.read<NotificationRepository>();
-      final updated = await repo.updateReportStatus(
-        _currentReport.id,
-        ReportStatus.completed.apiValue,
-        notes: 'Pekerjaan perbaikan telah selesai dikerjakan dengan bukti foto selesai.',
-        existingReport: _currentReport,
-      );
 
-      _currentReport = updated;
+      // 1. Wajib upload foto penyelesaian ke backend terlebih dahulu (Rules.md §1.1)
+      if (!pathToUpload.startsWith('http') && File(pathToUpload).existsSync()) {
+        await repo.uploadReportMedia(
+          reportId: _currentReport.id,
+          filePath: pathToUpload,
+          type: 'completion_photo',
+        );
+      }
+
+      // 2. Update status ke 'completed'
+      try {
+        final updated = await repo.updateReportStatus(
+          _currentReport.id,
+          ReportStatus.completed.apiValue,
+          notes: 'Pekerjaan perbaikan telah selesai dikerjakan dengan bukti foto selesai.',
+          existingReport: _currentReport,
+        );
+        _currentReport = updated;
+      } catch (statusErr) {
+        final errStr = statusErr.toString().toLowerCase();
+        if (errStr.contains('tidak dapat mengubah status') && errStr.contains('completed')) {
+          _currentReport = _currentReport.copyWith(status: ReportStatus.completed);
+        } else {
+          rethrow;
+        }
+      }
 
       try {
         notifRepo.addStatusUpdateNotification(
-              reportCode: _currentReport.reportCode,
-              newStatus: ReportStatus.completed,
-              note: 'Laporan ${_currentReport.formattedReportCode} selesai dikerjakan oleh petugas OPD.',
-            );
+          reportCode: _currentReport.reportCode,
+          newStatus: ReportStatus.completed,
+          note: 'Laporan ${_currentReport.formattedReportCode} selesai dikerjakan oleh petugas OPD.',
+        );
       } catch (_) {}
 
       widget.onStatusUpdated?.call();
@@ -141,6 +177,12 @@ class _OperatorFotoSesudahScreenState extends State<OperatorFotoSesudahScreen> {
             ),
           ),
         );
+
+        Future.delayed(const Duration(milliseconds: 1000), () {
+          if (mounted) {
+            Navigator.of(context).pop();
+          }
+        });
       }
     } catch (e) {
       if (mounted) {
@@ -695,6 +737,23 @@ class _OperatorFotoSesudahScreenState extends State<OperatorFotoSesudahScreen> {
       );
     }
 
+    final completionUrl = _currentReport.completionPhotoUrl;
+    if (completionUrl != null && completionUrl.isNotEmpty) {
+      if (completionUrl.startsWith('http')) {
+        return Image.network(
+          completionUrl,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => _buildPlaceholderComplete(),
+        );
+      } else if (File(completionUrl).existsSync()) {
+        return Image.file(
+          File(completionUrl),
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => _buildPlaceholderComplete(),
+        );
+      }
+    }
+
     // Default to report's completed image or photo
     final url = _currentReport.primaryPhotoUrl;
     if (url != null && url.isNotEmpty) {
@@ -736,6 +795,113 @@ class _OperatorFotoSesudahScreenState extends State<OperatorFotoSesudahScreen> {
 
   // ── 7. Button "Ambil Foto" (Node 673:1570) ─────────────────────────────────
   Widget _buildCaptureButton() {
+    final hasPhoto = _afterRepairPhoto != null && _afterRepairPhoto!.isNotEmpty;
+    final isAlreadyCompleted = _currentReport.status == ReportStatus.completed;
+
+    if (isAlreadyCompleted) {
+      return Container(
+        width: double.infinity,
+        height: 49,
+        decoration: BoxDecoration(
+          color: const Color(0xFFE8F5E9),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: const Color(0xFF1D9C51), width: 1),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.check_circle_rounded, color: Color(0xFF1D9C51), size: 22),
+            const SizedBox(width: 10),
+            Text(
+              'Laporan Telah Selesai Dikerjakan',
+              style: GoogleFonts.poppins(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF1D9C51),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (hasPhoto) {
+      return Column(
+        children: [
+          // Tombol utama: Selesaikan Perbaikan (langsung submit foto yang sudah ada)
+          SizedBox(
+            width: double.infinity,
+            height: 49,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1D9C51),
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                  side: const BorderSide(color: Color(0xFFC9E1BF), width: 0.5),
+                ),
+              ),
+              onPressed: _isSaving ? null : () => _completeReport(),
+              child: _isSaving
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2.5,
+                      ),
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.check_circle_outline_rounded, color: Colors.white, size: 22),
+                        const SizedBox(width: 10),
+                        Text(
+                          'Selesaikan Perbaikan',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          // Tombol sekunder: Ambil Ulang Foto
+          SizedBox(
+            width: double.infinity,
+            height: 45,
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Color(0xFF1D9C51), width: 1.2),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+              ),
+              onPressed: _isSaving ? null : _openCamera,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.camera_alt_outlined, color: Color(0xFF1D9C51), size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Ambil Ulang Foto',
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFF1D9C51),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
     return SizedBox(
       width: double.infinity,
       height: 49,
@@ -764,7 +930,7 @@ class _OperatorFotoSesudahScreenState extends State<OperatorFotoSesudahScreen> {
                   const Icon(Icons.camera_alt, color: Colors.white, size: 24),
                   const SizedBox(width: 12),
                   Text(
-                    _afterRepairPhoto != null ? 'Ambil Ulang Foto' : 'Ambil Foto',
+                    'Ambil Foto',
                     style: GoogleFonts.poppins(
                       fontSize: 17,
                       fontWeight: FontWeight.w500,

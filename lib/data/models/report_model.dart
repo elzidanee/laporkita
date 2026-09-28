@@ -682,4 +682,20 @@ class ReportModel {
     }
     return null;
   }
+
+  /// URL foto bukti penyelesaian (completion_photo)
+  String? get completionPhotoUrl {
+    if (media.isNotEmpty) {
+      final completion = media.where(
+        (m) =>
+            m.type == 'completion_photo' &&
+            m.url.isNotEmpty &&
+            !m.url.contains('storage.example.com'),
+      );
+      if (completion.isNotEmpty) return completion.first.url;
+      final anyCompletion = media.where((m) => m.type == 'completion_photo' && m.url.isNotEmpty);
+      if (anyCompletion.isNotEmpty) return anyCompletion.first.url;
+    }
+    return null;
+  }
 }
