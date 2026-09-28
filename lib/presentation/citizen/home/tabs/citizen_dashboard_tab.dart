@@ -34,8 +34,12 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
       if (mounted) setState(() {});
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Muat laporan terlebih dahulu, lalu panggil risk prediction
+      // setelah delay singkat agar tidak racing satu sama lain di UI thread
       context.read<ReportBloc>().add(const ReportLoadRequested());
-      _fetchRiskPrediction();
+      Future.delayed(const Duration(milliseconds: 200), () {
+        if (mounted) _fetchRiskPrediction();
+      });
     });
   }
 

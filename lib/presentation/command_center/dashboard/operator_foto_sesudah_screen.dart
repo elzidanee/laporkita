@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../core/network/api_exception.dart';
 import '../../../data/models/report_model.dart';
 import '../../../data/repositories/report_repository.dart';
 import '../../../data/repositories/notification_repository.dart';
@@ -143,10 +144,11 @@ class _OperatorFotoSesudahScreenState extends State<OperatorFotoSesudahScreen> {
       }
     } catch (e) {
       if (mounted) {
+        final errorMsg = e is ApiException ? e.message : e.toString();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: Colors.red.shade700,
-            content: Text('Gagal menyelesaikan perbaikan: $e'),
+            content: Text('Gagal menyelesaikan perbaikan: $errorMsg'),
           ),
         );
       }

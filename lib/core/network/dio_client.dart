@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../config/app_config.dart';
 import 'api_response.dart';
@@ -13,6 +14,22 @@ class DioClient {
   late final Dio _dio;
   final FlutterSecureStorage _storage;
   bool _isRefreshing = false;
+  DateTime? _refreshStartTime; // Guard: auto-reset jika refresh hang >15 detik
+  String? _inMemoryRefreshToken; // Cache in-memory agar tidak bergantung Keystore saat refresh
+
+  /// Set refresh token ke in-memory cache.
+  /// Dipanggil oleh AuthRemoteDatasource.saveTokens() setelah login/verifyOtp/refresh.
+  void cacheRefreshToken(String token) {
+    if (token.isNotEmpty) {
+      _inMemoryRefreshToken = token;
+      debugPrint('💡 [DioClient] Refresh token cached in-memory');
+    }
+  }
+
+  /// Hapus in-memory refresh token saat logout
+  void clearCachedRefreshToken() {
+    _inMemoryRefreshToken = null;
+  }
 
   DioClient._internal(this._storage) {
     _dio = Dio(
@@ -102,6 +119,16 @@ class DioClient {
     final apiError = _parseErrorResponse(response);
 
     // Auto-refresh jika 401 DAN bukan endpoint auth itu sendiri
+    // Guard: reset _isRefreshing jika sudah hang >15 detik (mencegah stuck forever)
+    final refreshAge = _refreshStartTime != null
+        ? DateTime.now().difference(_refreshStartTime!).inSeconds
+        : 999;
+    if (_isRefreshing && refreshAge > 15) {
+      debugPrint('⚠️ [DioClient] _isRefreshing stuck >15s — force reset');
+      _isRefreshing = false;
+      _refreshStartTime = null;
+    }
+
     if (response.statusCode == 401 &&
         !err.requestOptions.path.contains('/auth/') &&
         !_isRefreshing) {
@@ -162,10 +189,20 @@ class DioClient {
     ApiError originalError,
   ) async {
     _isRefreshing = true;
+    _refreshStartTime = DateTime.now();
     try {
-      final refreshToken = await _storage.read(key: AppConfig.refreshTokenKey);
-      if (refreshToken == null) {
+      // Prioritaskan in-memory cache (reliable), fallback ke FlutterSecureStorage
+      final refreshToken = (_inMemoryRefreshToken?.isNotEmpty == true)
+          ? _inMemoryRefreshToken!
+          : (await _storage.read(key: AppConfig.refreshTokenKey) ?? '');
+
+      debugPrint('🔄 [DioClient] Attempting token refresh...'
+          ' inMemory=${_inMemoryRefreshToken?.isNotEmpty == true}'
+          ' storage=${refreshToken.isNotEmpty}');
+      if (refreshToken.isEmpty) {
+        debugPrint('❌ [DioClient] No refresh token available — cannot refresh');
         _isRefreshing = false;
+        _refreshStartTime = null;
         return false;
       }
 
@@ -173,8 +210,8 @@ class DioClient {
       final refreshDio = Dio(
         BaseOptions(
           baseUrl: AppConfig.baseUrl,
-          connectTimeout: const Duration(seconds: 4),
-          receiveTimeout: const Duration(seconds: 10),
+          connectTimeout: const Duration(seconds: 6),
+          receiveTimeout: const Duration(seconds: 12),
           sendTimeout: const Duration(seconds: 10),
           headers: {'Content-Type': 'application/json'},
         ),
@@ -185,28 +222,42 @@ class DioClient {
         data: {'refresh_token': refreshToken},
       );
 
-      // Ambil token baru dari data envelope
+      // Backend mengembalikan envelope: { success, data: { access_token, refresh_token, ... } }
+      // atau kadang flat: { access_token, refresh_token, ... }
       final respData = refreshResp.data;
-      final tokenData = respData is Map<String, dynamic>
-          ? (respData['data'] as Map<String, dynamic>?)
-          : null;
+      debugPrint('🔄 [DioClient] Refresh response data: $respData');
+      String? newAccessToken;
+      String? newRefreshToken;
 
-      if (tokenData == null) {
+      if (respData is Map<String, dynamic>) {
+        // Format 1: envelope { success: true, data: { access_token, ... } }
+        final inner = respData['data'];
+        if (inner is Map<String, dynamic>) {
+          newAccessToken = inner['access_token'] as String?;
+          newRefreshToken = inner['refresh_token'] as String?;
+        }
+        // Format 2: flat response langsung di root { access_token, ... }
+        if (newAccessToken == null) {
+          newAccessToken = respData['access_token'] as String?;
+          newRefreshToken = respData['refresh_token'] as String?;
+        }
+        // Format 3: field 'token' sebagai fallback
+        newAccessToken ??= respData['token'] as String?;
+      }
+
+      if (newAccessToken == null || newAccessToken.isEmpty) {
+        debugPrint('❌ [DioClient] Could not extract access_token from refresh response');
         _isRefreshing = false;
+        _refreshStartTime = null;
         return false;
       }
 
-      final newAccessToken = tokenData['access_token'] as String?;
-      final newRefreshToken = tokenData['refresh_token'] as String?;
-
-      if (newAccessToken == null) {
-        _isRefreshing = false;
-        return false;
-      }
-
+      debugPrint('✅ [DioClient] Token refreshed successfully');
       await _storage.write(key: AppConfig.accessTokenKey, value: newAccessToken);
-      if (newRefreshToken != null) {
+      if (newRefreshToken != null && newRefreshToken.isNotEmpty) {
         await _storage.write(key: AppConfig.refreshTokenKey, value: newRefreshToken);
+        // Update in-memory cache dengan refresh token baru
+        _inMemoryRefreshToken = newRefreshToken;
       }
 
       // Retry request original dengan token baru
@@ -214,12 +265,23 @@ class DioClient {
       final retryResp = await _dio.fetch(err.requestOptions);
       handler.resolve(retryResp);
       _isRefreshing = false;
+      _refreshStartTime = null;
       return true;
-    } catch (_) {
-      // Refresh gagal — hapus token (session expired)
-      await _storage.delete(key: AppConfig.accessTokenKey);
-      await _storage.delete(key: AppConfig.refreshTokenKey);
+    } on DioException catch (e) {
+      debugPrint('❌ [DioClient] Refresh DioException: ${e.response?.statusCode} ${e.message}');
+      // Jika refresh endpoint sendiri mengembalikan 401/403 → refresh token expired
+      if (e.response?.statusCode == 401 || e.response?.statusCode == 403) {
+        await _storage.delete(key: AppConfig.accessTokenKey);
+        await _storage.delete(key: AppConfig.refreshTokenKey);
+        _inMemoryRefreshToken = null; // Bersihkan in-memory juga
+      }
       _isRefreshing = false;
+      _refreshStartTime = null;
+      return false;
+    } catch (e) {
+      debugPrint('❌ [DioClient] Refresh unexpected error: $e');
+      _isRefreshing = false;
+      _refreshStartTime = null;
       return false;
     }
   }

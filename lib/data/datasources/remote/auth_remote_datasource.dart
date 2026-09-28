@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:laporkita/core/network/dio_client.dart';
 import 'package:laporkita/core/config/app_config.dart';
@@ -168,6 +169,10 @@ class AuthRemoteDatasource {
   }
 
   Future<void> saveTokens(AuthTokenModel tokens) async {
+    debugPrint('💾 [AuthDatasource] saveTokens:'
+        ' accessToken=${tokens.accessToken.isNotEmpty ? "${tokens.accessToken.substring(0, tokens.accessToken.length.clamp(0, 20))}..." : "EMPTY"}'
+        ' refreshToken=${tokens.refreshToken.isNotEmpty ? "${tokens.refreshToken.substring(0, tokens.refreshToken.length.clamp(0, 20))}..." : "⚠️ EMPTY - backend tidak kirim refresh_token!"}'
+        ' role=${tokens.user.role.toApiString()}');
     await Future.wait([
       _storage.write(
           key: AppConfig.accessTokenKey, value: tokens.accessToken),
@@ -175,13 +180,19 @@ class AuthRemoteDatasource {
           key: AppConfig.refreshTokenKey, value: tokens.refreshToken),
       _storage.write(key: AppConfig.userIdKey, value: tokens.user.id),
       _storage.write(
-          key: AppConfig.userRoleKey, value: tokens.user.role.name),
+          key: AppConfig.userRoleKey, value: tokens.user.role.toApiString()),
       _storage.write(
           key: cachedUserKey, value: jsonEncode(tokens.user.toJson())),
     ]);
+    // Cache refresh token in-memory di DioClient agar auto-refresh tidak bergantung
+    // pada Android Keystore (FlutterSecureStorage kadang return null dari context berbeda)
+    if (tokens.refreshToken.isNotEmpty) {
+      _dioClient.cacheRefreshToken(tokens.refreshToken);
+    }
   }
 
   Future<void> clearTokens() async {
+    _dioClient.clearCachedRefreshToken(); // Bersihkan in-memory cache
     await Future.wait([
       _storage.delete(key: AppConfig.accessTokenKey),
       _storage.delete(key: AppConfig.refreshTokenKey),

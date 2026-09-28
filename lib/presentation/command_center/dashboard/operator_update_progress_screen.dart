@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../core/network/api_exception.dart';
 import '../../../data/models/report_model.dart';
 import '../../../data/repositories/report_repository.dart';
 import '../../../data/repositories/notification_repository.dart';
@@ -142,23 +143,44 @@ class _OperatorUpdateProgressScreenState
       final isCompleted = _progressPercentage >= 100 || _selectedStatus == 'Selesai Dikerjakan';
       final targetStatus = isCompleted ? ReportStatus.completed : ReportStatus.inProgress;
 
-      final updated = await repo.updateReportStatus(
-        _currentReport.id,
-        targetStatus.apiValue,
-        notes: _descController.text.trim().isNotEmpty
-            ? _descController.text.trim()
-            : 'Progress pengerjaan: ${_progressPercentage.toInt()}%',
-        existingReport: _currentReport,
-      );
+      // Cek apakah status benar-benar berubah.
+      // Backend menolak transisi ke status yang sama (in_progress → in_progress).
+      // Jika status tidak berubah, cukup upload foto tanpa memanggil status endpoint.
+      final statusWillChange = targetStatus != _currentReport.status;
 
-      _currentReport = updated;
+      if (statusWillChange) {
+        final updated = await repo.updateReportStatus(
+          _currentReport.id,
+          targetStatus.apiValue,
+          notes: _descController.text.trim().isNotEmpty
+              ? _descController.text.trim()
+              : 'Progress pengerjaan: ${_progressPercentage.toInt()}%',
+          existingReport: _currentReport,
+        );
+        _currentReport = updated;
+      }
+
+      // Upload foto progress via media endpoint
+      for (final photoPath in _progressPhotos) {
+        try {
+          await repo.uploadReportMedia(
+            reportId: _currentReport.id,
+            filePath: photoPath,
+            type: 'progress',
+          );
+        } catch (photoErr) {
+          debugPrint('warning [UpdateProgress] Gagal upload foto: $photoErr');
+        }
+      }
 
       try {
         notifRepo.addStatusUpdateNotification(
-              reportCode: _currentReport.reportCode,
-              newStatus: targetStatus,
-              note: 'Progress laporan ${_currentReport.formattedReportCode} diperbarui ke ${_progressPercentage.toInt()}%.',
-            );
+          reportCode: _currentReport.reportCode,
+          newStatus: targetStatus,
+          note: statusWillChange
+              ? 'Status laporan ${_currentReport.formattedReportCode} diubah ke ${targetStatus.displayName}.'
+              : 'Progress laporan ${_currentReport.formattedReportCode} diperbarui ke ${_progressPercentage.toInt()}%.',
+        );
       } catch (_) {}
 
       widget.onStatusUpdated?.call();
@@ -175,7 +197,9 @@ class _OperatorUpdateProgressScreenState
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Progress (${_progressPercentage.toInt()}%) berhasil disimpan!',
+                    isCompleted
+                        ? 'Pengerjaan selesai! Progress ${_progressPercentage.toInt()}%.'
+                        : 'Progress (${_progressPercentage.toInt()}%) berhasil disimpan!',
                     style: GoogleFonts.poppins(color: Colors.white, fontSize: 13),
                   ),
                 ),
@@ -200,10 +224,11 @@ class _OperatorUpdateProgressScreenState
       }
     } catch (e) {
       if (mounted) {
+        final errorMsg = e is ApiException ? e.message : e.toString();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: Colors.red.shade700,
-            content: Text('Gagal menyimpan progress: $e'),
+            content: Text('Gagal menyimpan progress: $errorMsg'),
           ),
         );
       }

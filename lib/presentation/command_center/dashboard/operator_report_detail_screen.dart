@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
+import '../../../core/network/api_exception.dart';
 import '../../../data/models/report_model.dart';
 import '../../../data/repositories/report_repository.dart';
 import '../../../data/repositories/notification_repository.dart';
@@ -150,6 +151,21 @@ class _OperatorReportDetailScreenState
 
     try {
       final repo = context.read<ReportRepository>();
+
+      // Sesuai state machine Rules.md §1.1 & intruksi.md:
+      // Alur: verified -> assigned -> in_progress -> completed.
+      // Jika status laporan masih verified dan operator memilih in_progress,
+      // lakukan transisi assigned terlebih dahulu agar backend tidak menolak (409 Conflict).
+      if (_currentReport.status == ReportStatus.verified &&
+          newStatus == ReportStatus.inProgress) {
+        await repo.updateReportStatus(
+          _currentReport.id,
+          ReportStatus.assigned.apiValue,
+          notes: 'Laporan ditugaskan ke operator lapangan.',
+          existingReport: _currentReport,
+        );
+      }
+
       final updated = await repo.updateReportStatus(
         _currentReport.id,
         newStatus.apiValue,
@@ -197,13 +213,33 @@ class _OperatorReportDetailScreenState
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _isUpdating = false);
+        setState(() {
+          _isUpdating = false;
+          _selectedStatus = _mapToOperatorStatus(_currentReport.status);
+        });
+
+        final isAuthErr = e is ApiException &&
+            (e.isTokenInvalid || e.code == 'UNAUTHORIZED' || e.statusCode == 401);
+        final errorMsg = isAuthErr
+            ? 'Sesi tidak terautentikasi atau kedaluwarsa. Silakan login kembali dengan akun Petugas/Operator.'
+            : (e is ApiException ? e.message : e.toString());
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: Colors.red.shade700,
             behavior: SnackBarBehavior.floating,
+            action: isAuthErr
+                ? SnackBarAction(
+                    label: 'Login',
+                    textColor: Colors.white,
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/login',
+                          arguments: 'CommandCenter');
+                    },
+                  )
+                : null,
             content: Text(
-              'Gagal memperbarui status: $e',
+              'Gagal memperbarui status: $errorMsg',
               style: GoogleFonts.poppins(color: Colors.white, fontSize: 13),
             ),
           ),

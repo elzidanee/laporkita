@@ -14,9 +14,25 @@ enum UserRole {
       case 'admin':
         return UserRole.admin;
       case 'policy_maker':
+      case 'policyMaker': // fallback jika tersimpan dari bug lama
         return UserRole.policyMaker;
       default:
         return UserRole.citizen;
+    }
+  }
+
+  /// Mengembalikan string sesuai format backend (snake_case)
+  /// WAJIB digunakan saat serialisasi ke storage/JSON, bukan `.name`
+  String toApiString() {
+    switch (this) {
+      case UserRole.operator:
+        return 'operator';
+      case UserRole.admin:
+        return 'admin';
+      case UserRole.policyMaker:
+        return 'policy_maker';
+      case UserRole.citizen:
+        return 'citizen';
     }
   }
 
@@ -66,7 +82,7 @@ class UserModel {
         'full_name': fullName,
         'email': email,
         'phone_number': phoneNumber,
-        'role': role.name,
+        'role': role.toApiString(), // snake_case sesuai backend
         'agency_id': agencyId,
         'contribution_points': contributionPoints,
         'avatar_url': avatarUrl,

@@ -18,9 +18,9 @@ class AiServiceDatasource {
     _dio = Dio(
       BaseOptions(
         baseUrl: AppConfig.aiServiceUrl,
-        connectTimeout: const Duration(seconds: 4),
-        receiveTimeout: const Duration(seconds: 25),
-        sendTimeout: const Duration(seconds: 30),
+        connectTimeout: const Duration(seconds: 3),
+        receiveTimeout: const Duration(seconds: 8),
+        sendTimeout: const Duration(seconds: 10),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',

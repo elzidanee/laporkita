@@ -421,6 +421,76 @@ class _LoginScreenState extends State<LoginScreen> {
                                       ),
                                     ],
                                   ),
+                                  const SizedBox(height: 16),
+
+                                  // Quick Demo Login Helper
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF8FAFC),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: const [
+                                            Icon(Icons.bolt_rounded, size: 16, color: AppColors.greenPrimary),
+                                            SizedBox(width: 6),
+                                            Text(
+                                              'Akun Uji Coba (Isi Cepat):',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                                color: AppColors.neutral700,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Wrap(
+                                          spacing: 6,
+                                          runSpacing: 6,
+                                          children: [
+                                            ActionChip(
+                                              label: const Text('Operator DPUPR', style: TextStyle(fontSize: 11)),
+                                              backgroundColor: Colors.white,
+                                              side: const BorderSide(color: AppColors.border),
+                                              onPressed: () {
+                                                setState(() {
+                                                  _identifierController.text = 'operator.dpupr@laporkita.malangkota.go.id';
+                                                  _passwordController.text = 'Password123!';
+                                                });
+                                              },
+                                            ),
+                                            ActionChip(
+                                              label: const Text('Admin', style: TextStyle(fontSize: 11)),
+                                              backgroundColor: Colors.white,
+                                              side: const BorderSide(color: AppColors.border),
+                                              onPressed: () {
+                                                setState(() {
+                                                  _identifierController.text = 'admin@laporkita.malangkota.go.id';
+                                                  _passwordController.text = 'AdminLaporKita2026!';
+                                                });
+                                              },
+                                            ),
+                                            ActionChip(
+                                              label: const Text('Warga', style: TextStyle(fontSize: 11)),
+                                              backgroundColor: Colors.white,
+                                              side: const BorderSide(color: AppColors.border),
+                                              onPressed: () {
+                                                setState(() {
+                                                  _identifierController.text = 'warga@laporkita.malangkota.go.id';
+                                                  _passwordController.text = 'Password123!';
+                                                });
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                   const SizedBox(height: 20),
                                 ],
                               ),
