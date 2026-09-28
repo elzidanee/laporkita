@@ -18,6 +18,14 @@ import 'presentation/citizen/camera/new_report_form_screen.dart';
 import 'presentation/command_center/dashboard/dashboard_screen.dart';
 import 'presentation/command_center/dashboard/operator_tugas_screen.dart';
 import 'presentation/command_center/dashboard/operator_report_detail_screen.dart';
+import 'presentation/command_center/dashboard/operator_foto_sebelum_screen.dart';
+import 'presentation/command_center/dashboard/operator_update_progress_screen.dart';
+import 'presentation/command_center/dashboard/operator_foto_sesudah_screen.dart';
+import 'presentation/command_center/dashboard/operator_camera_screen.dart';
+import 'presentation/command_center/dashboard/operator_laporan_screen.dart';
+import 'presentation/command_center/dashboard/operator_monitoring_screen.dart';
+import 'presentation/command_center/dashboard/operator_profile_screen.dart';
+import 'presentation/command_center/dashboard/operator_notifikasi_screen.dart';
 import 'presentation/command_center/policy_simulator/policy_simulator_screen.dart';
 import 'presentation/citizen/tracking/tracking_progress_screen.dart';
 import 'presentation/citizen/tracking/foto_progress_screen.dart';
@@ -174,6 +182,33 @@ Widget? _resolveScreen(RouteSettings settings) {
         return OperatorReportDetailScreen(report: settings.arguments as ReportModel);
       }
       return const OperatorTugasScreen();
+    case '/operator-foto-sebelum':
+      if (settings.arguments is ReportModel) {
+        return OperatorFotoSebelumScreen(report: settings.arguments as ReportModel);
+      }
+      return const OperatorTugasScreen();
+    case '/operator-update-progress':
+      if (settings.arguments is ReportModel) {
+        return OperatorUpdateProgressScreen(report: settings.arguments as ReportModel);
+      }
+      return const OperatorTugasScreen();
+    case '/operator-foto-sesudah':
+      if (settings.arguments is ReportModel) {
+        return OperatorFotoSesudahScreen(report: settings.arguments as ReportModel);
+      }
+      return const OperatorTugasScreen();
+    case '/operator-camera':
+      return OperatorCameraScreen(
+        report: settings.arguments is ReportModel ? settings.arguments as ReportModel : null,
+      );
+    case '/operator-laporan':
+      return const OperatorLaporanScreen();
+    case '/operator-monitoring':
+      return const OperatorMonitoringScreen();
+    case '/operator-profile':
+      return const OperatorProfileScreen();
+    case '/operator-notifications':
+      return const OperatorNotifikasiScreen();
     case '/admin-dashboard':
       return const CommandCenterDashboard(initialRole: UserRole.admin);
     case '/policy-simulator':

@@ -409,89 +409,101 @@ class _OperatorTugasScreenState extends State<OperatorTugasScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     // Filter Pill (Button 1)
-                    InkWell(
-                      onTap: _showStatusFilterModal,
-                      borderRadius: BorderRadius.circular(8.5),
-                      child: Container(
-                        height: 30,
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(8.4),
-                          border: Border.all(color: const Color(0xFFE0DFDF), width: 0.85),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.04),
-                              blurRadius: 4,
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.menu_rounded,
-                              size: 15,
-                              color: Color(0xFF1976D2),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              _selectedStatusFilter == 'Semua'
-                                  ? 'Filter'
-                                  : _selectedStatusFilter,
-                              style: GoogleFonts.poppins(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                color: const Color(0xFF1976D2),
+                    Flexible(
+                      child: InkWell(
+                        onTap: _showStatusFilterModal,
+                        borderRadius: BorderRadius.circular(8.5),
+                        child: Container(
+                          height: 30,
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(8.4),
+                            border: Border.all(color: const Color(0xFFE0DFDF), width: 0.85),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.04),
+                                blurRadius: 4,
                               ),
-                            ),
-                            const SizedBox(width: 2),
-                            const Icon(
-                              Icons.keyboard_arrow_down_rounded,
-                              size: 16,
-                              color: Color(0xFF1976D2),
-                            ),
-                          ],
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.menu_rounded,
+                                size: 15,
+                                color: Color(0xFF1976D2),
+                              ),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  _selectedStatusFilter == 'Semua'
+                                      ? 'Filter'
+                                      : _selectedStatusFilter,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                    color: const Color(0xFF1976D2),
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 2),
+                              const Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                                size: 16,
+                                color: Color(0xFF1976D2),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
+                    const SizedBox(width: 8),
 
                     // Priority Pill (Button 2)
-                    InkWell(
-                      onTap: _showPriorityFilterModal,
-                      borderRadius: BorderRadius.circular(8.5),
-                      child: Container(
-                        height: 30,
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(8.4),
-                          border: Border.all(color: const Color(0xFFE0DFDF), width: 0.85),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.04),
-                              blurRadius: 4,
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              _selectedPriorityFilter,
-                              style: GoogleFonts.poppins(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                color: const Color(0xFF1976D2),
+                    Flexible(
+                      child: InkWell(
+                        onTap: _showPriorityFilterModal,
+                        borderRadius: BorderRadius.circular(8.5),
+                        child: Container(
+                          height: 30,
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(8.4),
+                            border: Border.all(color: const Color(0xFFE0DFDF), width: 0.85),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.04),
+                                blurRadius: 4,
                               ),
-                            ),
-                            const SizedBox(width: 4),
-                            const Icon(
-                              Icons.keyboard_arrow_down_rounded,
-                              size: 16,
-                              color: Color(0xFF1976D2),
-                            ),
-                          ],
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  _selectedPriorityFilter,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                    color: const Color(0xFF1976D2),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                                size: 16,
+                                color: Color(0xFF1976D2),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),

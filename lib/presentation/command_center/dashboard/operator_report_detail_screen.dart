@@ -7,6 +7,9 @@ import 'package:latlong2/latlong.dart';
 import '../../../data/models/report_model.dart';
 import '../../../data/repositories/report_repository.dart';
 import '../../../data/repositories/notification_repository.dart';
+import 'operator_foto_sebelum_screen.dart';
+import 'operator_update_progress_screen.dart';
+import 'operator_foto_sesudah_screen.dart';
 
 class OperatorReportDetailScreen extends StatefulWidget {
   final ReportModel report;
@@ -934,32 +937,46 @@ class _OperatorReportDetailScreenState
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: GoogleFonts.poppins(
-              fontSize: 13,
-              fontWeight: FontWeight.w400,
-              color: const Color(0xFF2D3748),
+          Expanded(
+            flex: 4,
+            child: Text(
+              label,
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                fontWeight: FontWeight.w400,
+                color: const Color(0xFF2D3748),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                value,
-                style: GoogleFonts.poppins(
-                  fontSize: 13,
-                  fontWeight: isBoldValue ? FontWeight.w600 : FontWeight.w400,
-                  color: valueColor ?? const Color(0xFF4A5568),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 6,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Flexible(
+                  child: Text(
+                    value,
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      fontWeight: isBoldValue ? FontWeight.w600 : FontWeight.w400,
+                      color: valueColor ?? const Color(0xFF4A5568),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.end,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 4),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: Color(0xFF94A3B8),
-                size: 18,
-              ),
-            ],
+                const SizedBox(width: 4),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: Color(0xFF94A3B8),
+                  size: 18,
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -1050,14 +1067,55 @@ class _OperatorReportDetailScreenState
 
   Widget _buildBottomActionButton() {
     String buttonText = 'Mulai Pengerjaan';
-    VoidCallback? onTap = () => _updateReportStatus(ReportStatus.inProgress);
+    VoidCallback? onTap = () async {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => OperatorFotoSebelumScreen(
+            report: _currentReport,
+            onStatusUpdated: () {
+              widget.onStatusUpdated?.call();
+              setState(() {
+                _selectedStatus = ReportStatus.inProgress;
+              });
+            },
+          ),
+        ),
+      );
+      widget.onStatusUpdated?.call();
+    };
 
     if (_selectedStatus == ReportStatus.inProgress) {
       buttonText = 'Update Progress / Selesai';
-      onTap = _showProgressDialog;
+      onTap = () async {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => OperatorUpdateProgressScreen(
+              report: _currentReport,
+              onStatusUpdated: () {
+                widget.onStatusUpdated?.call();
+              },
+            ),
+          ),
+        );
+        widget.onStatusUpdated?.call();
+      };
     } else if (_selectedStatus == ReportStatus.completed) {
-      buttonText = 'Tugas Selesai';
-      onTap = null;
+      buttonText = 'Lihat Bukti Selesai';
+      onTap = () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => OperatorFotoSesudahScreen(
+              report: _currentReport,
+              onStatusUpdated: () {
+                widget.onStatusUpdated?.call();
+              },
+            ),
+          ),
+        );
+      };
     }
 
     return SizedBox(
@@ -1065,9 +1123,7 @@ class _OperatorReportDetailScreenState
       height: 49,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: _selectedStatus == ReportStatus.completed
-              ? Colors.grey.shade400
-              : const Color(0xFF1D9C51),
+          backgroundColor: const Color(0xFF1D9C51),
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),

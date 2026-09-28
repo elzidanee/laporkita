@@ -661,4 +661,25 @@ class ReportModel {
     }
     return 35;
   }
+
+  /// Formatted report code with leading '#'
+  String get formattedReportCode =>
+      reportCode.startsWith('#') ? reportCode : '#$reportCode';
+
+  /// Primary photo url of the report
+  String? get primaryPhotoUrl {
+    if (directPhotoUrl != null && directPhotoUrl!.isNotEmpty) {
+      return directPhotoUrl;
+    }
+    if (media.isNotEmpty) {
+      try {
+        final initial = media.firstWhere(
+          (m) => m.url.isNotEmpty,
+          orElse: () => media.first,
+        );
+        if (initial.url.isNotEmpty) return initial.url;
+      } catch (_) {}
+    }
+    return null;
+  }
 }

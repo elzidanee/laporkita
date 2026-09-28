@@ -6,6 +6,10 @@ import '../../../data/repositories/report_repository.dart';
 import '../../auth/bloc/auth_bloc.dart';
 import 'operator_report_detail_screen.dart';
 import 'operator_tugas_screen.dart';
+import 'operator_laporan_screen.dart';
+import 'operator_monitoring_screen.dart';
+import 'operator_profile_screen.dart';
+import 'operator_notifikasi_screen.dart';
 
 class OperatorDashboardScreen extends StatefulWidget {
   const OperatorDashboardScreen({super.key});
@@ -178,11 +182,20 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
           onBackToDashboard: () => setState(() => _selectedBottomNavIndex = 0),
         );
       case 2:
-        return _buildLaporanTab();
+        return OperatorLaporanScreen(
+          isTab: true,
+          onBackToDashboard: () => setState(() => _selectedBottomNavIndex = 0),
+        );
       case 3:
-        return _buildMonitoringTab();
+        return OperatorMonitoringScreen(
+          isTab: true,
+          onBackToDashboard: () => setState(() => _selectedBottomNavIndex = 0),
+        );
       case 4:
-        return _buildProfileTab();
+        return OperatorProfileScreen(
+          isTab: true,
+          onBackToDashboard: () => setState(() => _selectedBottomNavIndex = 0),
+        );
       default:
         return _buildDashboardTab();
     }
@@ -191,7 +204,7 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
   // ── FIGMA BOTTOM NAVIGATION BAR (Node 485:8094) ───────────────────────────
   Widget _buildFigmaBottomNavBar() {
     return Container(
-      height: 72,
+      height: 76,
       decoration: BoxDecoration(
         color: const Color(0xFFF7FAFC),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
@@ -204,13 +217,12 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
         ],
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildNavItem(0, Icons.home_rounded, 'Dashboard'),
-          _buildNavItem(1, Icons.description_outlined, 'Tugas'),
-          _buildNavItem(2, Icons.ballot_outlined, 'Laporan'),
-          _buildNavItem(3, Icons.monitor_heart_outlined, 'Monitoring'),
-          _buildNavItem(4, Icons.account_circle_outlined, 'Profile'),
+          Expanded(child: _buildNavItem(0, Icons.home_rounded, 'Dashboard')),
+          Expanded(child: _buildNavItem(1, Icons.description_outlined, 'Tugas')),
+          Expanded(child: _buildNavItem(2, Icons.ballot_outlined, 'Laporan')),
+          Expanded(child: _buildNavItem(3, Icons.monitor_heart_outlined, 'Monitoring')),
+          Expanded(child: _buildNavItem(4, Icons.account_circle_outlined, 'Profile')),
         ],
       ),
     );
@@ -227,16 +239,17 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
       },
       borderRadius: BorderRadius.circular(12),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               icon,
               color: isSelected ? activeColor : inactiveColor,
-              size: 26,
+              size: 24,
             ),
-            const SizedBox(height: 3),
+            const SizedBox(height: 2),
             Text(
               label,
               style: GoogleFonts.poppins(
@@ -244,6 +257,8 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                 color: isSelected ? activeColor : inactiveColor,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
@@ -324,7 +339,12 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
                       size: 26,
                     ),
                     onPressed: () {
-                      Navigator.pushNamed(context, '/notifications');
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const OperatorNotifikasiScreen(),
+                        ),
+                      );
                     },
                     tooltip: 'Notifikasi',
                   ),
@@ -388,12 +408,15 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  'Laporan Terbaru',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.black,
+                                Expanded(
+                                  child: Text(
+                                    'Laporan Terbaru',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                                 InkWell(
@@ -912,28 +935,36 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: statusBadge['bg'] as Color,
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: Text(
-                  statusBadge['label'] as String,
-                  style: GoogleFonts.poppins(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w500,
-                    color: statusBadge['text'] as Color,
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: statusBadge['bg'] as Color,
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Text(
+                      statusBadge['label'] as String,
+                      style: GoogleFonts.poppins(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w500,
+                        color: statusBadge['text'] as Color,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ),
               ),
+              const SizedBox(width: 8),
               SizedBox(
                 height: 32,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1D9C51),
                     elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -951,10 +982,10 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
                   },
                   child: Text(
                     report.status == ReportStatus.inProgress
-                        ? 'Update Progress'
+                        ? 'Update'
                         : 'Mulai kerjakan',
                     style: GoogleFonts.poppins(
-                      fontSize: 11.5,
+                      fontSize: 11,
                       fontWeight: FontWeight.w500,
                       color: Colors.white,
                     ),
