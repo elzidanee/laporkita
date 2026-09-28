@@ -233,21 +233,12 @@ class ReportRemoteDatasource {
       if (notes != null && notes.isNotEmpty) 'note': notes,
     };
 
-    try {
-      final response = await _dioClient.patch<ReportModel>(
-        '/reports/$reportId/status',
-        fromJson: (json) => ReportModel.fromJson(json as Map<String, dynamic>),
-        data: payload,
-      );
-      return response.data!;
-    } catch (_) {
-      final response = await _dioClient.patch<ReportModel>(
-        '/reports/$reportId',
-        fromJson: (json) => ReportModel.fromJson(json as Map<String, dynamic>),
-        data: payload,
-      );
-      return response.data!;
-    }
+    final response = await _dioClient.patch<ReportModel>(
+      '/reports/$reportId/status',
+      fromJson: (json) => ReportModel.fromJson(json as Map<String, dynamic>),
+      data: payload,
+    );
+    return response.data!;
   }
 
   Future<Map<String, dynamic>> uploadReportMedia({

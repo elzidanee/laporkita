@@ -126,8 +126,11 @@ class ReportRepository {
         sortBy: sortBy,
       );
       remoteData = response.data ?? [];
-    } catch (_) {
-      remoteData = _getFallbackMockReports();
+    } catch (e) {
+      // API gagal — gunakan data yang sudah di-cache/_submittedReports saja.
+      // Jangan fallback ke mock agar production tidak menampilkan data palsu.
+      debugPrint('⚠️ [ReportRepository] getReports error: $e');
+      remoteData = [];
     }
 
     final merged = <ReportModel>[];
@@ -185,9 +188,18 @@ class ReportRepository {
       merged.addAll(mockReports);
     }
 
-    // Apply persistent status overrides across all loaded reports
+    // _statusOverrides HANYA diterapkan ke laporan lokal yang belum dikonfirmasi server.
+    // Laporan yang status-nya baru diterima dari API TIDAK boleh dioverride.
+    // Backend adalah single source of truth — server status selalu menang.
+    final serverIds = remoteData.map((r) => r.id).toSet();
+
     for (int i = 0; i < merged.length; i++) {
       final r = merged[i];
+      // Skip: laporan dari server — gunakan status backend apa adanya
+      if (serverIds.contains(r.id)) continue;
+
+      // Hanya terapkan override untuk laporan lokal (_submittedReports)
+      // yang belum ada di server response (misalnya baru di-submit, belum sync)
       if (_statusOverrides.containsKey(r.id)) {
         final overrideData = _statusOverrides[r.id]!;
         final overrideStatusStr = overrideData['status'] as String?;
@@ -342,44 +354,29 @@ class ReportRepository {
   Future<ReportModel> getReportById(String id) async {
     await _ensureStorageLoaded();
     ReportModel result;
+    bool fromServer = false;
     try {
       result = await _datasource.getReportById(id);
       _cachedReports[id] = result;
-    } catch (_) {
+      fromServer = true;
+    } catch (e) {
+      debugPrint('⚠️ [ReportRepository] getReportById error: $e');
+      // Fallback ke data yang sudah di-cache (data riil dari request sebelumnya)
       final subIdx = _submittedReports.indexWhere((r) => r.id == id);
       if (subIdx != -1) {
         result = _submittedReports[subIdx];
       } else if (_cachedReports.containsKey(id)) {
         result = _cachedReports[id]!;
       } else {
-        final mockList = _getFallbackMockReports();
-        final mockIdx = mockList.indexWhere((r) => r.id == id);
-        if (mockIdx != -1) {
-          result = mockList[mockIdx];
-        } else {
-          result = ReportModel(
-            id: id,
-            reportCode: 'LP_2026_${id.hashCode.abs() % 100000}',
-            reporterId: 'user-local',
-            categoryId: 'cat-1',
-            status: ReportStatus.pendingVerification,
-            latitude: -7.9666,
-            longitude: 112.6326,
-            addressText: 'Jl. Veteran No. 8, Kota Malang',
-            description: 'Laporan fasilitas publik.',
-            directPhotoUrl: null,
-            supportCount: 0,
-            viewCount: 0,
-            urgencyScore: 4.0,
-            needsManualReview: false,
-            createdAt: DateTime.now(),
-            updatedAt: DateTime.now(),
-          );
-        }
+        // Tidak ada cache riil — rethrow agar UI menampilkan error/retry
+        // dan tidak menampilkan data mock sebagai data asli production
+        rethrow;
       }
     }
 
-    if (_statusOverrides.containsKey(result.id)) {
+    // _statusOverrides hanya diterapkan jika data TIDAK berasal dari server.
+    // Jika data fresh dari API, backend adalah source of truth — override diabaikan.
+    if (!fromServer && _statusOverrides.containsKey(result.id)) {
       final overrideData = _statusOverrides[result.id]!;
       final overrideStatusStr = overrideData['status'] as String?;
       final overrideUpdatedAtStr = overrideData['updated_at'] as String?;
@@ -600,18 +597,14 @@ class ReportRepository {
     // Catatan: Tidak ada guard lokal di sini karena backend adalah source of truth.
     // Backend yang menentukan apakah transisi status valid atau tidak.
 
-    ReportModel? updatedRemote;
-    try {
-      updatedRemote = await _datasource.updateReportStatus(
-        reportId,
-        newStatus,
-        notes: notes,
-        assignedAgencyId: assignedAgencyId,
-      );
-    } catch (e) {
-      debugPrint(
-          'ℹ️ [ReportRepository] updateReportStatus remote call notice: $e (Applying persistent verified sync)');
-    }
+    // Kirim ke API — jika gagal, rethrow agar UI menampilkan error.
+    // Tidak boleh mengubah status lokal jika backend tidak konfirmasi.
+    final updatedRemote = await _datasource.updateReportStatus(
+      reportId,
+      newStatus,
+      notes: notes,
+      assignedAgencyId: assignedAgencyId,
+    );
 
     String? inputPriority = old?.directPriority;
     if (notes != null && notes.isNotEmpty) {
@@ -627,48 +620,17 @@ class ReportRepository {
       }
     }
 
-    ReportModel finalReport;
-    if (updatedRemote != null) {
-      final hasRemotePhoto = (updatedRemote.directPhotoUrl != null &&
-              updatedRemote.directPhotoUrl!.isNotEmpty) ||
-          updatedRemote.media.isNotEmpty;
+    // API berhasil — bangun finalReport dari response server (source of truth)
+    final hasRemotePhoto = (updatedRemote.directPhotoUrl != null &&
+            updatedRemote.directPhotoUrl!.isNotEmpty) ||
+        updatedRemote.media.isNotEmpty;
 
-      final existingHistory =
-          List<ReportStatusHistoryModel>.from(updatedRemote.statusHistory.isNotEmpty
-              ? updatedRemote.statusHistory
-              : (old?.statusHistory ?? []));
+    final existingHistory =
+        List<ReportStatusHistoryModel>.from(updatedRemote.statusHistory.isNotEmpty
+            ? updatedRemote.statusHistory
+            : (old?.statusHistory ?? []));
 
-      if (!existingHistory.any((h) => h.targetStatus == newStatusEnum)) {
-        existingHistory.add(ReportStatusHistoryModel(
-          id: 'hist-$reportId-${newStatusEnum.apiValue}-${now.millisecondsSinceEpoch}',
-          reportId: reportId,
-          targetStatus: newStatusEnum,
-          note: notes,
-          actorName: 'Operator',
-          createdAt: now,
-        ));
-      }
-
-      finalReport = updatedRemote.copyWith(
-        directPhotoUrl: hasRemotePhoto
-            ? updatedRemote.directPhotoUrl
-            : (old?.directPhotoUrl ?? old?.photoUrl),
-        media: updatedRemote.media.isNotEmpty
-            ? updatedRemote.media
-            : (old?.media ?? const []),
-        damageSeverity: updatedRemote.damageSeverity ?? old?.damageSeverity,
-        rawAiConfidenceScore:
-            updatedRemote.rawAiConfidenceScore ?? old?.rawAiConfidenceScore,
-        urgencyScore: updatedRemote.urgencyScore ?? old?.urgencyScore,
-        directPriority: inputPriority ?? updatedRemote.directPriority,
-        category: updatedRemote.category ?? old?.category,
-        reporter: updatedRemote.reporter ?? old?.reporter,
-        assignedAgency: updatedRemote.assignedAgency ?? old?.assignedAgency,
-        statusHistory: existingHistory,
-      );
-    } else {
-      final existingHistory =
-          List<ReportStatusHistoryModel>.from(old?.statusHistory ?? []);
+    if (!existingHistory.any((h) => h.targetStatus == newStatusEnum)) {
       existingHistory.add(ReportStatusHistoryModel(
         id: 'hist-$reportId-${newStatusEnum.apiValue}-${now.millisecondsSinceEpoch}',
         reportId: reportId,
@@ -677,36 +639,25 @@ class ReportRepository {
         actorName: 'Operator',
         createdAt: now,
       ));
-
-      finalReport = ReportModel(
-        id: reportId,
-        reportCode: old?.reportCode ?? 'LP_2026_002487',
-        reporterId: old?.reporterId ?? 'user-local',
-        categoryId: old?.categoryId ?? 'cat-local',
-        status: newStatusEnum,
-        latitude: old?.latitude ?? -7.9666,
-        longitude: old?.longitude ?? 112.6326,
-        addressText:
-            old?.addressText ?? 'Jl. Sawojajar No. 45, Kedungkandang, Kota Malang',
-        description: old?.description ?? 'Laporan fasilitas publik.',
-        directPhotoUrl: old?.directPhotoUrl ?? old?.photoUrl,
-        supportCount: old?.supportCount ?? 14,
-        viewCount: old?.viewCount ?? 120,
-        urgencyScore: old?.urgencyScore ?? 4.8,
-        damageSeverity: old?.damageSeverity,
-        rawAiConfidenceScore: old?.rawAiConfidenceScore,
-        directPriority: inputPriority,
-        needsManualReview: false,
-        createdAt: old?.createdAt ?? now.subtract(const Duration(hours: 5)),
-        updatedAt: now,
-        category: old?.category,
-        reporter: old?.reporter,
-        assignedAgency: old?.assignedAgency,
-        media: old?.media ?? const [],
-        statusHistory: existingHistory,
-        count: old?.count,
-      );
     }
+
+    final finalReport = updatedRemote.copyWith(
+      directPhotoUrl: hasRemotePhoto
+          ? updatedRemote.directPhotoUrl
+          : (old?.directPhotoUrl ?? old?.photoUrl),
+      media: updatedRemote.media.isNotEmpty
+          ? updatedRemote.media
+          : (old?.media ?? const []),
+      damageSeverity: updatedRemote.damageSeverity ?? old?.damageSeverity,
+      rawAiConfidenceScore:
+          updatedRemote.rawAiConfidenceScore ?? old?.rawAiConfidenceScore,
+      urgencyScore: updatedRemote.urgencyScore ?? old?.urgencyScore,
+      directPriority: inputPriority ?? updatedRemote.directPriority,
+      category: updatedRemote.category ?? old?.category,
+      reporter: updatedRemote.reporter ?? old?.reporter,
+      assignedAgency: updatedRemote.assignedAgency ?? old?.assignedAgency,
+      statusHistory: existingHistory,
+    );
 
     _cachedReports[reportId] = finalReport;
     final idx = _submittedReports.indexWhere((r) => r.id == reportId);
@@ -716,9 +667,11 @@ class ReportRepository {
       _submittedReports.insert(0, finalReport);
     }
 
+    // Backend berhasil — simpan override agar status tetap konsisten saat offline
+    // (hanya sebagai cache sementara; akan di-replace oleh server response berikutnya)
     _statusOverrides[reportId] = {
-      'status': newStatusEnum.apiValue,
-      'updated_at': now.toIso8601String(),
+      'status': finalReport.status.apiValue, // gunakan status DARI server, bukan newStatus lokal
+      'updated_at': finalReport.updatedAt.toIso8601String(),
       'note': notes,
     };
 
