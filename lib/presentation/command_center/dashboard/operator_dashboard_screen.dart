@@ -203,12 +203,8 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
 
   // ── FIGMA BOTTOM NAVIGATION BAR (Node 485:8094) ───────────────────────────
   Widget _buildFigmaBottomNavBar() {
-    final bottomColor = _selectedBottomNavIndex == 0
-        ? const Color(0xFFF8FAFC)
-        : Colors.white;
-
     return Container(
-      color: bottomColor,
+      color: const Color(0xFFF7FAFC),
       child: Container(
         decoration: BoxDecoration(
           color: const Color(0xFFF7FAFC),

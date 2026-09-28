@@ -292,8 +292,9 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
             child: Column(
               children: [
-                if (status == ReportStatus.completed ||
-                    status == ReportStatus.resolved) ...[
+                // Tombol validasi hanya muncul saat completed (menunggu validasi warga).
+                // resolved = sudah final, tidak perlu validasi lagi.
+                if (status == ReportStatus.completed) ...[
                   ElevatedButton.icon(
                     onPressed: () {
                       final Map<String, dynamic> valArgs = report != null

@@ -46,9 +46,42 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
       _riskError = false;
     });
 
-    // 1. Ambil data prediksi & cuaca live per zona dari NestJS Backend (/predictions/zones)
+    // Ambil jumlah laporan aktif dari ReportBloc untuk dikirim ke AI
+    int reportDensity = 5;
+    final reportState = context.read<ReportBloc>().state;
+    if (reportState is ReportListLoaded) {
+      reportDensity = reportState.reports
+          .where((r) =>
+              r.status != ReportStatus.completed &&
+              r.status != ReportStatus.resolved)
+          .length
+          .clamp(1, 100);
+    }
+    // Capture sebelum async gap agar tidak ada use_build_context_synchronously
+    final predictionRepo = context.read<PredictionRepository>();
+
+    // 1. Prioritas Utama: Urban Risk Predictor dari AI Microservice
     try {
-      final predictionRepo = context.read<PredictionRepository>();
+      final result = await AiServiceDatasource().predictRisk(
+        reportDensity: reportDensity,
+        rainfallMm: 5.0,
+        temperatureC: 27.0,
+        weatherCondition: 'Berawan',
+        drainageIssueRatio: 0.2,
+        trafficDensity: 0.5,
+      );
+      if (mounted) {
+        setState(() {
+          _riskResult = result;
+          _riskError = false;
+          _isLoadingRisk = false;
+        });
+        return;
+      }
+    } catch (_) {}
+
+    // 2. Fallback: Data zona dari NestJS Backend (/predictions/zones)
+    try {
       final zones = await predictionRepo.getZones();
       if (zones.isNotEmpty) {
         // Prioritaskan zona Klojen (Pusat Kota Malang) atau zona pertama yang tersedia
@@ -67,25 +100,7 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
       }
     } catch (_) {}
 
-    // 2. Fallback jika NestJS backend /predictions/zones terkendala: coba AI Microservice
-    try {
-      final result = await AiServiceDatasource().predictRisk(
-        reportDensity: 5,
-        rainfallMm: 5.0,
-        temperatureC: 27.0,
-        weatherCondition: 'Berawan',
-      );
-      if (mounted) {
-        setState(() {
-          _riskResult = result;
-          _riskError = false;
-          _isLoadingRisk = false;
-        });
-        return;
-      }
-    } catch (_) {}
-
-    // 3. Fallback cerdas offline (BMKG Kota Malang):
+    // 3. Fallback offline (BMKG Kota Malang):
     // Jika koneksi internet terputus, gunakan perkiraan cuaca Malang realistis
     // agar widget prediksi cuaca warga tetap aktif dan informatif
     if (mounted) {

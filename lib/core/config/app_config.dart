@@ -24,7 +24,7 @@ class AppConfig {
   /// Di-inject via --dart-define=AI_API_KEY=... saat build/run untuk CI/CD.
   static const String aiApiKey = String.fromEnvironment(
     'AI_API_KEY',
-    defaultValue: '',
+    defaultValue: 'laporkita_sec_e62232a17817b3676927b5fefda6bad1cbe4',
   );
 
   /// URL OSRM Demo Server (Open Source Routing Machine)
