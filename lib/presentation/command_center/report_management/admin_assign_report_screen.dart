@@ -72,6 +72,19 @@ class _AdminAssignReportScreenState extends State<AdminAssignReportScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    final p = widget.report.priorityLabel;
+    if (p.contains('Tinggi')) {
+      _selectedPriority = 'Tinggi';
+    } else if (p.contains('Sedang') || p.contains('Penanganan')) {
+      _selectedPriority = 'Sedang';
+    } else if (p.contains('Rendah')) {
+      _selectedPriority = 'Rendah';
+    }
+  }
+
+  @override
   void dispose() {
     _notesController.dispose();
     super.dispose();
@@ -119,6 +132,9 @@ class _AdminAssignReportScreenState extends State<AdminAssignReportScreen> {
         'assigned',
         notes: combinedNote,
         assignedAgencyId: _selectedOpd,
+        existingReport: widget.report.copyWith(
+          directPriority: _selectedPriority,
+        ),
       );
 
       if (!mounted) return;

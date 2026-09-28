@@ -179,6 +179,7 @@ class ReportModel {
   final double? rawAiConfidenceScore;
   final double? damageSeverity;
   final DateTime? estimatedCompletionAt;
+  final String? directPriority;
 
   // Relations
   final Map<String, dynamic>? category;
@@ -208,6 +209,7 @@ class ReportModel {
     this.rawAiConfidenceScore,
     this.damageSeverity,
     this.estimatedCompletionAt,
+    this.directPriority,
     this.category,
     this.reporter,
     this.assignedAgency,
@@ -312,6 +314,9 @@ class ReportModel {
       estimatedCompletionAt: json['estimated_completion_at'] != null
           ? DateTime.tryParse(json['estimated_completion_at'].toString())
           : null,
+      directPriority: json['priority']?.toString() ??
+          json['priority_level']?.toString() ??
+          json['urgency_level']?.toString(),
       category: json['category'] is Map<String, dynamic>
           ? json['category'] as Map<String, dynamic>
           : null,
@@ -355,6 +360,7 @@ class ReportModel {
       if (damageSeverity != null) 'damage_severity': damageSeverity,
       if (estimatedCompletionAt != null)
         'estimated_completion_at': estimatedCompletionAt!.toIso8601String(),
+      if (directPriority != null) 'priority': directPriority,
       if (category != null) 'category': category,
       if (reporter != null) 'reporter': reporter,
       if (assignedAgency != null) 'assigned_agency': assignedAgency,
@@ -384,6 +390,7 @@ class ReportModel {
     double? rawAiConfidenceScore,
     double? damageSeverity,
     DateTime? estimatedCompletionAt,
+    String? directPriority,
     Map<String, dynamic>? category,
     Map<String, dynamic>? reporter,
     Map<String, dynamic>? assignedAgency,
@@ -411,6 +418,7 @@ class ReportModel {
       rawAiConfidenceScore: rawAiConfidenceScore ?? this.rawAiConfidenceScore,
       damageSeverity: damageSeverity ?? this.damageSeverity,
       estimatedCompletionAt: estimatedCompletionAt ?? this.estimatedCompletionAt,
+      directPriority: directPriority ?? this.directPriority,
       category: category ?? this.category,
       reporter: reporter ?? this.reporter,
       assignedAgency: assignedAgency ?? this.assignedAgency,
@@ -533,8 +541,18 @@ class ReportModel {
 
   /// Label prioritas laporan disesuaikan secara dinamis dengan input & metrik backend
   String get priorityLabel {
-    // 1. Cek riwayat status / catatan penugasan backend (input manual operator/admin)
-    for (final h in statusHistory) {
+    // 1. Cek prioritas langsung (eksplisit) dari payload backend atau input operator
+    if (directPriority != null && directPriority!.isNotEmpty) {
+      final p = directPriority!.toLowerCase();
+      if (p.contains('tinggi') || p == 'high' || p == 'urgent') return 'Prioritas Tinggi';
+      if (p.contains('perlu penanganan') || p.contains('manual')) return 'Perlu Penanganan';
+      if (p.contains('sedang') || p == 'medium') return 'Sedang';
+      if (p.contains('rendah') || p == 'low') return 'Rendah';
+    }
+
+    // 2. Cek riwayat status / catatan penugasan backend (input manual operator/admin)
+    // Gunakan urutan reversed agar input paling mutakhir yang diprioritaskan
+    for (final h in statusHistory.reversed) {
       final note = (h.note ?? '').toLowerCase();
       if (note.contains('prioritas:') ||
           note.contains('prioritas :') ||
@@ -546,20 +564,24 @@ class ReportModel {
       }
     }
 
-    // 2. Cek apakah laporan memerlukan review manual (needs_manual_review)
+    // 3. Cek apakah laporan memerlukan review manual (needs_manual_review)
     if (needsManualReview) {
       return 'Perlu Penanganan';
     }
 
-    // 3. Cek tingkat keparahan kerusakan (damage_severity) dari AI backend
+    // 4. Cek tingkat keparahan kerusakan (damage_severity) dari AI backend
     final damage = damageSeverity;
     if (damage != null) {
       if (damage >= 0.70 || damage >= 70) {
         return 'Prioritas Tinggi';
+      } else if (damage >= 0.40 || damage >= 40) {
+        return 'Sedang';
+      } else if (damage > 0 && damage < 0.40) {
+        return 'Rendah';
       }
     }
 
-    // 4. Cek skor urgensi (urgency_score) dari backend
+    // 5. Cek skor urgensi (urgency_score) dari formula backend (aiservice.md §1.3)
     final urgency = urgencyScore;
     if (urgency != null) {
       if (urgency >= 7.0 ||
@@ -578,10 +600,12 @@ class ReportModel {
           return 'Prioritas Tinggi';
         }
         return 'Sedang';
+      } else if (urgency > 0 && urgency < 2.0) {
+        return 'Rendah';
       }
     }
 
-    // 5. Fallback representatif berdasarkan kategori
+    // 6. Fallback representatif berdasarkan kategori
     final cat = categoryName.toLowerCase();
     if (cat.contains('trotoar')) {
       return 'Perlu Penanganan';
@@ -622,7 +646,19 @@ class ReportModel {
       return 85;
     }
     if (p == 'Perlu Penanganan') return 70;
-    if (p == 'Sedang') return 60;
+    if (p == 'Sedang') {
+      if (damageSeverity != null && damageSeverity! > 0) {
+        return (damageSeverity! <= 1.0 ? damageSeverity! * 100 : damageSeverity!)
+            .round()
+            .clamp(45, 69);
+      }
+      return 60;
+    }
+    if (damageSeverity != null && damageSeverity! > 0) {
+      return (damageSeverity! <= 1.0 ? damageSeverity! * 100 : damageSeverity!)
+          .round()
+          .clamp(15, 40);
+    }
     return 35;
   }
 }

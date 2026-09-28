@@ -32,11 +32,31 @@ class _CitizenPetaTabState extends State<CitizenPetaTab> {
 
   List<ReportModel> _filterReports(List<ReportModel> reports) {
     if (_selectedFilter == 'Semua') return reports;
-    return reports
-        .where((r) => r.categoryName
-            .toLowerCase()
-            .contains(_selectedFilter.toLowerCase()))
-        .toList();
+    final f = _selectedFilter.toLowerCase();
+    return reports.where((r) {
+      final cat = r.categoryName.toLowerCase();
+      if (f == 'fasilitas') {
+        return cat.contains('fasilitas') ||
+            cat.contains('taman') ||
+            cat.contains('halte') ||
+            cat.contains('drainase') ||
+            cat.contains('sampah');
+      }
+      if (f == 'jalan') {
+        return cat.contains('jalan') ||
+            cat.contains('lubang') ||
+            cat.contains('aspal');
+      }
+      if (f == 'lampu') {
+        return cat.contains('lampu') ||
+            cat.contains('penerangan') ||
+            cat.contains('rambu');
+      }
+      if (f == 'trotoar') {
+        return cat.contains('trotoar') || cat.contains('pedestrian');
+      }
+      return cat.contains(f);
+    }).toList();
   }
 
   LatLng _safeLatLng(double lat, double lng) {

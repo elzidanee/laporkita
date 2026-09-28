@@ -21,6 +21,12 @@ class FakeReportRepository extends Fake implements ReportRepository {
       data: [],
     );
   }
+
+  @override
+  void cacheReports(Iterable<ReportModel> list) {}
+
+  @override
+  void cacheReport(ReportModel report) {}
 }
 
 void main() {
@@ -270,5 +276,11 @@ class FakeBackendReportRepository extends Fake implements ReportRepository {
       data: reports,
     );
   }
+
+  @override
+  void cacheReports(Iterable<ReportModel> list) {}
+
+  @override
+  void cacheReport(ReportModel report) {}
 }
 

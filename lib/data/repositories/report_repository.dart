@@ -224,6 +224,8 @@ class ReportRepository {
             viewCount: r.viewCount,
             urgencyScore: r.urgencyScore,
             damageSeverity: r.damageSeverity,
+            rawAiConfidenceScore: r.rawAiConfidenceScore,
+            directPriority: r.directPriority,
             needsManualReview: isPending ? r.needsManualReview : false,
             createdAt: r.createdAt,
             updatedAt: overrideUpdatedAt,
@@ -411,6 +413,8 @@ class ReportRepository {
           viewCount: result.viewCount,
           urgencyScore: result.urgencyScore,
           damageSeverity: result.damageSeverity,
+          rawAiConfidenceScore: result.rawAiConfidenceScore,
+          directPriority: result.directPriority,
           needsManualReview: overrideStatus == ReportStatus.pendingVerification
               ? result.needsManualReview
               : false,
@@ -631,6 +635,20 @@ class ReportRepository {
           'ℹ️ [ReportRepository] updateReportStatus remote call notice: $e (Applying persistent verified sync)');
     }
 
+    String? inputPriority = old?.directPriority;
+    if (notes != null && notes.isNotEmpty) {
+      final lowerNote = notes.toLowerCase();
+      if (lowerNote.contains('prioritas: tinggi') || lowerNote.contains('prioritas:tinggi')) {
+        inputPriority = 'Prioritas Tinggi';
+      } else if (lowerNote.contains('prioritas: perlu penanganan') || lowerNote.contains('prioritas:perlu penanganan')) {
+        inputPriority = 'Perlu Penanganan';
+      } else if (lowerNote.contains('prioritas: sedang') || lowerNote.contains('prioritas:sedang')) {
+        inputPriority = 'Sedang';
+      } else if (lowerNote.contains('prioritas: rendah') || lowerNote.contains('prioritas:rendah')) {
+        inputPriority = 'Rendah';
+      }
+    }
+
     ReportModel finalReport;
     if (updatedRemote != null) {
       final hasRemotePhoto = (updatedRemote.directPhotoUrl != null &&
@@ -660,6 +678,11 @@ class ReportRepository {
         media: updatedRemote.media.isNotEmpty
             ? updatedRemote.media
             : (old?.media ?? const []),
+        damageSeverity: updatedRemote.damageSeverity ?? old?.damageSeverity,
+        rawAiConfidenceScore:
+            updatedRemote.rawAiConfidenceScore ?? old?.rawAiConfidenceScore,
+        urgencyScore: updatedRemote.urgencyScore ?? old?.urgencyScore,
+        directPriority: inputPriority ?? updatedRemote.directPriority,
         category: updatedRemote.category ?? old?.category,
         reporter: updatedRemote.reporter ?? old?.reporter,
         assignedAgency: updatedRemote.assignedAgency ?? old?.assignedAgency,
@@ -692,6 +715,9 @@ class ReportRepository {
         supportCount: old?.supportCount ?? 14,
         viewCount: old?.viewCount ?? 120,
         urgencyScore: old?.urgencyScore ?? 4.8,
+        damageSeverity: old?.damageSeverity,
+        rawAiConfidenceScore: old?.rawAiConfidenceScore,
+        directPriority: inputPriority,
         needsManualReview: false,
         createdAt: old?.createdAt ?? now.subtract(const Duration(hours: 5)),
         updatedAt: now,

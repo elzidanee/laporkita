@@ -51,6 +51,9 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
           _currentReport = _currentReport.copyWith(
             status: fresh.status,
             damageSeverity: fresh.damageSeverity ?? _currentReport.damageSeverity,
+            rawAiConfidenceScore:
+                fresh.rawAiConfidenceScore ?? _currentReport.rawAiConfidenceScore,
+            directPriority: fresh.directPriority ?? _currentReport.directPriority,
             urgencyScore: fresh.urgencyScore ?? _currentReport.urgencyScore,
             statusHistory: fresh.statusHistory.isNotEmpty
                 ? fresh.statusHistory
@@ -99,69 +102,76 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
   Widget build(BuildContext context) {
     final r = _currentReport;
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: Stack(
-        children: [
-          SafeArea(
-            bottom: false,
-            child: Column(
-              children: [
-                // Top App Bar: Back <, "Detail Laporan", Share icon
-                _buildTopAppBar(),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        Navigator.pop(context, _currentReport);
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: Stack(
+          children: [
+            SafeArea(
+              bottom: false,
+              child: Column(
+                children: [
+                  // Top App Bar: Back <, "Detail Laporan", Share icon
+                  _buildTopAppBar(),
 
-                // Scrollable Content
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 6),
+                  // Scrollable Content
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 6),
 
-                        // Header Info: Code + Status Badge, Title, Address
-                        _buildHeaderInfo(r),
-                        const SizedBox(height: 18),
+                          // Header Info: Code + Status Badge, Title, Address
+                          _buildHeaderInfo(r),
+                          const SizedBox(height: 18),
 
-                        // Hero Image Container with Authentic Watermark
-                        _buildHeroImage(r),
-                        const SizedBox(height: 18),
+                          // Hero Image Container with Authentic Watermark
+                          _buildHeroImage(r),
+                          const SizedBox(height: 18),
 
-                        // Deskripsi Section
-                        _buildDescriptionSection(r),
-                        const SizedBox(height: 18),
+                          // Deskripsi Section
+                          _buildDescriptionSection(r),
+                          const SizedBox(height: 18),
 
-                        // Key-Value Attribute Details List
-                        _buildKeyValuesList(r),
-                        const SizedBox(height: 20),
+                          // Key-Value Attribute Details List
+                          _buildKeyValuesList(r),
+                          const SizedBox(height: 20),
 
-                        // "Lihat Pada Peta" Outlined Button
-                        _buildMapButton(r),
-                        const SizedBox(height: 24),
+                          // "Lihat Pada Peta" Outlined Button
+                          _buildMapButton(r),
+                          const SizedBox(height: 24),
 
-                        // AI Verification Card
-                        _buildAiVerificationCard(r),
-                        const SizedBox(height: 32),
-                      ],
+                          // AI Verification Card
+                          _buildAiVerificationCard(r),
+                          const SizedBox(height: 32),
+                        ],
+                      ),
                     ),
                   ),
-                ),
 
-                // Bottom Sticky Action Bar: Riwayat, Catatan, Tindak Lanjut
-                _buildBottomActionBar(r),
-              ],
-            ),
-          ),
-          if (_isLoading)
-            Container(
-              color: Colors.black.withValues(alpha: 0.25),
-              child: const Center(
-                child: CircularProgressIndicator(
-                  color: AppColors.greenPrimary,
-                ),
+                  // Bottom Sticky Action Bar: Riwayat, Catatan, Tindak Lanjut
+                  _buildBottomActionBar(r),
+                ],
               ),
             ),
-        ],
+            if (_isLoading)
+              Container(
+                color: Colors.black.withValues(alpha: 0.25),
+                child: const Center(
+                  child: CircularProgressIndicator(
+                    color: AppColors.greenPrimary,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -179,7 +189,7 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
             alignment: Alignment.centerLeft,
             child: InkWell(
               borderRadius: BorderRadius.circular(20.5),
-              onTap: () => Navigator.pop(context),
+              onTap: () => Navigator.pop(context, _currentReport),
               child: Container(
                 width: 41,
                 height: 41,

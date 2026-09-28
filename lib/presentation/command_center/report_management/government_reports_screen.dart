@@ -55,6 +55,7 @@ class _GovernmentReportsScreenState extends State<GovernmentReportsScreen> {
   final List<String> _statusOptions = [
     'Semua Status',
     'Menunggu Verifikasi',
+    'Terverifikasi',
     'Sedang Diproses',
     'Ditugaskan',
     'Selesai',
@@ -92,13 +93,27 @@ class _GovernmentReportsScreenState extends State<GovernmentReportsScreen> {
   void initState() {
     super.initState();
     if (widget.initialStatusFilter != null) {
-      _selectedStatus = widget.initialStatusFilter!;
+      _selectedStatus = _mapApiStatusToDisplay(widget.initialStatusFilter!);
     }
     if (widget.initialOpdFilter != null) {
       _selectedOpd = widget.initialOpdFilter!;
+      _selectedOpdSecondary = widget.initialOpdFilter! == 'Semua OPD'
+          ? 'OPD'
+          : widget.initialOpdFilter!;
     }
     _searchController.addListener(() => setState(() {}));
     _fetchReports();
+  }
+
+  String _mapApiStatusToDisplay(String apiStatus) {
+    final lower = apiStatus.toLowerCase();
+    if (lower.contains('pending')) return 'Menunggu Verifikasi';
+    if (lower.contains('verif')) return 'Terverifikasi';
+    if (lower.contains('progress')) return 'Sedang Diproses';
+    if (lower.contains('assign')) return 'Ditugaskan';
+    if (lower.contains('complet') || lower.contains('resolv')) return 'Selesai';
+    if (lower.contains('reject')) return 'Ditolak';
+    return 'Semua Status';
   }
 
   @override
@@ -116,7 +131,9 @@ class _GovernmentReportsScreenState extends State<GovernmentReportsScreen> {
       if (mounted) {
         final reports = results.data ?? [];
         final listToUse = reports.isNotEmpty ? reports : _getFigmaMockReports();
-        reportRepo.cacheReports(listToUse);
+        try {
+          reportRepo.cacheReports(listToUse);
+        } catch (_) {}
         setState(() {
           _allReports = listToUse;
           _isLoading = false;
@@ -413,28 +430,28 @@ class _GovernmentReportsScreenState extends State<GovernmentReportsScreen> {
     final rCat = reportCat.toLowerCase();
     final fCat = filterCat.toLowerCase();
 
-    if (fCat.contains('jalan') &&
-        (rCat.contains('jalan') ||
-            rCat.contains('lubang') ||
-            rCat.contains('aspal'))) {
-      return true;
+    if (fCat.contains('lampu') || fCat.contains('penerangan')) {
+      return rCat.contains('lampu') || rCat.contains('penerangan');
     }
-    if (fCat.contains('halte') && rCat.contains('halte')) {
-      return true;
+    if (fCat.contains('halte')) {
+      return rCat.contains('halte');
     }
-    if (fCat.contains('trotoar') &&
-        (rCat.contains('trotoar') || rCat.contains('pedestrian'))) {
-      return true;
+    if (fCat.contains('trotoar') || fCat.contains('pedestrian')) {
+      return rCat.contains('trotoar') || rCat.contains('pedestrian');
     }
-    if (fCat.contains('lampu') &&
-        (rCat.contains('lampu') || rCat.contains('penerangan'))) {
-      return true;
+    if (fCat.contains('drainase') ||
+        fCat.contains('banjir') ||
+        fCat.contains('selokan')) {
+      return rCat.contains('drainase') ||
+          rCat.contains('banjir') ||
+          rCat.contains('selokan');
     }
-    if (fCat.contains('drainase') &&
-        (rCat.contains('drainase') ||
-            rCat.contains('banjir') ||
-            rCat.contains('selokan'))) {
-      return true;
+    if (fCat.contains('jalan') || fCat.contains('lubang') || fCat.contains('aspal')) {
+      return (rCat.contains('jalan') ||
+              rCat.contains('lubang') ||
+              rCat.contains('aspal')) &&
+          !rCat.contains('lampu') &&
+          !rCat.contains('penerangan');
     }
     return rCat.contains(fCat) || fCat.contains(rCat);
   }
@@ -465,9 +482,12 @@ class _GovernmentReportsScreenState extends State<GovernmentReportsScreen> {
         if (!matchesStatus) return false;
       }
 
-      // 3. OPD Filter (Row 1)
-      if (_selectedOpd != 'Semua OPD') {
-        if (!_checkOpdMatch(r, _selectedOpd)) return false;
+      // 3. OPD Filter (Row 1 & Row 2 unified)
+      final activeOpd = _selectedOpd != 'Semua OPD'
+          ? _selectedOpd
+          : (_selectedOpdSecondary != 'OPD' ? _selectedOpdSecondary : null);
+      if (activeOpd != null) {
+        if (!_checkOpdMatch(r, activeOpd)) return false;
       }
 
       // 4. Category Filter (Row 2)
@@ -475,15 +495,11 @@ class _GovernmentReportsScreenState extends State<GovernmentReportsScreen> {
         if (!_checkCategoryMatch(r.categoryName, _selectedCategory)) return false;
       }
 
-      // 5. Secondary OPD Filter (Row 2)
-      if (_selectedOpdSecondary != 'OPD') {
-        if (!_checkOpdMatch(r, _selectedOpdSecondary)) return false;
-      }
-
-      // 6. Priority Filter (Row 2)
+      // 5. Priority Filter (Row 2)
       if (_selectedPriority != 'Prioritas') {
-        final priority = _getPriorityLabel(r);
-        if (priority != _selectedPriority) {
+        final priority = _getPriorityLabel(r).toLowerCase();
+        final target = _selectedPriority.toLowerCase().replaceAll('prioritas ', '').trim();
+        if (!priority.contains(target)) {
           return false;
         }
       }
@@ -508,6 +524,8 @@ class _GovernmentReportsScreenState extends State<GovernmentReportsScreen> {
     switch (filter) {
       case 'Menunggu Verifikasi':
         return status == ReportStatus.pendingVerification;
+      case 'Terverifikasi':
+        return status == ReportStatus.verified;
       case 'Sedang Diproses':
         return status == ReportStatus.inProgress;
       case 'Ditugaskan':
@@ -837,7 +855,12 @@ class _GovernmentReportsScreenState extends State<GovernmentReportsScreen> {
             ),
             child: PopupMenuButton<String>(
               initialValue: _selectedOpd,
-              onSelected: (val) => setState(() => _selectedOpd = val),
+              onSelected: (val) {
+                setState(() {
+                  _selectedOpd = val;
+                  _selectedOpdSecondary = val == 'Semua OPD' ? 'OPD' : val;
+                });
+              },
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10)),
               itemBuilder: (_) => _opdOptions.map((opd) {
@@ -999,7 +1022,12 @@ class _GovernmentReportsScreenState extends State<GovernmentReportsScreen> {
             ),
             child: PopupMenuButton<String>(
               initialValue: _selectedOpdSecondary,
-              onSelected: (val) => setState(() => _selectedOpdSecondary = val),
+              onSelected: (val) {
+                setState(() {
+                  _selectedOpdSecondary = val;
+                  _selectedOpd = val == 'OPD' ? 'Semua OPD' : val;
+                });
+              },
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10)),
               itemBuilder: (_) => _opdOptions.map((opd) {
@@ -1128,13 +1156,23 @@ class _GovernmentReportsScreenState extends State<GovernmentReportsScreen> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () {
-            Navigator.push(
+          onTap: () async {
+            final updated = await Navigator.push<ReportModel>(
               context,
               MaterialPageRoute(
                 builder: (_) => AdminReportDetailScreen(report: r),
               ),
             );
+            if (updated != null && mounted) {
+              setState(() {
+                final idx = _allReports.indexWhere((e) => e.id == updated.id);
+                if (idx != -1) {
+                  _allReports[idx] = updated;
+                }
+              });
+            } else if (mounted) {
+              _fetchReports();
+            }
           },
           borderRadius: BorderRadius.circular(10),
           child: Padding(

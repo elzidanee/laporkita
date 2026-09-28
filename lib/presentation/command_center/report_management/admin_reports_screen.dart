@@ -35,12 +35,15 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
   // Filter states
   String _selectedStatus = 'Semua Status';
   String _selectedOpd = 'Semua OPD';
+  String _selectedCategory = 'Semua Kategori';
+  String _selectedPriority = 'Semua Prioritas';
   String _selectedSort = 'Terbaru';
   bool _sortAscending = false;
 
   final List<String> _statusOptions = [
     'Semua Status',
     'Menunggu Verifikasi',
+    'Terverifikasi',
     'Sedang Diproses',
     'Ditugaskan',
     'Selesai',
@@ -52,6 +55,33 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     'Dinas PUPR (DPUPR)',
     'Dinas Perhubungan (Dishub)',
     'Dinas Komunikasi & Informatika (Diskominfo)',
+    'Dinas PU SDA',
+    'Dinas Lingkungan Hidup',
+  ];
+
+  final List<String> _categoryOptions = [
+    'Semua Kategori',
+    'Jalan Rusak',
+    'Halte bus rusak',
+    'Trotoar Rusak',
+    'Lampu Jalan',
+    'Drainase',
+    'Fasilitas Umum',
+  ];
+
+  final List<String> _priorityOptions = [
+    'Semua Prioritas',
+    'Prioritas Tinggi',
+    'Sedang',
+    'Perlu Penanganan',
+    'Rendah',
+  ];
+
+  final List<String> _sortOptions = [
+    'Terbaru',
+    'Terlama',
+    'Prioritas Tertinggi AI',
+    'Paling Banyak Dukungan',
   ];
 
   @override
@@ -76,6 +106,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
   String _mapApiStatusToDisplay(String apiStatus) {
     final lower = apiStatus.toLowerCase();
     if (lower.contains('pending')) return 'Menunggu Verifikasi';
+    if (lower.contains('verif')) return 'Terverifikasi';
     if (lower.contains('progress')) return 'Sedang Diproses';
     if (lower.contains('assign')) return 'Ditugaskan';
     if (lower.contains('complet') || lower.contains('resolv')) return 'Selesai';
@@ -111,6 +142,100 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
 
   // ── FILTER & SEARCH LOGIC ──────────────────────────────────────────
 
+  bool _checkOpdMatch(ReportModel r, String filterOpd) {
+    if (filterOpd == 'Semua OPD') return true;
+    final agencyName = (r.assignedAgency?['name'] ?? '').toString().toLowerCase();
+    final agencyType = (r.assignedAgency?['type'] ?? '').toString().toLowerCase();
+    final catName = r.categoryName.toLowerCase();
+    final opdLower = filterOpd.toLowerCase();
+
+    if (opdLower.contains('pupr')) {
+      final isAgency = agencyName.contains('pupr') ||
+          agencyType.contains('pupr') ||
+          agencyName.contains('pekerjaan umum');
+      final isCat = catName.contains('jalan') ||
+          catName.contains('jembatan') ||
+          catName.contains('trotoar') ||
+          catName.contains('drainase') ||
+          catName.contains('infrastruktur') ||
+          catName.contains('aspal') ||
+          catName.contains('lubang');
+      return isAgency || isCat;
+    } else if (opdLower.contains('dishub') || opdLower.contains('perhubungan')) {
+      final isAgency = agencyName.contains('dishub') ||
+          agencyType.contains('dishub') ||
+          agencyName.contains('perhubungan');
+      final isCat = catName.contains('rambu') ||
+          catName.contains('lampu') ||
+          catName.contains('lalu lintas') ||
+          catName.contains('marka') ||
+          catName.contains('halte') ||
+          catName.contains('traffic');
+      return isAgency || isCat;
+    } else if (opdLower.contains('sda')) {
+      final isAgency = agencyName.contains('sda') || agencyType.contains('sda');
+      final isCat = catName.contains('drainase') ||
+          catName.contains('banjir') ||
+          catName.contains('sungai');
+      return isAgency || isCat;
+    } else if (opdLower.contains('lingkungan')) {
+      final isAgency = agencyName.contains('dlh') || agencyName.contains('lingkungan');
+      final isCat = catName.contains('sampah') || catName.contains('kebersihan');
+      return isAgency || isCat;
+    } else if (opdLower.contains('diskominfo') || opdLower.contains('kominfo')) {
+      final isAgency = agencyName.contains('diskominfo') ||
+          agencyType.contains('diskominfo') ||
+          agencyName.contains('kominfo');
+      final isCat = catName.contains('internet') ||
+          catName.contains('cctv') ||
+          catName.contains('kabel') ||
+          catName.contains('fiber') ||
+          catName.contains('wifi') ||
+          catName.contains('telekomunikasi') ||
+          catName.contains('digital');
+      return isAgency || isCat;
+    }
+    return agencyName.contains(opdLower);
+  }
+
+  bool _checkCategoryMatch(String reportCat, String filterCat) {
+    if (filterCat == 'Semua Kategori') return true;
+    final rCat = reportCat.toLowerCase();
+    final fCat = filterCat.toLowerCase();
+
+    if (fCat.contains('lampu') || fCat.contains('penerangan')) {
+      return rCat.contains('lampu') || rCat.contains('penerangan');
+    }
+    if (fCat.contains('halte')) {
+      return rCat.contains('halte');
+    }
+    if (fCat.contains('trotoar') || fCat.contains('pedestrian')) {
+      return rCat.contains('trotoar') || rCat.contains('pedestrian');
+    }
+    if (fCat.contains('drainase') ||
+        fCat.contains('banjir') ||
+        fCat.contains('selokan')) {
+      return rCat.contains('drainase') ||
+          rCat.contains('banjir') ||
+          rCat.contains('selokan');
+    }
+    if (fCat.contains('jalan') || fCat.contains('lubang') || fCat.contains('aspal')) {
+      return (rCat.contains('jalan') ||
+              rCat.contains('lubang') ||
+              rCat.contains('aspal')) &&
+          !rCat.contains('lampu') &&
+          !rCat.contains('penerangan');
+    }
+    return rCat.contains(fCat) || fCat.contains(rCat);
+  }
+
+  bool _checkPriorityMatch(ReportModel r, String filterPriority) {
+    if (filterPriority == 'Semua Prioritas') return true;
+    final priority = r.priorityLabel.toLowerCase();
+    final target = filterPriority.toLowerCase().replaceAll('prioritas ', '').trim();
+    return priority.contains(target);
+  }
+
   List<ReportModel> get _filteredReports {
     final query = _searchController.text.trim().toLowerCase();
 
@@ -123,53 +248,36 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
 
       // 2. OPD Filter
       if (_selectedOpd != 'Semua OPD') {
-        final agencyName = (r.assignedAgency?['name'] ?? '').toString().toLowerCase();
-        final opdLower = _selectedOpd.toLowerCase();
-        final catName = r.categoryName.toLowerCase();
-
-        if (opdLower.contains('pupr')) {
-          final isAgencyPupr = agencyName.contains('pupr') || agencyName.contains('dpupr');
-          final isCatPupr = catName.contains('jalan') ||
-              catName.contains('jembatan') ||
-              catName.contains('trotoar') ||
-              catName.contains('drainase') ||
-              catName.contains('infrastruktur') ||
-              catName.contains('aspal');
-          if (!isAgencyPupr && !isCatPupr) return false;
-        } else if (opdLower.contains('dishub') || opdLower.contains('perhubungan')) {
-          final isAgencyDishub = agencyName.contains('dishub') || agencyName.contains('perhubungan');
-          final isCatDishub = catName.contains('rambu') ||
-              catName.contains('lampu') ||
-              catName.contains('lalu lintas') ||
-              catName.contains('marka') ||
-              catName.contains('traffic');
-          if (!isAgencyDishub && !isCatDishub) return false;
-        } else if (opdLower.contains('diskominfo') || opdLower.contains('kominfo')) {
-          final isAgencyDiskominfo = agencyName.contains('diskominfo') || agencyName.contains('kominfo');
-          final isCatDiskominfo = catName.contains('internet') ||
-              catName.contains('cctv') ||
-              catName.contains('kabel') ||
-              catName.contains('fiber') ||
-              catName.contains('wifi') ||
-              catName.contains('telekomunikasi') ||
-              catName.contains('digital');
-          if (!isAgencyDiskominfo && !isCatDiskominfo) return false;
-        }
+        if (!_checkOpdMatch(r, _selectedOpd)) return false;
       }
 
-      // 3. Search Query
+      // 3. Category Filter
+      if (_selectedCategory != 'Semua Kategori') {
+        if (!_checkCategoryMatch(r.categoryName, _selectedCategory)) return false;
+      }
+
+      // 4. Priority Filter
+      if (_selectedPriority != 'Semua Prioritas') {
+        if (!_checkPriorityMatch(r, _selectedPriority)) return false;
+      }
+
+      // 5. Search Query
       if (query.isNotEmpty) {
         final code = r.reportCode.toLowerCase();
         final title = r.categoryName.toLowerCase();
         final desc = (r.description ?? '').toLowerCase();
         final addr = (r.addressText ?? '').toLowerCase();
         final reporter = r.reporterName.toLowerCase();
+        final prio = r.priorityLabel.toLowerCase();
+        final agency = (r.assignedAgency?['name'] ?? '').toString().toLowerCase();
 
         final matches = code.contains(query) ||
             title.contains(query) ||
             desc.contains(query) ||
             addr.contains(query) ||
-            reporter.contains(query);
+            reporter.contains(query) ||
+            prio.contains(query) ||
+            agency.contains(query);
         if (!matches) return false;
       }
 
@@ -178,10 +286,13 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
       ..sort((a, b) {
         if (_selectedSort == 'Terlama') {
           return a.createdAt.compareTo(b.createdAt);
-        } else if (_selectedSort == 'Prioritas') {
-          final scoreA = a.urgencyScore ?? 0.0;
-          final scoreB = b.urgencyScore ?? 0.0;
+        } else if (_selectedSort == 'Prioritas' ||
+            _selectedSort == 'Prioritas Tertinggi AI') {
+          final scoreA = (a.damageSeverity ?? 0) * 10 + (a.urgencyScore ?? 0);
+          final scoreB = (b.damageSeverity ?? 0) * 10 + (b.urgencyScore ?? 0);
           return scoreB.compareTo(scoreA);
+        } else if (_selectedSort == 'Paling Banyak Dukungan') {
+          return b.supportCount.compareTo(a.supportCount);
         } else {
           // Default: Terbaru
           return _sortAscending
@@ -195,6 +306,8 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     switch (filter) {
       case 'Menunggu Verifikasi':
         return status == ReportStatus.pendingVerification;
+      case 'Terverifikasi':
+        return status == ReportStatus.verified;
       case 'Sedang Diproses':
         return status == ReportStatus.inProgress;
       case 'Ditugaskan':
@@ -206,6 +319,18 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
       default:
         return true;
     }
+  }
+
+  void _resetAllFilters() {
+    setState(() {
+      _selectedStatus = 'Semua Status';
+      _selectedOpd = 'Semua OPD';
+      _selectedCategory = 'Semua Kategori';
+      _selectedPriority = 'Semua Prioritas';
+      _selectedSort = 'Terbaru';
+      _sortAscending = false;
+      _searchController.clear();
+    });
   }
 
   // ── BUILD ──────────────────────────────────────────────────────────
@@ -233,12 +358,19 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
             ),
             const SizedBox(height: 14),
 
-            // Filter Row: Filter, Semua Status, Semua OPD, Sort Icon
+            // Filter Row 1: Filter, Semua Status, Semua OPD, Sort Icon
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: _buildFilterRow(),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
+
+            // Filter Row 2: Semua Kategori, Semua Prioritas, Reset Filter
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: _buildSecondaryFilterRow(),
+            ),
+            const SizedBox(height: 14),
 
             // Total Counter: Total 2.458 Laporan
             Padding(
@@ -381,15 +513,16 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     );
   }
 
-  // ── FILTER ROW ─────────────────────────────────────────────────────
+  // ── FILTER ROWS ───────────────────────────────────────────────────
 
   Widget _buildFilterRow() {
+    final sortLabel = _selectedSort == 'Terbaru' ? 'Filter' : _selectedSort;
     return Row(
       children: [
         // 1. Filter Chip
         _buildFilterChip(
           icon: Icons.tune_rounded,
-          label: 'Filter',
+          label: sortLabel,
           onTap: _showSortBottomSheet,
         ),
         const SizedBox(width: 6),
@@ -452,6 +585,114 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildSecondaryFilterRow() {
+    final bool hasActiveFilters = _selectedStatus != 'Semua Status' ||
+        _selectedOpd != 'Semua OPD' ||
+        _selectedCategory != 'Semua Kategori' ||
+        _selectedPriority != 'Semua Prioritas' ||
+        _selectedSort != 'Terbaru' ||
+        _searchController.text.isNotEmpty;
+
+    return Row(
+      children: [
+        // 1. Kategori Dropdown Pill
+        Expanded(
+          flex: 5,
+          child: _buildGrayFilterChip(
+            label: _selectedCategory,
+            onTap: _showCategoryBottomSheet,
+          ),
+        ),
+        const SizedBox(width: 6),
+
+        // 2. Prioritas Dropdown Pill
+        Expanded(
+          flex: 4,
+          child: _buildGrayFilterChip(
+            label: _selectedPriority,
+            onTap: _showPriorityBottomSheet,
+          ),
+        ),
+        const SizedBox(width: 6),
+
+        // 3. Reset Filter Icon Button
+        GestureDetector(
+          onTap: hasActiveFilters ? _resetAllFilters : null,
+          child: Container(
+            width: 32,
+            height: 30,
+            decoration: BoxDecoration(
+              color: hasActiveFilters ? const Color(0xFFFEE2E2) : Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: hasActiveFilters ? const Color(0xFFEF4444) : const Color(0xFFE0DFDF),
+                width: 0.85,
+              ),
+            ),
+            child: Icon(
+              Icons.restart_alt_rounded,
+              size: 18,
+              color: hasActiveFilters ? const Color(0xFFEF4444) : const Color(0xFF888888),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGrayFilterChip({
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    final isDefault = label.startsWith('Semua') || label == 'Prioritas';
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 30,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8.5),
+          border: Border.all(
+            color: isDefault ? const Color(0xFFE0DFDF) : AppColors.greenPrimary,
+            width: isDefault ? 0.85 : 1.2,
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0D000000),
+              blurRadius: 4,
+              offset: Offset(0, 1),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Flexible(
+              child: Text(
+                label,
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  fontWeight: isDefault ? FontWeight.w500 : FontWeight.w600,
+                  color: isDefault ? const Color(0xFF515151) : AppColors.greenPrimary,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 2),
+            Icon(
+              Icons.keyboard_arrow_down_rounded,
+              size: 16,
+              color: isDefault ? const Color(0xFF515151) : AppColors.greenPrimary,
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -557,13 +798,21 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
   Widget _buildReportCard(ReportModel r) {
     return GestureDetector(
       onTap: () async {
-        await Navigator.push(
+        final updatedReport = await Navigator.push<ReportModel>(
           context,
           MaterialPageRoute(
             builder: (_) => AdminReportDetailScreen(report: r),
           ),
         );
-        if (mounted) _fetchReports();
+        if (mounted) {
+          if (updatedReport != null) {
+            setState(() {
+              final idx = _allReports.indexWhere((x) => x.id == updatedReport.id);
+              if (idx != -1) _allReports[idx] = updatedReport;
+            });
+          }
+          _fetchReports();
+        }
       },
       child: Container(
         decoration: BoxDecoration(
@@ -629,14 +878,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                         ),
                       ),
                       const SizedBox(width: 6),
-                      Text(
-                        _formatDateShort(r.createdAt),
-                        style: GoogleFonts.poppins(
-                          fontSize: 9,
-                          color: const Color(0xFFA8A8A8),
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ),
+                      _buildPriorityBadge(r),
                     ],
                   ),
                   const SizedBox(height: 3),
@@ -656,6 +898,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      const SizedBox(width: 4),
                       const Icon(
                         Icons.chevron_right_rounded,
                         size: 20,
@@ -668,14 +911,19 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Text(
-                        _formatCodeWithHash(r.reportCode),
-                        style: GoogleFonts.poppins(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: const Color(0xFF1D9C51),
+                      Expanded(
+                        child: Text(
+                          _formatCodeWithHash(r.reportCode),
+                          style: GoogleFonts.poppins(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: const Color(0xFF1D9C51),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      const SizedBox(width: 6),
                       _buildStatusBadge(r.status),
                     ],
                   ),
@@ -683,6 +931,24 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPriorityBadge(ReportModel r) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: r.priorityBgColor,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        r.priorityLabel,
+        style: GoogleFonts.poppins(
+          fontSize: 8.5,
+          fontWeight: FontWeight.w600,
+          color: r.priorityColor,
         ),
       ),
     );
@@ -905,7 +1171,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              ...['Terbaru', 'Terlama', 'Prioritas'].map((sort) {
+              ..._sortOptions.map((sort) {
                 final isSelected = _selectedSort == sort;
                 return ListTile(
                   contentPadding: EdgeInsets.zero,
@@ -914,7 +1180,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                     color: isSelected ? AppColors.greenPrimary : Colors.grey,
                   ),
                   title: Text(
-                    sort == 'Prioritas' ? 'Prioritas Tertinggi AI' : sort,
+                    sort,
                     style: GoogleFonts.poppins(
                       fontSize: 14,
                       fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
@@ -1038,7 +1304,109 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     );
   }
 
+  void _showCategoryBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Filter Berdasarkan Kategori',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ..._categoryOptions.map((cat) {
+                final isSelected = _selectedCategory == cat;
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    isSelected ? Icons.category_rounded : Icons.category_outlined,
+                    color: isSelected ? AppColors.greenPrimary : Colors.grey,
+                  ),
+                  title: Text(
+                    cat,
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                      color: isSelected ? AppColors.greenPrimary : Colors.black,
+                    ),
+                  ),
+                  onTap: () {
+                    setState(() => _selectedCategory = cat);
+                    Navigator.pop(ctx);
+                  },
+                );
+              }),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
+  void _showPriorityBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Filter Tingkat Prioritas',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ..._priorityOptions.map((p) {
+                final isSelected = _selectedPriority == p;
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    isSelected ? Icons.flag_rounded : Icons.outlined_flag_rounded,
+                    color: isSelected ? AppColors.greenPrimary : Colors.grey,
+                  ),
+                  title: Text(
+                    p,
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                      color: isSelected ? AppColors.greenPrimary : Colors.black,
+                    ),
+                  ),
+                  onTap: () {
+                    setState(() => _selectedPriority = p);
+                    Navigator.pop(ctx);
+                  },
+                );
+              }),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   // ── EMPTY STATE ────────────────────────────────────────────────────
 
@@ -1074,7 +1442,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
             ),
             const SizedBox(height: 6),
             Text(
-              'Coba sesuaikan filter status, OPD, atau kata kunci pencarian Anda.',
+              'Coba sesuaikan filter status, OPD, kategori, atau kata kunci pencarian Anda.',
               textAlign: TextAlign.center,
               style: GoogleFonts.poppins(
                 fontSize: 12,
@@ -1083,14 +1451,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
             ),
             const SizedBox(height: 18),
             ElevatedButton.icon(
-              onPressed: () {
-                setState(() {
-                  _searchController.clear();
-                  _selectedStatus = 'Semua Status';
-                  _selectedOpd = 'Semua OPD';
-                  _selectedSort = 'Terbaru';
-                });
-              },
+              onPressed: _resetAllFilters,
               icon: const Icon(Icons.refresh_rounded, size: 18),
               label: const Text('Reset Filter'),
               style: ElevatedButton.styleFrom(

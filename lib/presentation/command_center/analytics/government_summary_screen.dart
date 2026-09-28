@@ -70,6 +70,73 @@ class _GovernmentSummaryScreenState extends State<GovernmentSummaryScreen> {
     }
   }
 
+  bool _checkOpdMatch(ReportModel r, String filterOpd) {
+    if (filterOpd == 'Semua OPD') return true;
+    final agencyName = (r.assignedAgency?['name'] ?? '').toString().toLowerCase();
+    final agencyType = (r.assignedAgency?['type'] ?? '').toString().toLowerCase();
+    final catName = r.categoryName.toLowerCase();
+    final opdLower = filterOpd.toLowerCase();
+
+    if (opdLower.contains('pupr')) {
+      final isAgency = agencyName.contains('pupr') || agencyType.contains('pupr') || agencyName.contains('pekerjaan umum');
+      final isCat = catName.contains('jalan') ||
+          catName.contains('jembatan') ||
+          catName.contains('trotoar') ||
+          catName.contains('drainase') ||
+          catName.contains('infrastruktur') ||
+          catName.contains('aspal') ||
+          catName.contains('lubang');
+      return isAgency || isCat;
+    } else if (opdLower.contains('dishub') || opdLower.contains('perhubungan')) {
+      final isAgency = agencyName.contains('dishub') || agencyType.contains('dishub') || agencyName.contains('perhubungan');
+      final isCat = catName.contains('rambu') ||
+          catName.contains('lampu') ||
+          catName.contains('lalu lintas') ||
+          catName.contains('marka') ||
+          catName.contains('halte') ||
+          catName.contains('traffic');
+      return isAgency || isCat;
+    } else if (opdLower.contains('sda')) {
+      final isAgency = agencyName.contains('sda') || agencyType.contains('sda');
+      final isCat = catName.contains('drainase') || catName.contains('banjir') || catName.contains('sungai');
+      return isAgency || isCat;
+    } else if (opdLower.contains('lingkungan')) {
+      final isAgency = agencyName.contains('dlh') || agencyName.contains('lingkungan');
+      final isCat = catName.contains('sampah') || catName.contains('kebersihan');
+      return isAgency || isCat;
+    } else if (opdLower.contains('pertamanan')) {
+      final isCat = catName.contains('taman') || catName.contains('pohon');
+      return isCat;
+    }
+    return agencyName.contains(opdLower);
+  }
+
+  List<ReportModel> get _filteredReports {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day, 23, 59, 59);
+
+    return _reports.where((r) {
+      // 1. OPD filter
+      if (_selectedOpd != 'Semua OPD') {
+        if (!_checkOpdMatch(r, _selectedOpd)) return false;
+      }
+
+      // 2. Date Range filter
+      if (_selectedRange == '7 Hari Terakhir') {
+        final sevenDaysAgo = today.subtract(const Duration(days: 7));
+        if (r.createdAt.isBefore(sevenDaysAgo)) return false;
+      } else if (_selectedRange == '30 Hari Terakhir') {
+        final thirtyDaysAgo = today.subtract(const Duration(days: 30));
+        if (r.createdAt.isBefore(thirtyDaysAgo)) return false;
+      } else if (_selectedRange == 'Bulan Ini') {
+        if (r.createdAt.year != now.year || r.createdAt.month != now.month) return false;
+      } else if (_selectedRange == 'Tahun Ini') {
+        if (r.createdAt.year != now.year) return false;
+      }
+      return true;
+    }).toList();
+  }
+
   void _handleBack() {
     if (widget.onBack != null) {
       widget.onBack!();
@@ -441,6 +508,30 @@ class _GovernmentSummaryScreenState extends State<GovernmentSummaryScreen> {
 
   // ── 3. LINE CHART CARD (GRAFIK LAPORAN 7 HARI TERAKHIR) ───────────
   Widget _buildLineChartCard() {
+    final filtered = _filteredReports;
+    List<double> greenData = const [10, 38, 38, 62, 82, 88];
+    List<double> blueData = const [2, 20, 20, 36, 56, 72];
+    List<String> labels = const ['6 Mei', '13 Mei', '20 Mei', '27 Mei', '3 Juni'];
+
+    if (filtered.isNotEmpty) {
+      final now = DateTime.now();
+      const monthNames = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+        'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+      ];
+      labels = [];
+      greenData = [];
+      blueData = [];
+      for (int i = 4; i >= 0; i--) {
+        final d = now.subtract(Duration(days: i * 2));
+        labels.add('${d.day} ${monthNames[d.month - 1]}');
+        final inBucket = filtered.where((r) => r.createdAt.isBefore(d.add(const Duration(days: 1)))).toList();
+        final solvedBucket = inBucket.where((r) => r.status == ReportStatus.completed || r.status == ReportStatus.resolved).toList();
+        greenData.add(inBucket.length.toDouble());
+        blueData.add(solvedBucket.length.toDouble());
+      }
+    }
+
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
       decoration: BoxDecoration(
@@ -470,7 +561,7 @@ class _GovernmentSummaryScreenState extends State<GovernmentSummaryScreen> {
                   ),
                 ),
                 TextSpan(
-                  text: '(7 hari terakhir)',
+                  text: '(${_selectedRange.toLowerCase()})',
                   style: GoogleFonts.poppins(
                     fontSize: 12,
                     fontWeight: FontWeight.normal,
@@ -489,9 +580,9 @@ class _GovernmentSummaryScreenState extends State<GovernmentSummaryScreen> {
             child: CustomPaint(
               size: const Size(double.infinity, 180),
               painter: _DualLineChartPainter(
-                greenData: const [10, 38, 38, 62, 82, 88],
-                blueData: const [2, 20, 20, 36, 56, 72],
-                labels: const ['6 Mei', '13 Mei', '20 Mei', '27 Mei', '3 Juni'],
+                greenData: greenData,
+                blueData: blueData,
+                labels: labels,
               ),
             ),
           ),
@@ -502,19 +593,23 @@ class _GovernmentSummaryScreenState extends State<GovernmentSummaryScreen> {
 
   // ── 4. DONUT CHART SECTION (DISTRIBUSI KATEGORI) ───────────────────
   Widget _buildDonutChartSection() {
-    final liveTotalReports =
-        _reports.isEmpty ? '2.458' : '${_reports.length}';
+    final filtered = _filteredReports;
+    final liveTotalReports = filtered.isEmpty
+        ? (_reports.isEmpty ? '2.458' : '0')
+        : '${filtered.length}';
 
     List<_CategoryLegendItem> categoryStats;
-    if (_reports.isNotEmpty) {
+    List<_DonutSegment> segments = [];
+
+    if (filtered.isNotEmpty) {
       int jalan = 0, lampu = 0, trotoar = 0, taman = 0, lainnya = 0;
-      for (final r in _reports) {
+      for (final r in filtered) {
         final cat = r.categoryName.toLowerCase();
-        if (cat.contains('jalan')) {
+        if (cat.contains('jalan') || cat.contains('lubang') || cat.contains('aspal')) {
           jalan++;
         } else if (cat.contains('lampu') || cat.contains('penerangan')) {
           lampu++;
-        } else if (cat.contains('trotoar')) {
+        } else if (cat.contains('trotoar') || cat.contains('pedestrian')) {
           trotoar++;
         } else if (cat.contains('taman') || cat.contains('pohon')) {
           taman++;
@@ -522,7 +617,7 @@ class _GovernmentSummaryScreenState extends State<GovernmentSummaryScreen> {
           lainnya++;
         }
       }
-      final total = _reports.length;
+      final total = filtered.length;
       final jPct = total > 0 ? ((jalan / total) * 100).round() : 0;
       final lPct = total > 0 ? ((lampu / total) * 100).round() : 0;
       final trPct = total > 0 ? ((trotoar / total) * 100).round() : 0;
@@ -551,6 +646,19 @@ class _GovernmentSummaryScreenState extends State<GovernmentSummaryScreen> {
             percent: '$lnPct%',
             color: const Color(0xFFE000FF)),
       ];
+
+      segments = [
+        if (jalan > 0)
+          _DonutSegment(sweepFraction: jalan / total, color: const Color(0xFFFF0000)),
+        if (lampu > 0)
+          _DonutSegment(sweepFraction: lampu / total, color: const Color(0xFFFFA500)),
+        if (trotoar > 0)
+          _DonutSegment(sweepFraction: trotoar / total, color: const Color(0xFF00E676)),
+        if (taman > 0)
+          _DonutSegment(sweepFraction: taman / total, color: const Color(0xFF0066FF)),
+        if (lainnya > 0)
+          _DonutSegment(sweepFraction: lainnya / total, color: const Color(0xFFE000FF)),
+      ];
     } else {
       categoryStats = const [
         _CategoryLegendItem(
@@ -574,6 +682,13 @@ class _GovernmentSummaryScreenState extends State<GovernmentSummaryScreen> {
             percent: '20%',
             color: Color(0xFFE000FF)), // Magenta
       ];
+      segments = const [
+        _DonutSegment(sweepFraction: 0.45, color: Color(0xFFFF0000)),
+        _DonutSegment(sweepFraction: 0.20, color: Color(0xFFFFA500)),
+        _DonutSegment(sweepFraction: 0.15, color: Color(0xFF00E676)),
+        _DonutSegment(sweepFraction: 0.10, color: Color(0xFF0066FF)),
+        _DonutSegment(sweepFraction: 0.10, color: Color(0xFFE000FF)),
+      ];
     }
 
     return Row(
@@ -588,7 +703,7 @@ class _GovernmentSummaryScreenState extends State<GovernmentSummaryScreen> {
             children: [
               CustomPaint(
                 size: const Size(155, 155),
-                painter: _DonutChartPainter(),
+                painter: _DonutChartPainter(segments: segments),
               ),
               Column(
                 mainAxisSize: MainAxisSize.min,
@@ -670,10 +785,11 @@ class _GovernmentSummaryScreenState extends State<GovernmentSummaryScreen> {
 
   // ── 5. TOP REGIONS CARD ───────────────────────────────────────────
   Widget _buildTopRegionsCard() {
+    final filtered = _filteredReports;
     List<_RegionItem> regions;
-    if (_reports.isNotEmpty) {
+    if (filtered.isNotEmpty) {
       int klojen = 0, lowokwaru = 0, blimbing = 0, kedungkandang = 0;
-      for (final r in _reports) {
+      for (final r in filtered) {
         final addr = (r.addressText ?? '').toLowerCase();
         if (addr.contains('klojen')) {
           klojen++;
@@ -1101,6 +1217,10 @@ class _DualLineChartPainter extends CustomPainter {
 
 /// Custom painter for Donut Chart matching Figma 614:3942
 class _DonutChartPainter extends CustomPainter {
+  final List<_DonutSegment>? segments;
+
+  const _DonutChartPainter({this.segments});
+
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
@@ -1109,24 +1229,20 @@ class _DonutChartPainter extends CustomPainter {
 
     final rect = Rect.fromCircle(center: center, radius: radius);
 
-    // Categories:
-    // 1. Red (Jalan) - 45% -> 0.45 * 2 * pi
-    // 2. Orange (Lapu Jalan) - 20% -> 0.20 * 2 * pi
-    // 3. Green (Trotoar) - 15% -> 0.15 * 2 * pi
-    // 4. Blue (Taman) - 10% -> 0.10 * 2 * pi
-    // 5. Magenta (Lainya) - 10% -> 0.10 * 2 * pi
-    final segments = [
-      _DonutSegment(sweepFraction: 0.45, color: const Color(0xFFFF0000)),
-      _DonutSegment(sweepFraction: 0.20, color: const Color(0xFFFFA500)),
-      _DonutSegment(sweepFraction: 0.15, color: const Color(0xFF00E676)),
-      _DonutSegment(sweepFraction: 0.10, color: const Color(0xFF0066FF)),
-      _DonutSegment(sweepFraction: 0.10, color: const Color(0xFFE000FF)),
-    ];
+    final list = (segments != null && segments!.isNotEmpty)
+        ? segments!
+        : const [
+            _DonutSegment(sweepFraction: 0.45, color: Color(0xFFFF0000)),
+            _DonutSegment(sweepFraction: 0.20, color: Color(0xFFFFA500)),
+            _DonutSegment(sweepFraction: 0.15, color: Color(0xFF00E676)),
+            _DonutSegment(sweepFraction: 0.10, color: Color(0xFF0066FF)),
+            _DonutSegment(sweepFraction: 0.10, color: Color(0xFFE000FF)),
+          ];
 
-    // Start angle: -pi / 2 (12 o'clock)
     double startAngle = -math.pi / 2;
 
-    for (final seg in segments) {
+    for (final seg in list) {
+      if (seg.sweepFraction <= 0) continue;
       final sweepAngle = seg.sweepFraction * 2 * math.pi;
       final paint = Paint()
         ..color = seg.color
@@ -1140,7 +1256,8 @@ class _DonutChartPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _DonutChartPainter oldDelegate) =>
+      oldDelegate.segments != segments;
 }
 
 class _DonutSegment {

@@ -1554,6 +1554,7 @@ class _AdminVerificationActionScreenState
             builder: (_) => AdminDuplicateDetectionScreen(
               currentReport: widget.report.copyWith(
                 category: {'name': _selectedCategory},
+                directPriority: _selectedPriority,
               ),
               similarReports: candidates.take(3).toList(),
               similarityPercentage: _manualIsDuplicate ? 92.0 : 85.0,
@@ -1577,6 +1578,7 @@ class _AdminVerificationActionScreenState
             builder: (_) => AdminAssignReportScreen(
               report: widget.report.copyWith(
                 category: {'name': _selectedCategory},
+                directPriority: _selectedPriority,
               ),
             ),
           ),

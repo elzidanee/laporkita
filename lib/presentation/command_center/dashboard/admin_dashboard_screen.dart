@@ -107,15 +107,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     }
   }
 
-  void _computeStats(List<ReportModel> reports) {
+  List<ReportModel> get _filteredReports {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final yesterday = today.subtract(const Duration(days: 1));
-
-    // Filter reports according to _selectedFilter
-    List<ReportModel> filtered = reports;
     if (_selectedFilter == 'Hari ini') {
-      filtered = reports.where((r) {
+      return _reports.where((r) {
         final c = r.createdAt;
         return c.year == today.year &&
             c.month == today.month &&
@@ -123,13 +119,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       }).toList();
     } else if (_selectedFilter == '7 Hari Terakhir') {
       final sevenDaysAgo = today.subtract(const Duration(days: 7));
-      filtered = reports.where((r) => r.createdAt.isAfter(sevenDaysAgo)).toList();
+      return _reports.where((r) => r.createdAt.isAfter(sevenDaysAgo)).toList();
     } else if (_selectedFilter == 'Bulan ini') {
-      filtered = reports
+      return _reports
           .where((r) =>
               r.createdAt.year == now.year && r.createdAt.month == now.month)
           .toList();
     }
+    return _reports;
+  }
+
+  void _computeStats(List<ReportModel> reports) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+
+    // Filter reports according to _selectedFilter
+    final filtered = _filteredReports;
 
     int inProgress = 0, selesai = 0, ditolak = 0;
     for (final r in filtered) {
@@ -857,6 +863,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             setState(() {
               _selectedFilter = val;
               _computeStats(_reports);
+              _computeChartData(_filteredReports);
             });
           },
           shape: RoundedRectangleBorder(
@@ -1178,11 +1185,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   // ── LAPORAN TERBARU (Figma Node 481:6114 - 481:6240) ────────────
 
   Widget _buildReportList() {
-    if (_reports.isEmpty) {
+    final displayReports = _filteredReports;
+    if (displayReports.isEmpty) {
       return _buildEmptyReportsState();
     }
 
-    final recentReports = _reports.take(10).toList();
+    final recentReports = displayReports.take(10).toList();
     return ListView.separated(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
