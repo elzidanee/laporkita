@@ -16,6 +16,8 @@ import 'presentation/citizen/camera/ai_verification_screen.dart';
 import 'presentation/citizen/camera/report_success_screen.dart';
 import 'presentation/citizen/camera/new_report_form_screen.dart';
 import 'presentation/command_center/dashboard/dashboard_screen.dart';
+import 'presentation/command_center/dashboard/operator_tugas_screen.dart';
+import 'presentation/command_center/dashboard/operator_report_detail_screen.dart';
 import 'presentation/command_center/policy_simulator/policy_simulator_screen.dart';
 import 'presentation/citizen/tracking/tracking_progress_screen.dart';
 import 'presentation/citizen/tracking/foto_progress_screen.dart';
@@ -165,6 +167,13 @@ Widget? _resolveScreen(RouteSettings settings) {
       return const CommandCenterDashboard(initialRole: UserRole.policyMaker);
     case '/operator-dashboard':
       return const CommandCenterDashboard(initialRole: UserRole.operator);
+    case '/operator-tugas':
+      return const OperatorTugasScreen();
+    case '/operator-report-detail':
+      if (settings.arguments is ReportModel) {
+        return OperatorReportDetailScreen(report: settings.arguments as ReportModel);
+      }
+      return const OperatorTugasScreen();
     case '/admin-dashboard':
       return const CommandCenterDashboard(initialRole: UserRole.admin);
     case '/policy-simulator':

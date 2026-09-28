@@ -1475,13 +1475,4 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     if (code.startsWith('#')) return code;
     return '#$code';
   }
-
-  String _formatDateShort(DateTime dt) {
-    const months = [
-      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-    ];
-    final monthName = months[dt.month - 1].toLowerCase();
-    return '${dt.day} $monthName ${dt.year}';
-  }
 }
