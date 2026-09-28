@@ -135,6 +135,30 @@ void main() {
       assignedAgency: const {'id': 'agency-2', 'name': 'Dishub'},
       directPriority: 'Sedang',
     ),
+    ReportModel(
+      id: 'rep-op-3',
+      reportCode: 'LP_2026_0049921',
+      reporterId: 'user-3',
+      categoryId: 'cat-3',
+      status: ReportStatus.completed,
+      latitude: -7.986,
+      longitude: 112.636,
+      addressText: 'Jl. Danau Ranau no. 2',
+      description: 'Pohon tumbang sudah dibersihkan.',
+      directPhotoUrl: null,
+      supportCount: 10,
+      viewCount: 50,
+      urgencyScore: 4.0,
+      damageSeverity: 0.30,
+      rawAiConfidenceScore: 0.90,
+      needsManualReview: false,
+      createdAt: DateTime(2026, 4, 5, 10, 0),
+      updatedAt: DateTime(2026, 4, 5, 12, 0),
+      category: const {'id': 'cat-3', 'name': 'Pohon Tumbang'},
+      reporter: const {'id': 'user-3', 'full_name': 'Rudi H'},
+      assignedAgency: const {'id': 'agency-3', 'name': 'DLH'},
+      directPriority: 'Rendah',
+    ),
   ];
 
   Widget createWidgetUnderTest(Widget child) {
@@ -234,6 +258,26 @@ void main() {
       expect(find.text('Cari ID, judul, lokasi, atau pelapor...'), findsOneWidget);
       expect(find.text('Semua Prioritas'), findsOneWidget);
       expect(find.text('Lihat Tugas'), findsWidgets);
+    });
+
+    testWidgets('completed reports do not show Mulai kerjakan button on dashboard', (tester) async {
+      tester.view.physicalSize = const Size(412, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(createWidgetUnderTest(const OperatorDashboardScreen()));
+      await tester.pumpAndSettle();
+
+      // "Pohon Tumbang" is completed, so it should be rendered
+      expect(find.text('Pohon Tumbang'), findsWidgets);
+
+      // Only rep-op-1 (assigned) has "Mulai kerjakan", while rep-op-2 (inProgress) has "Update"
+      // and rep-op-3 (completed) has NO action button!
+      expect(find.text('Mulai kerjakan'), findsNWidgets(1));
+      expect(find.text('Update'), findsNWidgets(1));
     });
   });
 

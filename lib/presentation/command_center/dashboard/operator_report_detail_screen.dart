@@ -935,7 +935,8 @@ class _OperatorReportDetailScreenState
         );
         widget.onStatusUpdated?.call();
       };
-    } else if (_selectedStatus == ReportStatus.completed) {
+    } else if (_selectedStatus == ReportStatus.completed ||
+        _selectedStatus == ReportStatus.resolved) {
       buttonText = 'Lihat Bukti Selesai';
       onTap = () {
         Navigator.push(

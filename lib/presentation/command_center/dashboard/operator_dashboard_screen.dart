@@ -166,7 +166,7 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1D9C51),
+      backgroundColor: const Color(0xFFF8FAFC),
       body: _buildCurrentTabContent(),
       bottomNavigationBar: _buildFigmaBottomNavBar(),
     );
@@ -204,26 +204,34 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
   // ── FIGMA BOTTOM NAVIGATION BAR (Node 485:8094) ───────────────────────────
   Widget _buildFigmaBottomNavBar() {
     return Container(
-      height: 76,
-      decoration: BoxDecoration(
-        color: const Color(0xFFF7FAFC),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.18),
-            blurRadius: 12,
-            offset: const Offset(0, -1),
+      color: const Color(0xFFF8FAFC),
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFFF7FAFC),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.18),
+              blurRadius: 12,
+              offset: const Offset(0, -1),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          top: false,
+          child: SizedBox(
+            height: 64,
+            child: Row(
+              children: [
+                Expanded(child: _buildNavItem(0, Icons.home_rounded, 'Dashboard')),
+                Expanded(child: _buildNavItem(1, Icons.description_outlined, 'Tugas')),
+                Expanded(child: _buildNavItem(2, Icons.ballot_outlined, 'Laporan')),
+                Expanded(child: _buildNavItem(3, Icons.monitor_heart_outlined, 'Monitoring')),
+                Expanded(child: _buildNavItem(4, Icons.account_circle_outlined, 'Profile')),
+              ],
+            ),
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(child: _buildNavItem(0, Icons.home_rounded, 'Dashboard')),
-          Expanded(child: _buildNavItem(1, Icons.description_outlined, 'Tugas')),
-          Expanded(child: _buildNavItem(2, Icons.ballot_outlined, 'Laporan')),
-          Expanded(child: _buildNavItem(3, Icons.monitor_heart_outlined, 'Monitoring')),
-          Expanded(child: _buildNavItem(4, Icons.account_circle_outlined, 'Profile')),
-        ],
+        ),
       ),
     );
   }
@@ -239,7 +247,7 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
       },
       borderRadius: BorderRadius.circular(12),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 4),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
@@ -247,13 +255,13 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
             Icon(
               icon,
               color: isSelected ? activeColor : inactiveColor,
-              size: 24,
+              size: 22,
             ),
             const SizedBox(height: 2),
             Text(
               label,
               style: GoogleFonts.poppins(
-                fontSize: 11,
+                fontSize: 10.5,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                 color: isSelected ? activeColor : inactiveColor,
               ),
@@ -281,19 +289,27 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
         (r) =>
             (r.priorityLabel.toLowerCase().contains('tinggi') ||
                 r.needsManualReview) &&
-            r.status != ReportStatus.completed,
-        orElse: () => _allReports.first,
+            r.status != ReportStatus.completed &&
+            r.status != ReportStatus.resolved,
+        orElse: () => _allReports.firstWhere(
+          (r) =>
+              r.status != ReportStatus.completed &&
+              r.status != ReportStatus.resolved,
+          orElse: () => _allReports.first,
+        ),
       );
     }
 
     // Recent reports
     final recentReports = _allReports.take(4).toList();
 
-    return SafeArea(
-      bottom: false,
-      child: Column(
-        children: [
-          // 1. Curved Green Header (Node 485:7874)
+    return Container(
+      color: const Color(0xFF1D9C51),
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            // 1. Curved Green Header (Node 485:7874)
           Padding(
             padding: const EdgeInsets.only(left: 24, right: 24, top: 16, bottom: 20),
             child: Row(
@@ -677,39 +693,43 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
           ),
           const SizedBox(height: 12),
 
-          // Button: "Mulai Tugas" (Figma Node 485:7874)
-          SizedBox(
-            width: double.infinity,
-            height: 42,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1D9C51),
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => OperatorReportDetailScreen(
-                      report: report,
-                      onStatusUpdated: _fetchLiveDashboardData,
-                    ),
+          // Button: "Mulai Tugas" (Figma Node 485:7874) - only when not completed
+          if (report.status != ReportStatus.completed &&
+              report.status != ReportStatus.resolved)
+            SizedBox(
+              width: double.infinity,
+              height: 42,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1D9C51),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                ).then((_) => _fetchLiveDashboardData());
-              },
-              child: Text(
-                'Mulai Tugas',
-                style: GoogleFonts.poppins(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.white,
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => OperatorReportDetailScreen(
+                        report: report,
+                        onStatusUpdated: _fetchLiveDashboardData,
+                      ),
+                    ),
+                  ).then((_) => _fetchLiveDashboardData());
+                },
+                child: Text(
+                  report.status == ReportStatus.inProgress
+                      ? 'Update Tugas'
+                      : 'Mulai Tugas',
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -870,73 +890,86 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
   // ── RECENT REPORT CARD (Node 485:7874) ─────────────────────────────────────
   Widget _buildRecentReportCard(ReportModel report) {
     final statusBadge = _getStatusBadge(report.status);
+    final isCompleted = report.status == ReportStatus.completed ||
+        report.status == ReportStatus.resolved;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE0DFDF), width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => OperatorReportDetailScreen(
+              report: report,
+              onStatusUpdated: _fetchLiveDashboardData,
+            ),
           ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildThumbnailWithWatermark(report),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      report.categoryName,
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black,
+        ).then((_) => _fetchLiveDashboardData());
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFE0DFDF), width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildThumbnailWithWatermark(report),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        report.categoryName,
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      report.addressText ?? 'Jl. Ahmad Yani no. 15',
-                      style: GoogleFonts.poppins(
-                        fontSize: 11,
-                        color: const Color(0xFF64748B),
+                      const SizedBox(height: 2),
+                      Text(
+                        report.addressText ?? 'Jl. Ahmad Yani no. 15',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          color: const Color(0xFF64748B),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Diterima : ${_formatDateTimeShort(report.createdAt)}',
-                      style: GoogleFonts.poppins(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
-                        color: const Color(0xFF1D9C51),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Diterima : ${_formatDateTimeShort(report.createdAt)}',
+                        style: GoogleFonts.poppins(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFF1D9C51),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Align(
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Align(
                   alignment: Alignment.centerLeft,
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -956,45 +989,47 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              SizedBox(
-                height: 32,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1D9C51),
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => OperatorReportDetailScreen(
-                          report: report,
-                          onStatusUpdated: _fetchLiveDashboardData,
+                if (!isCompleted) ...[
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    height: 32,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1D9C51),
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                    ).then((_) => _fetchLiveDashboardData());
-                  },
-                  child: Text(
-                    report.status == ReportStatus.inProgress
-                        ? 'Update'
-                        : 'Mulai kerjakan',
-                    style: GoogleFonts.poppins(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white,
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => OperatorReportDetailScreen(
+                              report: report,
+                              onStatusUpdated: _fetchLiveDashboardData,
+                            ),
+                          ),
+                        ).then((_) => _fetchLiveDashboardData());
+                      },
+                      child: Text(
+                        report.status == ReportStatus.inProgress
+                            ? 'Update'
+                            : 'Mulai kerjakan',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-            ],
-          ),
-        ],
+                ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
