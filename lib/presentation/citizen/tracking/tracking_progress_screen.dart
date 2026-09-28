@@ -667,7 +667,7 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
             'Petugas $agencyName sedang mengerjakan perbaikan di lokasi laporan Anda.';
         break;
       case ReportStatus.completed:
-        desc = 'Pekerjaan telah selesai. Menunggu konfirmasi penyelesaian.';
+        desc = 'Pekerjaan telah selesai di lapangan. Silakan berikan validasi perbaikan Anda.';
         break;
       case ReportStatus.resolved:
         desc = 'Laporan telah terselesaikan. Terima kasih atas partisipasi Anda!';
