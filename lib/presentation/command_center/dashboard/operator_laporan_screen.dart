@@ -541,13 +541,13 @@ class _OperatorLaporanScreenState extends State<OperatorLaporanScreen> {
         return Image.network(
           url,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _buildFallbackImage(),
+          errorBuilder: (_, _, _) => _buildFallbackImage(),
         );
       } else if (File(url).existsSync()) {
         return Image.file(
           File(url),
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _buildFallbackImage(),
+          errorBuilder: (_, _, _) => _buildFallbackImage(),
         );
       }
     }

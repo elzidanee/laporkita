@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart' show Geocoding;
@@ -612,6 +611,17 @@ class _OperatorCameraScreenState extends State<OperatorCameraScreen>
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
+              if (_isLoadingLocation) ...[
+                const SizedBox(width: 6),
+                const SizedBox(
+                  width: 10,
+                  height: 10,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 1.5,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 3),

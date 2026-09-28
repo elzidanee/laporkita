@@ -26,7 +26,6 @@ class OperatorFotoSebelumScreen extends StatefulWidget {
 class _OperatorFotoSebelumScreenState extends State<OperatorFotoSebelumScreen> {
   late ReportModel _currentReport;
   String _selectedStatus = 'Sebelum Dikerjakan';
-  bool _isProcessing = false;
   String? _capturedImagePath;
 
   final List<String> _statusList = [
@@ -70,6 +69,7 @@ class _OperatorFotoSebelumScreenState extends State<OperatorFotoSebelumScreen> {
   }
 
   Future<void> _openCamera() async {
+    final repo = context.read<ReportRepository>();
     final result = await Navigator.push<Map<String, dynamic>>(
       context,
       MaterialPageRoute(
@@ -88,7 +88,6 @@ class _OperatorFotoSebelumScreenState extends State<OperatorFotoSebelumScreen> {
 
       // Update report status to in_progress upon capturing initial repair photo
       try {
-        final repo = context.read<ReportRepository>();
         final updated = await repo.updateReportStatus(
           _currentReport.id,
           ReportStatus.inProgress.apiValue,
@@ -380,13 +379,13 @@ class _OperatorFotoSebelumScreenState extends State<OperatorFotoSebelumScreen> {
         return Image.network(
           url,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _buildFallbackImage(),
+          errorBuilder: (_, _, _) => _buildFallbackImage(),
         );
       } else if (File(url).existsSync()) {
         return Image.file(
           File(url),
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _buildFallbackImage(),
+          errorBuilder: (_, _, _) => _buildFallbackImage(),
         );
       }
     }

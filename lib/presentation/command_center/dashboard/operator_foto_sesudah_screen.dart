@@ -100,6 +100,7 @@ class _OperatorFotoSesudahScreenState extends State<OperatorFotoSesudahScreen> {
 
     try {
       final repo = context.read<ReportRepository>();
+      final notifRepo = context.read<NotificationRepository>();
       final updated = await repo.updateReportStatus(
         _currentReport.id,
         ReportStatus.completed.apiValue,
@@ -110,7 +111,7 @@ class _OperatorFotoSesudahScreenState extends State<OperatorFotoSesudahScreen> {
       _currentReport = updated;
 
       try {
-        context.read<NotificationRepository>().addStatusUpdateNotification(
+        notifRepo.addStatusUpdateNotification(
               reportCode: _currentReport.reportCode,
               newStatus: ReportStatus.completed,
               note: 'Laporan ${_currentReport.formattedReportCode} selesai dikerjakan oleh petugas OPD.',
@@ -345,13 +346,13 @@ class _OperatorFotoSesudahScreenState extends State<OperatorFotoSesudahScreen> {
         return Image.network(
           url,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _buildFallbackImage(),
+          errorBuilder: (_, _, _) => _buildFallbackImage(),
         );
       } else if (File(url).existsSync()) {
         return Image.file(
           File(url),
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _buildFallbackImage(),
+          errorBuilder: (_, _, _) => _buildFallbackImage(),
         );
       }
     }
@@ -691,13 +692,13 @@ class _OperatorFotoSesudahScreenState extends State<OperatorFotoSesudahScreen> {
         return Image.network(
           url,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _buildPlaceholderComplete(),
+          errorBuilder: (_, _, _) => _buildPlaceholderComplete(),
         );
       } else if (File(url).existsSync()) {
         return Image.file(
           File(url),
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _buildPlaceholderComplete(),
+          errorBuilder: (_, _, _) => _buildPlaceholderComplete(),
         );
       }
     }

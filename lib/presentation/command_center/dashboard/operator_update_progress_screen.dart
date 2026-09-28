@@ -138,6 +138,7 @@ class _OperatorUpdateProgressScreenState
 
     try {
       final repo = context.read<ReportRepository>();
+      final notifRepo = context.read<NotificationRepository>();
       final isCompleted = _progressPercentage >= 100 || _selectedStatus == 'Selesai Dikerjakan';
       final targetStatus = isCompleted ? ReportStatus.completed : ReportStatus.inProgress;
 
@@ -153,7 +154,7 @@ class _OperatorUpdateProgressScreenState
       _currentReport = updated;
 
       try {
-        context.read<NotificationRepository>().addStatusUpdateNotification(
+        notifRepo.addStatusUpdateNotification(
               reportCode: _currentReport.reportCode,
               newStatus: targetStatus,
               note: 'Progress laporan ${_currentReport.formattedReportCode} diperbarui ke ${_progressPercentage.toInt()}%.',
