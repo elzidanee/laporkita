@@ -171,8 +171,13 @@ class ReportRepository {
       }
     }
 
-    // 3. Hanya tampilkan fallback jika benar-benar belum ada data
-    if (merged.isEmpty) {
+    // 3. Fallback mock HANYA untuk development/debug — tidak boleh tampil di production
+    // tanpa user mengetahui bahwa ini adalah data simulasi.
+    // Jika API gagal dan tidak ada data tersimpan, biarkan list kosong
+    // agar UI menampilkan empty state yang sesungguhnya.
+    if (merged.isEmpty && kDebugMode) {
+      debugPrint('⚠️ [ReportRepository] Tidak ada data dari server maupun lokal. '
+          'Menampilkan mock fallback (DEBUG only) — pastikan koneksi ke backend normal di production.');
       final mockReports = _getFallbackMockReports();
       for (final m in mockReports) {
         _cachedReports[m.id] = m;
@@ -530,55 +535,35 @@ class ReportRepository {
 
   // ── Validate Report (Citizen Confirmation) ─────────────────────────────────
   // FE-06: Warga konfirmasi status perbaikan — POST /reports/:id/validate
+  // Backend menentukan status akhir (resolved / in_progress / disputed).
+  // Frontend TIDAK boleh menentukan status sendiri.
   Future<Map<String, dynamic>> validateReport(
     String reportId, {
     bool isApproved = true,
     String? feedback,
   }) async {
     await _ensureStorageLoaded();
-    Map<String, dynamic> result = {'success': true};
+
+    // Kirim ke API — biarkan exception naik jika gagal agar caller bisa handle
+    final result = await _datasource.validateReport(
+      reportId,
+      isValid: isApproved,
+      notes: feedback,
+    );
+
+    // Setelah API berhasil, hapus override lokal (jika ada) agar data fresh dari backend
+    _statusOverrides.remove(reportId);
+
+    // Refresh laporan dari server agar status mengikuti backend (source of truth)
     try {
-      result = await _datasource.validateReport(
-        reportId,
-        isValid: isApproved,
-        notes: feedback,
-      );
-    } catch (e) {
-      debugPrint('ℹ️ [ReportRepository] validateReport notice: $e');
-    }
-
-    final targetStatus =
-        isApproved ? ReportStatus.resolved : ReportStatus.disputed;
-    final now = DateTime.now();
-    final note = isApproved
-        ? 'Tervalidasi selesai oleh pelapor'
-        : (feedback != null && feedback.isNotEmpty
-            ? 'Perbaikan dilaporkan belum sesuai oleh pelapor: $feedback'
-            : 'Perbaikan dilaporkan belum sesuai oleh pelapor');
-
-    _statusOverrides[reportId] = {
-      'status': targetStatus.apiValue,
-      'updated_at': now.toIso8601String(),
-      'note': note,
-    };
-
-    final subIdx = _submittedReports.indexWhere((r) => r.id == reportId);
-    if (subIdx != -1) {
-      final old = _submittedReports[subIdx];
-      final history = List<ReportStatusHistoryModel>.from(old.statusHistory);
-      history.add(ReportStatusHistoryModel(
-        id: 'val-$reportId-${now.millisecondsSinceEpoch}',
-        reportId: reportId,
-        targetStatus: targetStatus,
-        note: note,
-        actorName: 'Pelapor',
-        createdAt: now,
-      ));
-      _submittedReports[subIdx] = old.copyWith(
-        status: targetStatus,
-        updatedAt: now,
-        statusHistory: history,
-      );
+      final refreshed = await _datasource.getReportById(reportId);
+      _cachedReports[reportId] = refreshed;
+      final subIdx = _submittedReports.indexWhere((r) => r.id == reportId);
+      if (subIdx != -1) {
+        _submittedReports[subIdx] = refreshed;
+      }
+    } catch (_) {
+      // Gagal refresh tidak menghalangi flow sukses — UI akan refresh sendiri
     }
 
     await _savePersistedState();
@@ -612,15 +597,8 @@ class ReportRepository {
       }
     }
 
-    // Aturan Bisnis: Laporan yang sudah ditandai selesai tidak dapat diproses / ditindaklanjuti lagi
-    if (old != null &&
-        (old.status == ReportStatus.completed || old.status == ReportStatus.resolved) &&
-        newStatusEnum != ReportStatus.completed &&
-        newStatusEnum != ReportStatus.resolved) {
-      debugPrint(
-          '⚠️ [ReportRepository] Laporan ${old.reportCode} sudah selesai (${old.status.name}), tidak dapat diproses / ditindaklanjuti lagi.');
-      return old;
-    }
+    // Catatan: Tidak ada guard lokal di sini karena backend adalah source of truth.
+    // Backend yang menentukan apakah transisi status valid atau tidak.
 
     ReportModel? updatedRemote;
     try {

@@ -97,31 +97,44 @@ class _BeriValidasiScreenState extends State<BeriValidasiScreen> {
 
   Future<void> _handleSubmit() async {
     if (_isSubmitting) return;
-    setState(() => _isSubmitting = true);
 
     final reportId = widget.reportData?['reportId'] as String? ??
         widget.reportData?['id'] as String? ??
         _reportModel?.id ??
         '';
 
+    if (reportId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('ID laporan tidak ditemukan. Tidak dapat mengirim validasi.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+
     try {
-      if (reportId.isNotEmpty) {
-        final repository = context.read<ReportRepository>();
-        final isApproved = _selectedOption == ValidationOption.sudahSesuai;
-        final notes = _notesController.text.trim();
-        await repository.validateReport(
-          reportId,
-          isApproved: isApproved,
-          feedback: notes.isNotEmpty ? notes : _selectedOption.title,
-        );
-      }
+      final repository = context.read<ReportRepository>();
+      final isApproved = _selectedOption == ValidationOption.sudahSesuai;
+      final notes = _notesController.text.trim();
+      await repository.validateReport(
+        reportId,
+        isApproved: isApproved,
+        feedback: notes.isNotEmpty ? notes : _selectedOption.title,
+      );
 
       if (!mounted) return;
       context.read<ReportBloc>().add(const ReportLoadRequested());
+
+      // Teruskan isValid ke success screen agar pesan dapat dibedakan
+      final successArgs = Map<String, dynamic>.from(widget.reportData ?? {});
+      successArgs['isValid'] = isApproved;
       Navigator.pushReplacementNamed(
         context,
         '/validation-success',
-        arguments: widget.reportData,
+        arguments: successArgs,
       );
     } catch (e) {
       if (!mounted) return;

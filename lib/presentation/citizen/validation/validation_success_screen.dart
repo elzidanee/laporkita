@@ -11,6 +11,13 @@ class ValidationSuccessScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // isValid diteruskan dari BeriValidasiScreen
+    final isValid = reportData?['isValid'] as bool? ?? true;
+
+    final String subtitle = isValid
+        ? 'Validasi Anda telah berhasil dikirim. Perbaikan dinyatakan sesuai dan laporan akan segera diselesaikan.'
+        : 'Validasi Anda telah berhasil dikirim. Laporan akan diproses kembali oleh petugas karena perbaikan belum sesuai.';
+
     return Scaffold(
       backgroundColor: AppColors.white,
       body: SafeArea(
@@ -83,12 +90,12 @@ class ValidationSuccessScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 10),
 
-                    // Description Subtitle (Figma node 234:1381)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16),
+                    // Description Subtitle — berbeda berdasarkan is_valid
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Text(
-                        'Validasi Anda telah berhasil dikirim dan tersimpan di sistem LaporKita untuk memastikan kualitas fasilitas publik di Kota Malang.',
-                        style: TextStyle(
+                        subtitle,
+                        style: const TextStyle(
                           fontSize: 14,
                           color: Color(0xFF515151),
                           height: 1.45,
