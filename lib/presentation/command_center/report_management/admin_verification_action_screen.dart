@@ -45,21 +45,32 @@ class _AdminVerificationActionScreenState
   final List<String> _availableCategories = [
     'Jalan Rusak',
     'Trotoar Rusak',
-    'Penerangan Jalan',
+    'Drainase',
+    'Lampu Jalan',
     'Rambu Lalu Lintas',
-    'Banjir & Drainase',
-    'Sampah & Kebersihan',
-    'Fasilitas Umum',
-    'Lainnya',
   ];
 
   @override
   void initState() {
     super.initState();
     _activeTabIndex = widget.initialTabIndex;
-    _selectedCategory = widget.report.categoryName.isNotEmpty
-        ? widget.report.categoryName
-        : 'Jalan Rusak';
+    final initialCat = widget.report.categoryName;
+    if (_availableCategories.contains(initialCat)) {
+      _selectedCategory = initialCat;
+    } else {
+      final lower = initialCat.toLowerCase();
+      if (lower.contains('trotoar')) {
+        _selectedCategory = 'Trotoar Rusak';
+      } else if (lower.contains('drainase') || lower.contains('banjir')) {
+        _selectedCategory = 'Drainase';
+      } else if (lower.contains('lampu') || lower.contains('penerangan')) {
+        _selectedCategory = 'Lampu Jalan';
+      } else if (lower.contains('rambu') || lower.contains('lalu lintas')) {
+        _selectedCategory = 'Rambu Lalu Lintas';
+      } else {
+        _selectedCategory = 'Jalan Rusak';
+      }
+    }
 
     final p = widget.report.priorityLabel;
     if (p.contains('Tinggi')) {
@@ -1020,7 +1031,8 @@ class _AdminVerificationActionScreenState
       assetPath = 'assets/images/laluLintas.png';
     } else if (lower.contains('fasilitas') ||
         lower.contains('banjir') ||
-        lower.contains('sampah')) {
+        lower.contains('sampah') ||
+        lower.contains('drainase')) {
       assetPath = 'assets/images/fasilitasUmum.png';
     }
 
@@ -1041,65 +1053,71 @@ class _AdminVerificationActionScreenState
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (ctx) {
-        return Container(
-          decoration: const BoxDecoration(
+        return SafeArea(
+          child: Material(
             color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE0DFDF),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Pilih Kategori Laporan',
-                style: GoogleFonts.poppins(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black,
-                ),
-              ),
-              const SizedBox(height: 12),
-              ..._availableCategories.map((cat) {
-                final isSelected = _selectedCategory == cat;
-                return ListTile(
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                  leading: _buildCategoryIcon(cat, size: 28),
-                  title: Text(
-                    cat,
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      fontWeight:
-                          isSelected ? FontWeight.w600 : FontWeight.w400,
-                      color:
-                          isSelected ? const Color(0xFF1D9C51) : Colors.black,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            clipBehavior: Clip.antiAlias,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: SingleChildScrollView(
+                physics: const ClampingScrollPhysics(),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE0DFDF),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                   ),
-                  trailing: isSelected
-                      ? const Icon(Icons.check_rounded,
-                          color: Color(0xFF1D9C51))
-                      : null,
-                  onTap: () {
-                    setState(() => _selectedCategory = cat);
-                    Navigator.pop(ctx);
-                  },
-                );
-              }),
-              const SizedBox(height: 8),
-            ],
+                  const SizedBox(height: 16),
+                  Text(
+                    'Pilih Kategori Laporan',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ..._availableCategories.map((cat) {
+                    final isSelected = _selectedCategory == cat;
+                    return ListTile(
+                      contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      leading: _buildCategoryIcon(cat, size: 28),
+                      title: Text(
+                        cat,
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight:
+                              isSelected ? FontWeight.w600 : FontWeight.w400,
+                          color:
+                              isSelected ? const Color(0xFF1D9C51) : Colors.black,
+                        ),
+                      ),
+                      trailing: isSelected
+                          ? const Icon(Icons.check_rounded,
+                              color: Color(0xFF1D9C51))
+                          : null,
+                      onTap: () {
+                        setState(() => _selectedCategory = cat);
+                        Navigator.pop(ctx);
+                      },
+                    );
+                  }),
+                  const SizedBox(height: 8),
+                ],
+              ),
+            ),
           ),
         );
       },

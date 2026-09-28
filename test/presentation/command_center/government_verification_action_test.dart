@@ -190,6 +190,47 @@ void main() {
       expect(find.text('Meminta Revisi'), findsOneWidget);
     });
 
+    testWidgets(
+        'Manual Review category dropdown only shows Jalan Rusak, Trotoar Rusak, Drainase, Lampu Jalan, Rambu Lalu Lintas',
+        (tester) async {
+      tester.view.physicalSize = const Size(412, 1400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final mockRepo = MockReportRepository();
+      await tester.pumpWidget(buildVerificationWidget(mockRepo));
+      await tester.pumpAndSettle();
+
+      // Tap on Manual Review tab
+      await tester.tap(find.text('Manual Review'));
+      await tester.pumpAndSettle();
+
+      // Tap on Category dropdown
+      await tester.tap(find.byIcon(Icons.keyboard_arrow_down_rounded));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Pilih Kategori Laporan'), findsOneWidget);
+      expect(find.text('Jalan Rusak'), findsWidgets);
+      expect(find.text('Trotoar Rusak'), findsOneWidget);
+      expect(find.text('Drainase'), findsOneWidget);
+      expect(find.text('Lampu Jalan'), findsOneWidget);
+      expect(find.text('Rambu Lalu Lintas'), findsOneWidget);
+
+      // Excluded categories must not exist
+      expect(find.text('Sampah & Kebersihan'), findsNothing);
+      expect(find.text('Fasilitas Umum'), findsNothing);
+      expect(find.text('Lainnya'), findsNothing);
+
+      // Selecting Drainase updates the dropdown value
+      await tester.tap(find.widgetWithText(ListTile, 'Drainase'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Drainase'), findsWidgets);
+    });
+
     testWidgets('Tapping Tolak Laporan opens reject dialog and triggers backend',
         (tester) async {
       tester.view.physicalSize = const Size(412, 1400);

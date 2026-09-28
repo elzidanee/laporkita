@@ -279,6 +279,25 @@ void main() {
       expect(find.text('Mulai kerjakan'), findsNWidgets(1));
       expect(find.text('Update'), findsNWidgets(1));
     });
+
+    testWidgets('bottom navigation bar background does not contain green color bleed', (tester) async {
+      await tester.pumpWidget(createWidgetUnderTest(const OperatorDashboardScreen()));
+      await tester.pumpAndSettle();
+
+      final scaffold = tester.widget<Scaffold>(find.byType(Scaffold).first);
+      expect(scaffold.backgroundColor, const Color(0xFFF8FAFC));
+
+      final bottomNav = scaffold.bottomNavigationBar as Container;
+      expect(bottomNav.color, const Color(0xFFF8FAFC));
+
+      // Switch to Tugas tab
+      await tester.tap(find.text('Tugas'));
+      await tester.pumpAndSettle();
+
+      final scaffoldTab1 = tester.widget<Scaffold>(find.byType(Scaffold).first);
+      final bottomNavTab1 = scaffoldTab1.bottomNavigationBar as Container;
+      expect(bottomNavTab1.color, Colors.white);
+    });
   });
 
   group('Operator Page Tugas (Figma 662:5680)', () {

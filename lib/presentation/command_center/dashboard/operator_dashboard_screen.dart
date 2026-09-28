@@ -203,8 +203,12 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
 
   // ── FIGMA BOTTOM NAVIGATION BAR (Node 485:8094) ───────────────────────────
   Widget _buildFigmaBottomNavBar() {
+    final bottomColor = _selectedBottomNavIndex == 0
+        ? const Color(0xFFF8FAFC)
+        : Colors.white;
+
     return Container(
-      color: const Color(0xFFF8FAFC),
+      color: bottomColor,
       child: Container(
         decoration: BoxDecoration(
           color: const Color(0xFFF7FAFC),
@@ -304,165 +308,182 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
     final recentReports = _allReports.take(4).toList();
 
     return Container(
-      color: const Color(0xFF1D9C51),
-      child: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            // 1. Curved Green Header (Node 485:7874)
-          Padding(
-            padding: const EdgeInsets.only(left: 24, right: 24, top: 16, bottom: 20),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Hallo!, $userName !',
-                        style: GoogleFonts.poppins(
-                          fontSize: 23,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                          letterSpacing: 0.46,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+      color: const Color(0xFFF8FAFC),
+      child: Column(
+        children: [
+          // 1. Curved Green Header (Node 485:7874)
+          Container(
+            width: double.infinity,
+            color: const Color(0xFF1D9C51),
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 24, right: 24, top: 16, bottom: 20),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Hallo!, $userName !',
+                            style: GoogleFonts.poppins(
+                              fontSize: 23,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                              letterSpacing: 0.46,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Berikut laporan yang menjadi tanggung jawab anda',
+                            style: GoogleFonts.poppins(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w400,
+                              color: Colors.white.withValues(alpha: 0.95),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Berikut laporan yang menjadi tanggung jawab anda',
-                        style: GoogleFonts.poppins(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w400,
-                          color: Colors.white.withValues(alpha: 0.95),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    shape: BoxShape.circle,
-                  ),
-                  child: IconButton(
-                    icon: const Icon(
-                      Icons.notifications_rounded,
-                      color: Colors.white,
-                      size: 26,
                     ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const OperatorNotifikasiScreen(),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: IconButton(
+                        icon: const Icon(
+                          Icons.notifications_rounded,
+                          color: Colors.white,
+                          size: 26,
                         ),
-                      );
-                    },
-                    tooltip: 'Notifikasi',
-                  ),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const OperatorNotifikasiScreen(),
+                            ),
+                          );
+                        },
+                        tooltip: 'Notifikasi',
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
 
           // 2. Curved White Body Container (Node 485:7874)
           Expanded(
-            child: Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 10,
-                    offset: const Offset(0, -4),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned(
+                  top: -1,
+                  left: 0,
+                  right: 0,
+                  height: 30,
+                  child: Container(color: const Color(0xFF1D9C51)),
+                ),
+                Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 10,
+                        offset: const Offset(0, -4),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: _isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(color: Color(0xFF1D9C51)),
-                    )
-                  : RefreshIndicator(
-                      onRefresh: _fetchLiveDashboardData,
-                      color: const Color(0xFF1D9C51),
-                      child: SingleChildScrollView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // 2x2 Stat Cards
-                            _build2x2StatCards(),
-                            const SizedBox(height: 24),
-
-                            // Section: Tugas Prioritas Hari Ini
-                            if (priorityReport != null) ...[
-                              Text(
-                                'Tugas Prioritas hari ini',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              _buildPriorityTaskCard(priorityReport),
-                              const SizedBox(height: 24),
-                            ],
-
-                            // Section: 3 Summary Metrics Cards
-                            _buildSummaryCards(),
-                            const SizedBox(height: 24),
-
-                            // Section: Laporan Terbaru + Lihat Semua
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  child: _isLoading
+                      ? const Center(
+                          child: CircularProgressIndicator(color: Color(0xFF1D9C51)),
+                        )
+                      : RefreshIndicator(
+                          onRefresh: _fetchLiveDashboardData,
+                          color: const Color(0xFF1D9C51),
+                          child: SingleChildScrollView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Expanded(
-                                  child: Text(
-                                    'Laporan Terbaru',
+                                // 2x2 Stat Cards
+                                _build2x2StatCards(),
+                                const SizedBox(height: 24),
+
+                                // Section: Tugas Prioritas Hari Ini
+                                if (priorityReport != null) ...[
+                                  Text(
+                                    'Tugas Prioritas hari ini',
                                     style: GoogleFonts.poppins(
                                       fontSize: 15,
                                       fontWeight: FontWeight.w600,
                                       color: Colors.black,
                                     ),
-                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                ),
-                                InkWell(
-                                  onTap: () {
-                                    setState(() => _selectedBottomNavIndex = 1);
-                                  },
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 4, vertical: 2),
-                                    child: Text(
-                                      'Lihat Semua',
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w500,
-                                        color: const Color(0xFF1976D2),
+                                  const SizedBox(height: 12),
+                                  _buildPriorityTaskCard(priorityReport),
+                                  const SizedBox(height: 24),
+                                ],
+
+                                // Section: 3 Summary Metrics Cards
+                                _buildSummaryCards(),
+                                const SizedBox(height: 24),
+
+                                // Section: Laporan Terbaru + Lihat Semua
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        'Laporan Terbaru',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.black,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
-                                  ),
+                                    InkWell(
+                                      onTap: () {
+                                        setState(() => _selectedBottomNavIndex = 1);
+                                      },
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 4, vertical: 2),
+                                        child: Text(
+                                          'Lihat Semua',
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                            color: const Color(0xFF1976D2),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
+                                const SizedBox(height: 12),
+
+                                // Recent Reports List
+                                ...recentReports.map((r) => _buildRecentReportCard(r)),
+                                const SizedBox(height: 20),
                               ],
                             ),
-                            const SizedBox(height: 12),
-
-                            // Recent Reports List
-                            ...recentReports.map((r) => _buildRecentReportCard(r)),
-                            const SizedBox(height: 20),
-                          ],
+                          ),
                         ),
-                      ),
-                    ),
+                ),
+              ],
             ),
           ),
         ],
