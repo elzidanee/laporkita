@@ -391,13 +391,13 @@ class _OperatorUpdateProgressScreenState
         return Image.network(
           url,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _buildFallbackImage(),
+          errorBuilder: (_, _, _) => _buildFallbackImage(),
         );
       } else if (File(url).existsSync()) {
         return Image.file(
           File(url),
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _buildFallbackImage(),
+          errorBuilder: (_, _, _) => _buildFallbackImage(),
         );
       }
     }
@@ -433,7 +433,9 @@ class _OperatorUpdateProgressScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
             children: [
               Text(
                 'Progress Saat Ini',
@@ -443,7 +445,6 @@ class _OperatorUpdateProgressScreenState
                   color: Colors.black,
                 ),
               ),
-              const SizedBox(width: 8),
               Text(
                 '*dapat diubah',
                 style: GoogleFonts.poppins(
@@ -596,7 +597,9 @@ class _OperatorUpdateProgressScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 6,
                   children: [
                     Text(
                       'Deskripsi Progres',
@@ -606,7 +609,6 @@ class _OperatorUpdateProgressScreenState
                         color: Colors.black,
                       ),
                     ),
-                    const SizedBox(width: 6),
                     Text(
                       '*opsional',
                       style: GoogleFonts.poppins(
@@ -802,7 +804,7 @@ class _OperatorUpdateProgressScreenState
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: _progressPhotos.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 14),
+        separatorBuilder: (_, _) => const SizedBox(width: 14),
         itemBuilder: (context, index) {
           final path = _progressPhotos[index];
           return Stack(
@@ -822,7 +824,7 @@ class _OperatorUpdateProgressScreenState
                       : Image.network(
                           path,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _buildFallbackImage(),
+                          errorBuilder: (_, _, _) => _buildFallbackImage(),
                         ),
                 ),
               ),

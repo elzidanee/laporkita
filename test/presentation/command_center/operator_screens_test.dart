@@ -12,6 +12,13 @@ import 'package:laporkita/presentation/auth/bloc/auth_bloc.dart';
 import 'package:laporkita/presentation/command_center/dashboard/operator_dashboard_screen.dart';
 import 'package:laporkita/presentation/command_center/dashboard/operator_tugas_screen.dart';
 import 'package:laporkita/presentation/command_center/dashboard/operator_report_detail_screen.dart';
+import 'package:laporkita/presentation/command_center/dashboard/operator_foto_sebelum_screen.dart';
+import 'package:laporkita/presentation/command_center/dashboard/operator_update_progress_screen.dart';
+import 'package:laporkita/presentation/command_center/dashboard/operator_foto_sesudah_screen.dart';
+import 'package:laporkita/presentation/command_center/dashboard/operator_laporan_screen.dart';
+import 'package:laporkita/presentation/command_center/dashboard/operator_monitoring_screen.dart';
+import 'package:laporkita/presentation/command_center/dashboard/operator_profile_screen.dart';
+import 'package:laporkita/presentation/command_center/dashboard/operator_notifikasi_screen.dart';
 
 class FakeReportRepository extends Fake implements ReportRepository {
   final List<ReportModel> mockReports;
@@ -299,6 +306,213 @@ void main() {
 
       // Bottom Action Button
       expect(find.text('Mulai Pengerjaan'), findsOneWidget);
+    });
+  });
+
+  group('Operator Foto Sebelum Perbaikan (Figma 666:2)', () {
+    testWidgets('renders header, mini report card, dropdown, validation card, and Ambil Foto button',
+        (tester) async {
+      tester.view.physicalSize = const Size(412, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        createWidgetUnderTest(
+          OperatorFotoSebelumScreen(report: testReports[0]),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Foto sebelum perbaikan'), findsOneWidget);
+      expect(find.text('#LP_2026_0024487'), findsWidgets);
+      expect(find.text('Jalan Rusak'), findsWidgets);
+      expect(find.text('Prioritas Tinggi'), findsWidgets);
+
+      // Progress Saat Ini dropdown
+      expect(find.text('Progress Saat Ini'), findsOneWidget);
+      expect(find.text('*dapat diubah'), findsOneWidget);
+      expect(find.text('Sebelum Dikerjakan'), findsOneWidget);
+
+      // Section title
+      expect(find.text('Foto yang di unggah pelapor'), findsOneWidget);
+      expect(find.text('Deskripsi :'), findsOneWidget);
+
+      // Validation card
+      expect(find.text('Foto Valid'), findsOneWidget);
+      expect(find.text('GPS Valid'), findsOneWidget);
+      expect(find.text('Timestamp Valid'), findsOneWidget);
+      expect(find.text('Valid'), findsNWidgets(3));
+
+      // Buttons and cards
+      expect(find.text('Ambil Foto'), findsOneWidget);
+      expect(find.text('Rekomendasi'), findsOneWidget);
+    });
+  });
+
+  group('Operator Update Progress (Figma 671:866)', () {
+    testWidgets('renders progress percentage, slider, deskripsi field, and Simpan Progress button',
+        (tester) async {
+      tester.view.physicalSize = const Size(412, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        createWidgetUnderTest(
+          OperatorUpdateProgressScreen(report: testReports[0]),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Update Progress'), findsOneWidget);
+      expect(find.text('Sedang Dikerjakan'), findsOneWidget);
+      expect(find.text('Progress'), findsOneWidget);
+      expect(find.text('78%'), findsOneWidget);
+      expect(find.text('Deskripsi Progres'), findsOneWidget);
+      expect(find.text('*opsional'), findsOneWidget);
+      expect(find.text('Upload Progres Terbaru'), findsOneWidget);
+      expect(find.text('Ambil Foto'), findsOneWidget);
+      expect(find.text('Pilih dari galeri'), findsOneWidget);
+      expect(find.text('Simpan Progress'), findsOneWidget);
+    });
+  });
+
+  group('Operator Foto Sesudah Perbaikan (Figma 673:1531)', () {
+    testWidgets('renders Selesai Dikerjakan, validation card, and completion photo section',
+        (tester) async {
+      tester.view.physicalSize = const Size(412, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        createWidgetUnderTest(
+          OperatorFotoSesudahScreen(report: testReports[0]),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Foto sesudah perbaikan'), findsOneWidget);
+      expect(find.text('Deskripsi :'), findsOneWidget);
+      expect(find.text('Selesai Dikerjakan'), findsOneWidget);
+      expect(find.text('Foto Valid'), findsOneWidget);
+      expect(find.text('GPS Valid'), findsOneWidget);
+      expect(find.text('Timestamp Valid'), findsOneWidget);
+      expect(find.text('Foto yang anda unggah'), findsOneWidget);
+      expect(find.text('Ambil Foto'), findsOneWidget);
+      expect(find.text('Rekomendasi'), findsOneWidget);
+    });
+  });
+
+  group('Operator Laporan Screen (Figma 676:1696)', () {
+    testWidgets('renders search, filter button, priority dropdown, and report items',
+        (tester) async {
+      tester.view.physicalSize = const Size(412, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        createWidgetUnderTest(const OperatorLaporanScreen()),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Laporan'), findsOneWidget);
+      expect(find.text('Cari ID, judul, lokasi, atau pelapor...'), findsOneWidget);
+      expect(find.text('Filter'), findsOneWidget);
+      expect(find.text('Semua Prioritas'), findsOneWidget);
+      expect(find.text('Jalan Rusak'), findsOneWidget);
+    });
+  });
+
+  group('Operator Monitoring Screen (Figma 678:2315)', () {
+    testWidgets('renders Mentoring OPD title, 2x2 stat cards, progress tim, and tugas perhatian',
+        (tester) async {
+      tester.view.physicalSize = const Size(412, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        createWidgetUnderTest(const OperatorMonitoringScreen()),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Mentoring OPD'), findsOneWidget);
+      expect(find.text('Total Laporan'), findsOneWidget);
+      expect(find.text('Sedang Diproses'), findsOneWidget);
+      expect(find.text('Selesai minggu ini'), findsOneWidget);
+      expect(find.text('Terlambat'), findsWidgets);
+      expect(find.text('Progress Tim'), findsOneWidget);
+      expect(find.text('Andi Pratama'), findsOneWidget);
+      expect(find.text('Budi Santoso'), findsOneWidget);
+      expect(find.text('Rina Marlina'), findsOneWidget);
+      expect(find.text('Lihat Semua'), findsOneWidget);
+      expect(find.text('Tugas Perlu perhatian'), findsOneWidget);
+    });
+  });
+
+  group('Operator Profile Screen (Figma 676:1992)', () {
+    testWidgets('renders Profile title, user info, system settings, and Keluar button',
+        (tester) async {
+      tester.view.physicalSize = const Size(412, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        createWidgetUnderTest(const OperatorProfileScreen()),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Profile'), findsOneWidget);
+      expect(find.text('Bambang Petugas'), findsOneWidget);
+      expect(find.text('bambang@opd.go.id'), findsOneWidget);
+      expect(find.text('Pengaturan Sistem'), findsOneWidget);
+      expect(find.text('Wilayah Tugas'), findsOneWidget);
+      expect(find.text('Pengaturan Notifikasi'), findsOneWidget);
+      expect(find.text('Pengingat Pekerjaan'), findsOneWidget);
+      expect(find.text('Lainnya'), findsOneWidget);
+      expect(find.text('Log Aktivitas'), findsOneWidget);
+      expect(find.text('Tentang Aplikasi'), findsOneWidget);
+      expect(find.text('Keluar'), findsOneWidget);
+    });
+  });
+
+  group('Operator Notifikasi Screen (Figma 676:2095)', () {
+    testWidgets('renders Notifikasi title and notification cards matching Figma',
+        (tester) async {
+      tester.view.physicalSize = const Size(412, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        createWidgetUnderTest(const OperatorNotifikasiScreen()),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Notifikasi'), findsOneWidget);
+      expect(find.text('Laporan baru masuk'), findsOneWidget);
+      expect(find.text('AI Verification selesai'), findsOneWidget);
+      expect(find.text('Laporan diteruskan ke Dinas PUPR'), findsOneWidget);
+      expect(find.text('Petugas mulai mengerjakan'), findsOneWidget);
+      expect(find.text('Laporan selesai dikerjakan'), findsOneWidget);
     });
   });
 }

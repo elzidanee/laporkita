@@ -418,7 +418,9 @@ class _OperatorFotoSesudahScreenState extends State<OperatorFotoSesudahScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
             children: [
               Text(
                 'Progress Saat Ini',
@@ -428,7 +430,6 @@ class _OperatorFotoSesudahScreenState extends State<OperatorFotoSesudahScreen> {
                   color: Colors.black,
                 ),
               ),
-              const SizedBox(width: 8),
               Text(
                 '*dapat diubah',
                 style: GoogleFonts.poppins(
@@ -517,24 +518,31 @@ class _OperatorFotoSesudahScreenState extends State<OperatorFotoSesudahScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Row(
-          children: [
-            const Icon(
-              Icons.check_circle,
-              color: Color(0xFF1D9C51),
-              size: 22,
-            ),
-            const SizedBox(width: 12),
-            Text(
-              title,
-              style: GoogleFonts.poppins(
-                fontSize: 15,
-                fontWeight: FontWeight.w400,
-                color: Colors.black,
+        Flexible(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.check_circle,
+                color: Color(0xFF1D9C51),
+                size: 22,
               ),
-            ),
-          ],
+              const SizedBox(width: 12),
+              Flexible(
+                child: Text(
+                  title,
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w400,
+                    color: Colors.black,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
         ),
+        const SizedBox(width: 8),
         Text(
           status,
           style: GoogleFonts.poppins(
