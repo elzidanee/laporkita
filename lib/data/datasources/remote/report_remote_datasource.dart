@@ -21,6 +21,7 @@ class ReportRemoteDatasource {
     double? maxLat,
     double? minLng,
     double? maxLng,
+    bool? needsManualReview,
     String sortBy = 'newest',
   }) async {
     final queryParams = <String, dynamic>{
@@ -34,6 +35,10 @@ class ReportRemoteDatasource {
       if (maxLat case final lat?) 'max_lat': lat,
       if (minLng case final lng?) 'min_lng': lng,
       if (maxLng case final lng?) 'max_lng': lng,
+      // STATUS: VERIFIED via Postman QA collection (Fase 5) —
+      // filter antrian verifikasi manual operator (ai_confidence < 0.6 atau null).
+      // TODO: re-konfirmasi via Swagger /api/docs (TransitionStatusDto & query params).
+      if (needsManualReview case final b?) 'needs_manual_review': b,
     };
 
     return _dioClient.get<List<ReportModel>>(
@@ -258,5 +263,38 @@ class ReportRemoteDatasource {
       data: formData,
     );
     return response.data ?? {'success': true};
+  }
+
+  /// STATUS: NOT YET VERIFIED — endpoint POST /reports/along-route
+  /// DTO ReportsAlongRouteDto kosong di Swagger (properties: {}).
+  /// Disediakan sebagai opsional helper jika backend siap.
+  Future<ApiResponse<List<ReportModel>>> getReportsAlongRoute({
+    required List<Map<String, double>> points,
+    double radiusMeters = 150.0,
+  }) async {
+    return _dioClient.post<List<ReportModel>>(
+      '/reports/along-route',
+      fromJson: (json) {
+        if (json is List) {
+          return json
+              .whereType<Map<String, dynamic>>()
+              .map((e) => ReportModel.fromJson(e))
+              .toList();
+        } else if (json is Map<String, dynamic>) {
+          final items = json['items'] ?? json['data'] ?? json['reports'];
+          if (items is List) {
+            return items
+                .whereType<Map<String, dynamic>>()
+                .map((e) => ReportModel.fromJson(e))
+                .toList();
+          }
+        }
+        return <ReportModel>[];
+      },
+      data: {
+        'points': points,
+        'radius': radiusMeters,
+      },
+    );
   }
 }

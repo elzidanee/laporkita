@@ -19,6 +19,7 @@ class MockReportRepository extends Fake implements ReportRepository {
     String? status,
     String? categoryId,
     String? reporterId,
+    bool? needsManualReview,
     String sortBy = 'newest',
   }) async {
     getReportsCalled = true;

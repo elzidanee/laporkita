@@ -42,6 +42,7 @@ import 'presentation/reports/bloc/report_bloc.dart';
 import 'data/repositories/auth_repository.dart';
 import 'data/repositories/report_repository.dart';
 import 'data/repositories/category_repository.dart';
+import 'data/repositories/agency_repository.dart';
 import 'data/repositories/policy_simulator_repository.dart';
 import 'data/repositories/prediction_repository.dart';
 import 'data/repositories/notification_repository.dart';
@@ -65,6 +66,7 @@ class MyApp extends StatelessWidget {
         RepositoryProvider(create: (_) => AuthRepository()),
         RepositoryProvider(create: (_) => ReportRepository()),
         RepositoryProvider(create: (_) => CategoryRepository()),
+        RepositoryProvider(create: (_) => AgencyRepository()),
         RepositoryProvider(create: (_) => PolicySimulatorRepository()),
         RepositoryProvider(create: (_) => PredictionRepository()),
         RepositoryProvider(create: (_) => NotificationRepository()),

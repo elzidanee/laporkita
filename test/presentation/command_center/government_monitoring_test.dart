@@ -18,6 +18,7 @@ class FakeReportRepository extends Fake implements ReportRepository {
     String? status,
     String? categoryId,
     String? reporterId,
+    bool? needsManualReview,
     String sortBy = 'newest',
   }) async {
     return const ApiResponse<List<ReportModel>>(

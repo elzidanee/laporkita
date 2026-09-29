@@ -109,6 +109,7 @@ class ReportRepository {
     String? status,
     String? categoryId,
     String? reporterId,
+    bool? needsManualReview,
     String sortBy = 'newest',
   }) async {
     await _ensureStorageLoaded();
@@ -123,6 +124,7 @@ class ReportRepository {
         status: status,
         categoryId: categoryId,
         reporterId: reporterId,
+        needsManualReview: needsManualReview,
         sortBy: sortBy,
       );
       remoteData = response.data ?? [];

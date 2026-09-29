@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../data/models/report_model.dart';
+import '../../../data/models/agency_model.dart';
 import '../../../data/repositories/report_repository.dart';
+import '../../../data/repositories/agency_repository.dart';
 
 class AdminAssignReportScreen extends StatefulWidget {
   final ReportModel report;
@@ -22,54 +24,26 @@ class _AdminAssignReportScreenState extends State<AdminAssignReportScreen> {
   static const Color _greenPrimary = Color(0xFF1D9C51);
   static const Color _amberPrimary = Color(0xFFF2AE01);
 
-  String _selectedOpd = 'Dinas PUPR (DPUPR)';
+  String? _selectedOpd;
   String _selectedPriority = 'Tinggi';
-  Map<String, String>? _selectedPetugas = {
-    'name': 'Andi Pratama',
-    'role': 'Petugas Lapangan DPUPR',
-    'avatar': 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-  };
   final TextEditingController _notesController = TextEditingController();
+  final TextEditingController _petugasController = TextEditingController();
   bool _isSubmitting = false;
 
-  final List<String> _opdList = [
+  // Daftar OPD dari backend (GET /agencies). Fallback lokal hanya jika API gagal.
+  List<AgencyModel> _agencies = [];
+  bool _isLoadingAgencies = true;
+
+  // ponytail: petugas diketik manual (teks bebas), bukan dropdown master user.
+  // Tambah dropdown petugas saat backend sediakan endpoint daftar operator per dinas.
+  static const List<String> _fallbackOpdNames = [
     'Dinas PUPR (DPUPR)',
     'Dinas Perhubungan (Dishub)',
     'Dinas Komunikasi & Informatika (Diskominfo)',
   ];
 
-  final List<Map<String, String>> _petugasList = [
-    {
-      'name': 'Andi Pratama',
-      'role': 'Petugas Lapangan DPUPR',
-      'avatar': 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-    },
-    {
-      'name': 'Cahyo Wibowo',
-      'role': 'Teknisi Jalan & Jembatan DPUPR',
-      'avatar': 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150',
-    },
-    {
-      'name': 'Budi Santoso',
-      'role': 'Koordinator Lapangan Dishub',
-      'avatar': 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150',
-    },
-    {
-      'name': 'Eko Prasetyo',
-      'role': 'Teknisi Marka & Rambu Dishub',
-      'avatar': 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150',
-    },
-    {
-      'name': 'Dedi Kurniawan',
-      'role': 'Inspektur Jaringan Diskominfo',
-      'avatar': 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150',
-    },
-    {
-      'name': 'Fajar Ramadhan',
-      'role': 'Teknisi CCTV & Fiber Optik Diskominfo',
-      'avatar': 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-    },
-  ];
+  List<String> get _opdNames =>
+      _agencies.isEmpty ? _fallbackOpdNames : _agencies.map((a) => a.name).toList();
 
   @override
   void initState() {
@@ -82,11 +56,33 @@ class _AdminAssignReportScreenState extends State<AdminAssignReportScreen> {
     } else if (p.contains('Rendah')) {
       _selectedPriority = 'Rendah';
     }
+    _loadAgencies();
+  }
+
+  Future<void> _loadAgencies() async {
+    try {
+      final agencies = await context.read<AgencyRepository>().getAgencies();
+      if (!mounted) return;
+      setState(() {
+        _agencies = agencies;
+        _selectedOpd ??= widget.report.assignedAgency?['name']?.toString() ??
+            (agencies.isNotEmpty ? agencies.first.name : _fallbackOpdNames.first);
+        _isLoadingAgencies = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      // Gagal load — pakai fallback lokal agar layar tetap bisa dipakai
+      setState(() {
+        _selectedOpd ??= _fallbackOpdNames.first;
+        _isLoadingAgencies = false;
+      });
+    }
   }
 
   @override
   void dispose() {
     _notesController.dispose();
+    _petugasController.dispose();
     super.dispose();
   }
 
@@ -120,18 +116,18 @@ class _AdminAssignReportScreenState extends State<AdminAssignReportScreen> {
     try {
       final repo = context.read<ReportRepository>();
       final noteText = _notesController.text.trim();
-      final petugasInfo = _selectedPetugas != null
-          ? ' | Petugas: ${_selectedPetugas!['name']}'
-          : '';
+      final opdName = _selectedOpd ?? 'Dinas Terkait';
+      final petugasText = _petugasController.text.trim();
+      final petugasInfo = petugasText.isNotEmpty ? ' | Petugas: $petugasText' : '';
       final combinedNote = noteText.isNotEmpty
-          ? '$noteText (Prioritas: $_selectedPriority$petugasInfo)'
-          : 'Penugasan laporan ke $_selectedOpd (Prioritas: $_selectedPriority$petugasInfo)';
+          ? '$noteText (OPD: $opdName | Prioritas: $_selectedPriority$petugasInfo)'
+          : 'Penugasan laporan ke $opdName (Prioritas: $_selectedPriority$petugasInfo)';
 
       final updatedReport = await repo.updateReportStatus(
         widget.report.id,
         'assigned',
         notes: combinedNote,
-        assignedAgencyId: _selectedOpd,
+        assignedAgencyId: opdName,
         existingReport: widget.report.copyWith(
           directPriority: _selectedPriority,
         ),
@@ -178,7 +174,7 @@ class _AdminAssignReportScreenState extends State<AdminAssignReportScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Laporan ${_formatCodeWithHash(widget.report.reportCode)} telah berhasil ditugaskan ke $_selectedOpd untuk penanganan lebih lanjut.',
+                    'Laporan ${_formatCodeWithHash(widget.report.reportCode)} telah berhasil ditugaskan ke $opdName untuk penanganan lebih lanjut.',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.poppins(
                       fontSize: 13,
@@ -187,7 +183,7 @@ class _AdminAssignReportScreenState extends State<AdminAssignReportScreen> {
                       height: 1.45,
                     ),
                   ),
-                  if (_selectedPetugas != null) ...[
+                  if (petugasText.isNotEmpty) ...[
                     const SizedBox(height: 14),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -203,7 +199,7 @@ class _AdminAssignReportScreenState extends State<AdminAssignReportScreen> {
                               size: 16, color: Color(0xFF1D9C51)),
                           const SizedBox(width: 6),
                           Text(
-                            'Petugas: ${_selectedPetugas!['name']}',
+                            'Petugas: $petugasText',
                             style: GoogleFonts.poppins(
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
@@ -305,168 +301,53 @@ class _AdminAssignReportScreenState extends State<AdminAssignReportScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxHeight: MediaQuery.of(ctx).size.height * 0.5,
-                  ),
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: _opdList.length,
-                    separatorBuilder: (context, index) =>
-                        const Divider(height: 1),
-                    itemBuilder: (context, idx) {
-                      final item = _opdList[idx];
-                      final isSelected = item == _selectedOpd;
-                      return ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
-                        title: Text(
-                          item,
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            fontWeight: isSelected
-                                ? FontWeight.w600
-                                : FontWeight.w400,
-                            color: isSelected
-                                ? _greenPrimary
-                                : Colors.black87,
-                          ),
-                        ),
-                        trailing: isSelected
-                            ? const Icon(Icons.check_circle_rounded,
-                                color: _greenPrimary)
-                            : null,
-                        onTap: () {
-                          setState(() => _selectedOpd = item);
-                          Navigator.pop(ctx);
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showPetugasPicker() {
-    if (widget.report.status == ReportStatus.completed ||
-        widget.report.status == ReportStatus.resolved) {
-      return;
-    }
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE0DFDF),
-                      borderRadius: BorderRadius.circular(2),
+                if (_isLoadingAgencies)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24),
+                      child: CircularProgressIndicator(color: _greenPrimary),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Pilih Petugas Lapangan',
-                  style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.black,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxHeight: MediaQuery.of(ctx).size.height * 0.5,
-                  ),
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: _petugasList.length,
-                    separatorBuilder: (context, index) =>
-                        const Divider(height: 1),
-                    itemBuilder: (context, idx) {
-                      final item = _petugasList[idx];
-                      final isSelected =
-                          _selectedPetugas?['name'] == item['name'];
-                      return ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 4, vertical: 4),
-                        leading: CircleAvatar(
-                          radius: 20,
-                          backgroundColor: const Color(0xFFE8F5E9),
-                          backgroundImage: NetworkImage(item['avatar']!),
-                          onBackgroundImageError: (exception, stackTrace) {},
-                          child: const Icon(Icons.person, color: Colors.grey),
-                        ),
-                        title: Text(
-                          item['name']!,
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            fontWeight: isSelected
-                                ? FontWeight.w600
-                                : FontWeight.w500,
-                            color: isSelected
-                                ? _greenPrimary
-                                : Colors.black87,
+                  )
+                else
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: MediaQuery.of(ctx).size.height * 0.5,
+                    ),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: _opdNames.length,
+                      separatorBuilder: (context, index) =>
+                          const Divider(height: 1),
+                      itemBuilder: (context, idx) {
+                        final item = _opdNames[idx];
+                        final isSelected = item == _selectedOpd;
+                        return ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          title: Text(
+                            item,
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
+                              color: isSelected
+                                  ? _greenPrimary
+                                  : Colors.black87,
+                            ),
                           ),
-                        ),
-                        subtitle: Text(
-                          item['role']!,
-                          style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w300,
-                            color: const Color(0xFF757575),
-                          ),
-                        ),
-                        trailing: isSelected
-                            ? const Icon(Icons.check_circle_rounded,
-                                color: _greenPrimary)
-                            : null,
-                        onTap: () {
-                          setState(() => _selectedPetugas = item);
-                          Navigator.pop(ctx);
-                        },
-                      );
-                    },
-                  ),
-                ),
-                if (_selectedPetugas != null) ...[
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    child: TextButton(
-                      onPressed: () {
-                        setState(() => _selectedPetugas = null);
-                        Navigator.pop(ctx);
+                          trailing: isSelected
+                              ? const Icon(Icons.check_circle_rounded,
+                                  color: _greenPrimary)
+                              : null,
+                          onTap: () {
+                            setState(() => _selectedOpd = item);
+                            Navigator.pop(ctx);
+                          },
+                        );
                       },
-                      child: Text(
-                        'Hapus Pilihan Petugas',
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          color: _redPrimary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
                     ),
                   ),
-                ],
               ],
             ),
           ),
@@ -659,7 +540,7 @@ class _AdminAssignReportScreenState extends State<AdminAssignReportScreen> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
-                                _selectedOpd,
+                                _selectedOpd ?? 'Pilih OPD Tujuan',
                                 style: GoogleFonts.poppins(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w500,
@@ -733,118 +614,36 @@ class _AdminAssignReportScreenState extends State<AdminAssignReportScreen> {
                     ),
                     const SizedBox(height: 10),
 
-                    if (_selectedPetugas != null) ...[
-                      InkWell(
-                        onTap: _showPetugasPicker,
-                        borderRadius: BorderRadius.circular(25),
-                        child: Container(
-                          height: 80,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(25),
-                            border: Border.all(
-                              color: const Color(0xFFE0DFDF),
-                              width: 0.85,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              ClipOval(
-                                child: Image.network(
-                                  _selectedPetugas!['avatar']!,
-                                  width: 50,
-                                  height: 50,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) =>
-                                      Container(
-                                    width: 50,
-                                    height: 50,
-                                    color: const Color(0xFFE8F5E9),
-                                    child: const Icon(
-                                      Icons.person,
-                                      color: Colors.grey,
-                                      size: 28,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      _selectedPetugas!['name']!,
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w500,
-                                        color: const Color(0xFF515151),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      _selectedPetugas!['role']!,
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w300,
-                                        color: const Color(0xFF515151),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const Icon(
-                                Icons.keyboard_arrow_down_rounded,
-                                size: 24,
-                                color: Color(0xFF515151),
-                              ),
-                            ],
-                          ),
+                    // Nama petugas diketik manual (teks bebas)
+                    TextField(
+                      controller: _petugasController,
+                      decoration: InputDecoration(
+                        hintText: 'Nama petugas lapangan (opsional)',
+                        hintStyle: GoogleFonts.poppins(
+                          fontSize: 13,
+                          color: const Color(0xFF8F8F8F),
+                        ),
+                        prefixIcon: const Icon(Icons.person_outline_rounded,
+                            color: Color(0xFF1D9C51)),
+                        filled: true,
+                        fillColor: Colors.white,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(15),
+                          borderSide: const BorderSide(
+                              color: Color(0xFFE0DFDF), width: 0.85),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(15),
+                          borderSide: const BorderSide(
+                              color: Color(0xFFE0DFDF), width: 0.85),
                         ),
                       ),
-                      const SizedBox(height: 12),
-                    ],
-
-                    // Outlined button "Pilih Petugas"
-                    SizedBox(
-                      width: double.infinity,
-                      height: 42,
-                      child: OutlinedButton(
-                        onPressed: _showPetugasPicker,
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(
-                            color: Color(0xFF1976D2),
-                            width: 0.8,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                          backgroundColor: Colors.white,
-                          padding: EdgeInsets.zero,
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.add_rounded,
-                              size: 20,
-                              color: Color(0xFF1976D2),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Pilih Petugas',
-                              style: GoogleFonts.poppins(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w400,
-                                color: const Color(0xFF1976D2),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      style: GoogleFonts.poppins(
+                          fontSize: 14, color: Colors.black87),
                     ),
+                    const SizedBox(height: 12),
 
                     const SizedBox(height: 20),
 
