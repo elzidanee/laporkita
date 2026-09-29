@@ -7,5 +7,5 @@ void main() async {
   final res = await req.close();
   final body = await res.transform(utf8.decoder).join();
   final swagger = jsonDecode(body);
-  print(jsonEncode(swagger['paths']['/api/v1/reports/{id}/media']));
+  print((swagger['paths'] as Map<String, dynamic>).keys.toList());
 }

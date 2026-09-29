@@ -485,30 +485,32 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
         children: [
           // Header baris atas
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: riskColor.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(Icons.shield_rounded, color: riskColor, size: 20),
-                  ),
-                  const SizedBox(width: 10),
-                  const Text(
-                    'Prediksi Cuaca & Risiko Wilayah',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.neutral900,
-                    ),
-                  ),
-                ],
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: riskColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.shield_rounded, color: riskColor, size: 20),
               ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'Prediksi Cuaca & Risiko Wilayah',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.neutral900,
+                    height: 1.2,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
               // Badge level risiko
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
