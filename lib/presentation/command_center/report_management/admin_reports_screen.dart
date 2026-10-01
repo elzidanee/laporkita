@@ -32,6 +32,10 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
   bool _isLoading = true;
   List<ReportModel> _allReports = [];
 
+  // Toggle antrian verifikasi manual (GET /reports?needs_manual_review=true).
+  // Saat aktif: fetch ulang dari server dengan filter, bukan filter lokal.
+  bool _onlyManualReview = false;
+
   // Filter states
   String _selectedStatus = 'Semua Status';
   String _selectedOpd = 'Semua OPD';
@@ -121,7 +125,10 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
       final categoryRepo = context.read<CategoryRepository>();
 
       final results = await Future.wait([
-        reportRepo.getReports(limit: 100),
+        reportRepo.getReports(
+          limit: 100,
+          needsManualReview: _onlyManualReview ? true : null,
+        ),
         categoryRepo.getCategories(),
       ]);
 
@@ -329,8 +336,15 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
       _selectedPriority = 'Semua Prioritas';
       _selectedSort = 'Terbaru';
       _sortAscending = false;
+      _onlyManualReview = false;
       _searchController.clear();
     });
+    _fetchReports();
+  }
+
+  void _toggleManualReview(bool value) {
+    setState(() => _onlyManualReview = value);
+    _fetchReports();
   }
 
   // ── BUILD ──────────────────────────────────────────────────────────
@@ -370,7 +384,37 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: _buildSecondaryFilterRow(),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 8),
+
+            // Toggle antrian verifikasi manual (server-side filter)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  Switch(
+                    value: _onlyManualReview,
+                    activeThumbColor: AppColors.greenPrimary,
+                    onChanged: _toggleManualReview,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      'Hanya antrian verifikasi manual',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        fontWeight: _onlyManualReview
+                            ? FontWeight.w600
+                            : FontWeight.w400,
+                        color: _onlyManualReview
+                            ? AppColors.greenPrimary
+                            : const Color(0xFF515151),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 6),
 
             // Total Counter: Total 2.458 Laporan
             Padding(
@@ -594,6 +638,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
         _selectedCategory != 'Semua Kategori' ||
         _selectedPriority != 'Semua Prioritas' ||
         _selectedSort != 'Terbaru' ||
+        _onlyManualReview ||
         _searchController.text.isNotEmpty;
 
     return Row(
