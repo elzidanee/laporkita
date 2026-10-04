@@ -23,16 +23,21 @@ class _CitizenHomeScreenState extends State<CitizenHomeScreen> {
       backgroundColor: AppColors.greenPrimary,
       body: Stack(
         children: [
-          // Screen body tab content
-          IndexedStack(
-            index: _currentIndex,
-            children: const [
-              CitizenDashboardTab(),
-              CitizenPetaTab(),
-              CitizenLaporTab(),
-              CitizenNotifikasiTab(),
-              CitizenProfileTab(),
-            ],
+          // Screen body tab content dengan bottom padding agar tidak tertutup navbar
+          Padding(
+            padding: EdgeInsets.only(
+              bottom: 90 + MediaQuery.of(context).padding.bottom,
+            ),
+            child: IndexedStack(
+              index: _currentIndex,
+              children: const [
+                CitizenDashboardTab(),
+                CitizenPetaTab(),
+                CitizenLaporTab(),
+                CitizenNotifikasiTab(),
+                CitizenProfileTab(),
+              ],
+            ),
           ),
 
           // Custom Floating Bottom Navigation Bar

@@ -361,14 +361,23 @@ class DioClient {
   }
 
   /// Kirim POST request dan parse envelope response
+  /// [extraHeaders] — header tambahan yang di-merge dengan header default (mis. x-idempotency-key)
   Future<ApiResponse<T>> post<T>(
     String path, {
     required T Function(dynamic) fromJson,
     dynamic data,
     FormData? formData,
+    Map<String, String>? extraHeaders,
   }) async {
     try {
-      final resp = await _dio.post(path, data: formData ?? data);
+      final options = extraHeaders != null && extraHeaders.isNotEmpty
+          ? Options(headers: extraHeaders)
+          : null;
+      final resp = await _dio.post(
+        path,
+        data: formData ?? data,
+        options: options,
+      );
       return _parseResponse(resp, fromJson);
     } on DioException catch (e) {
       throw _extractException(e);

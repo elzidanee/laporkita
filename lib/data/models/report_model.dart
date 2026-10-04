@@ -428,8 +428,8 @@ class ReportModel {
     );
   }
 
-  /// Confidence score hasil verifikasi AI server-side
-  double? get aiConfidenceScore => rawAiConfidenceScore ?? 0.88;
+  /// Confidence score hasil verifikasi AI server-side (null jika backend tidak kirim).
+  double? get aiConfidenceScore => rawAiConfidenceScore;
 
   /// URL foto utama laporan (fallback dari photo_url -> media.first.url)
   String? get photoUrl {
@@ -569,38 +569,36 @@ class ReportModel {
       return 'Perlu Penanganan';
     }
 
-    // 4. Cek tingkat keparahan kerusakan (damage_severity) dari AI backend
+    // 4. Cek tingkat keparahan kerusakan (damage_severity) dari AI backend.
+    // Normalisasi ke skala 0-100 agar konsisten apapun format backend.
     final damage = damageSeverity;
     if (damage != null) {
-      if (damage >= 0.70 || damage >= 70) {
+      final d100 = damage <= 1.0 ? damage * 100 : damage;
+      if (d100 >= 70) {
         return 'Prioritas Tinggi';
-      } else if (damage >= 0.40 || damage >= 40) {
+      } else if (d100 >= 40) {
         return 'Sedang';
-      } else if (damage > 0 && damage < 0.40) {
+      } else if (d100 > 0) {
         return 'Rendah';
       }
     }
 
-    // 5. Cek skor urgensi (urgency_score) dari formula backend (aiservice.md §1.3)
+    // 5. Cek skor urgensi (urgency_score) dari formula backend (aiservice.md §1.3).
+    // Normalisasi ke skala 0-100 yang sama.
     final urgency = urgencyScore;
     if (urgency != null) {
-      if (urgency >= 7.0 ||
-          urgency >= 70 ||
-          (urgency >= 0.70 && urgency <= 1.0)) {
+      final u100 = urgency <= 1.0 ? urgency * 100 : urgency;
+      if (u100 >= 70) {
         return 'Prioritas Tinggi';
-      } else if (urgency >= 4.0 ||
-          urgency >= 40 ||
-          (urgency >= 0.40 && urgency <= 1.0)) {
+      } else if (u100 >= 40) {
         return 'Perlu Penanganan';
-      } else if (urgency >= 2.0 ||
-          urgency >= 20 ||
-          (urgency >= 0.20 && urgency <= 1.0)) {
+      } else if (u100 >= 20) {
         if ((damage ?? 0) >= 0.50 ||
             categoryName.toLowerCase().contains('jalan')) {
           return 'Prioritas Tinggi';
         }
         return 'Sedang';
-      } else if (urgency > 0 && urgency < 2.0) {
+      } else if (u100 > 0) {
         return 'Rendah';
       }
     }

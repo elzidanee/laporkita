@@ -120,16 +120,20 @@ class AuthRemoteDatasource {
   }
 
   // ── Get User Points Log ────────────────────────────────────────────────────
-  // STATUS: VERIFIED — GET /users/me/points
-  Future<List<Map<String, dynamic>>> getMyPoints({int limit = 20}) async {
+  // STATUS: VERIFIED — GET /users/me/points (limit & cursor required by Swagger)
+  Future<List<Map<String, dynamic>>> getMyPoints({int limit = 20, String? cursor}) async {
     final response = await _dioClient.get<List<Map<String, dynamic>>>(
-      '/users/me/points?limit=$limit',
+      '/users/me/points',
       fromJson: (json) {
         if (json is List) {
           return List<Map<String, dynamic>>.from(
               json.map((x) => Map<String, dynamic>.from(x as Map)));
         }
         return [];
+      },
+      queryParameters: {
+        'limit': limit,
+        'cursor': cursor ?? '',
       },
     );
     return response.data ?? [];

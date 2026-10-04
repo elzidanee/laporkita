@@ -148,7 +148,12 @@ class CitizenProfileTab extends StatelessWidget {
                     icon: Icons.assignment_turned_in_outlined,
                     title: 'Riwayat Laporan',
                     onTap: () {
-                      Navigator.pushNamed(context, '/tracking-progress');
+                      // Navigasi ke daftar laporan milik user sendiri
+                      Navigator.pushNamed(
+                        context,
+                        '/tracking-progress',
+                        arguments: {'myReports': true},
+                      );
                     },
                   ),
                   const SizedBox(height: 10),

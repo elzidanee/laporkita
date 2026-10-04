@@ -4,6 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/report_model.dart';
 import '../../../data/repositories/report_repository.dart';
+import '../../auth/bloc/auth_bloc.dart';
+import '../../reports/bloc/report_bloc.dart';
 
 class TrackingProgressScreen extends StatefulWidget {
   final Map<String, dynamic>? reportData;
@@ -17,6 +19,7 @@ class TrackingProgressScreen extends StatefulWidget {
 
 class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
   ReportModel? _report;
+  List<ReportModel> _userReports = [];
   bool _isLoading = true;
   String? _errorMessage;
 
@@ -27,14 +30,52 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
   }
 
   Future<void> _loadReport() async {
-    // Prefer pre-loaded model
+    // 1. Kumpulkan seluruh kandidat laporan milik user saat ini
+    List<ReportModel> myReports = [];
+    try {
+      final repo = context.read<ReportRepository>();
+      final authState = context.read<AuthBloc>().state;
+      String? currentUserId;
+      if (authState is AuthAuthenticated) {
+        currentUserId = authState.user.id;
+      }
+
+      List<ReportModel> pool = [];
+      final reportState = context.read<ReportBloc>().state;
+      if (reportState is ReportListLoaded) {
+        pool = reportState.reports;
+      }
+      if (pool.isEmpty) {
+        pool = repo.localSubmittedReports;
+      }
+
+      if (currentUserId != null) {
+        final fromUser =
+            pool.where((r) => r.reporterId == currentUserId).toList();
+        final localExtra = repo.localSubmittedReports
+            .where((lr) => !fromUser.any((u) => u.id == lr.id))
+            .toList();
+        myReports = [...fromUser, ...localExtra];
+      } else {
+        myReports = List.from(repo.localSubmittedReports);
+      }
+    } catch (_) {}
+
+    if (mounted) {
+      setState(() {
+        _userReports = myReports;
+      });
+    }
+
+    // 2. Jika model laporan sudah dikirim secara instan (preloaded)
     final preloaded = widget.reportData?['reportModel'] as ReportModel?;
     if (preloaded != null) {
-      setState(() {
-        _report = preloaded;
-        _isLoading = false;
-      });
-      // Optionally refresh in background
+      if (mounted) {
+        setState(() {
+          _report = preloaded;
+          _isLoading = false;
+        });
+      }
       _refreshFromApi(preloaded.id);
       return;
     }
@@ -42,15 +83,33 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
     final String? reportId = widget.reportData?['reportId'] as String? ??
         widget.reportData?['id'] as String?;
 
-    if (reportId == null || reportId.isEmpty) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = null; // show empty state instead
-      });
+    if (reportId != null && reportId.isNotEmpty) {
+      await _refreshFromApi(reportId);
       return;
     }
 
-    await _refreshFromApi(reportId);
+    // 3. Jika tidak ada reportId spesifik (misal dari menu Riwayat Laporan di Profil),
+    // gunakan laporan terbaru milik warga tersebut
+    if (myReports.isNotEmpty) {
+      final latest = myReports.first;
+      if (mounted) {
+        setState(() {
+          _report = latest;
+          _isLoading = false;
+        });
+      }
+      await _refreshFromApi(latest.id);
+      return;
+    }
+
+    // 4. Benar-benar belum ada laporan (tampilkan empty state)
+    if (mounted) {
+      setState(() {
+        _report = null;
+        _isLoading = false;
+        _errorMessage = null;
+      });
+    }
   }
 
   Future<void> _refreshFromApi(String reportId) async {
@@ -68,7 +127,7 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage = 'Gagal memuat data laporan.';
+          _errorMessage = 'Gagal memuat data laporan terbaru.';
         });
       }
     }
@@ -115,6 +174,178 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
     return '${(_progressFromStatus(status) * 100).toInt()}%';
   }
 
+  void _showReportPickerSheet() {
+    if (_userReports.isEmpty) return;
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Pilih Laporan Anda',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.neutral900,
+                        ),
+                      ),
+                      Text(
+                        '${_userReports.length} Laporan',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.neutral500,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: _userReports.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final item = _userReports[index];
+                      final isSelected = item.id == _report?.id;
+                      return ListTile(
+                        leading: Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? AppColors.greenPrimary.withValues(alpha: 0.1)
+                                : AppColors.neutral100,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            isSelected
+                                ? Icons.check_circle_rounded
+                                : Icons.assignment_outlined,
+                            color: isSelected
+                                ? AppColors.greenPrimary
+                                : AppColors.neutral500,
+                          ),
+                        ),
+                        title: Text(
+                          item.categoryName,
+                          style: TextStyle(
+                            fontWeight:
+                                isSelected ? FontWeight.bold : FontWeight.w600,
+                            fontSize: 14,
+                            color: AppColors.neutral900,
+                          ),
+                        ),
+                        subtitle: Text(
+                          '${item.reportCode} • ${item.status.displayName}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.neutral500,
+                          ),
+                        ),
+                        trailing: const Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          size: 14,
+                          color: AppColors.neutral400,
+                        ),
+                        onTap: () {
+                          Navigator.pop(context);
+                          setState(() {
+                            _report = item;
+                            _isLoading = true;
+                          });
+                          _refreshFromApi(item.id);
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: const BoxDecoration(
+                color: AppColors.greenLight,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.track_changes_rounded,
+                size: 64,
+                color: AppColors.greenPrimary,
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Belum Ada Laporan Aktif',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.neutral900,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Anda belum memiliki riwayat laporan yang sedang diproses. Laporkan kendala fasilitas umum dengan kamera AI untuk memantau progres perbaikannya di sini.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: AppColors.neutral500,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pushNamed(context, '/camera');
+              },
+              icon: const Icon(Icons.camera_alt_rounded),
+              label: const Text('Buat Laporan Sekarang'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.greenPrimary,
+                foregroundColor: AppColors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                elevation: 0,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -140,6 +371,13 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
         ),
         centerTitle: true,
         actions: [
+          if (_userReports.length > 1)
+            IconButton(
+              icon: const Icon(Icons.swap_horiz_rounded,
+                  color: AppColors.greenPrimary),
+              tooltip: 'Ganti Laporan',
+              onPressed: _showReportPickerSheet,
+            ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded,
                 color: AppColors.greenPrimary),
@@ -165,6 +403,14 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
     final String photoUrl = report?.formattedPhotoUrl ??
         report?.photoUrl ??
         (widget.reportData?['photoUrl'] as String? ?? '');
+
+    // Tampilkan Empty State yang rapi jika tidak ada laporan aktif
+    if (report == null &&
+        photoUrl.isEmpty &&
+        (imagePath == null || imagePath.isEmpty) &&
+        (widget.reportData?['reportId'] == null)) {
+      return _buildEmptyState();
+    }
     final String location = report?.addressText ??
         (widget.reportData?['location'] as String? ??
             widget.reportData?['address'] as String? ??

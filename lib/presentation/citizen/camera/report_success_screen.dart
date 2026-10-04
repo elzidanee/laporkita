@@ -34,25 +34,35 @@ class ReportSuccessScreen extends StatelessWidget {
 
     final photoUrl = report?.formattedPhotoUrl ?? report?.photoUrl;
 
-    return Scaffold(
-      backgroundColor: AppColors.white,
-      appBar: AppBar(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/citizen',
+          (route) => false,
+        );
+      },
+      child: Scaffold(
         backgroundColor: AppColors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: AppColors.neutral900,
-            size: 20,
-          ),
-          onPressed: () => Navigator.pushNamedAndRemoveUntil(
-            context,
-            '/citizen',
-            (route) => false,
+        appBar: AppBar(
+          backgroundColor: AppColors.white,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: AppColors.neutral900,
+              size: 20,
+            ),
+            onPressed: () => Navigator.pushNamedAndRemoveUntil(
+              context,
+              '/citizen',
+              (route) => false,
+            ),
           ),
         ),
-      ),
-      body: SafeArea(
+        body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: Column(
@@ -369,6 +379,7 @@ class ReportSuccessScreen extends StatelessWidget {
             ],
           ),
         ),
+      ),
       ),
     );
   }

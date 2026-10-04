@@ -723,7 +723,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       left: 0,
                       right: 0,
                       bottom: 0,
-                      child: Container(color: const Color(0xFF1D9C51)),
+                      child: SizedBox.expand(
+                        child: ColoredBox(
+                          color: const Color(0xFF1D9C51),
+                        ),
+                      ),
                     ),
                     _buildHeader(),
                   ],
@@ -731,6 +735,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
               ),
               SliverToBoxAdapter(
                 child: Container(
+                  width: double.infinity,
                   decoration: const BoxDecoration(
                     color: Color(0xFFF8FAFC),
                     borderRadius:

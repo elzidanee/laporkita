@@ -7,17 +7,10 @@ import 'government_dashboard_screen.dart';
 import 'operator_dashboard_screen.dart';
 import 'admin_dashboard_screen.dart';
 
-class CommandCenterDashboard extends StatefulWidget {
+class CommandCenterDashboard extends StatelessWidget {
   final UserRole? initialRole;
 
   const CommandCenterDashboard({super.key, this.initialRole});
-
-  @override
-  State<CommandCenterDashboard> createState() => _CommandCenterDashboardState();
-}
-
-class _CommandCenterDashboardState extends State<CommandCenterDashboard> {
-  UserRole? _selectedRole;
 
   @override
   Widget build(BuildContext context) {
@@ -155,8 +148,8 @@ class _CommandCenterDashboardState extends State<CommandCenterDashboard> {
           );
         }
 
-        // 3. Authorized Staff / Official
-        final activeRole = _selectedRole ?? widget.initialRole ?? user.role;
+        // 3. Authorized Staff / Official — langsung tampilkan UI dashboard asli sesuai role
+        final activeRole = initialRole ?? user.role;
         switch (activeRole) {
           case UserRole.operator:
             return const OperatorDashboardScreen();

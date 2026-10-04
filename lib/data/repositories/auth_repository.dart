@@ -70,8 +70,8 @@ class AuthRepository {
 
   Future<UserModel?> getCachedUser() => _datasource.getCachedUser();
 
-  Future<List<Map<String, dynamic>>> getMyPoints({int limit = 20}) =>
-      _datasource.getMyPoints(limit: limit);
+  Future<List<Map<String, dynamic>>> getMyPoints({int limit = 20, String? cursor}) =>
+      _datasource.getMyPoints(limit: limit, cursor: cursor);
 
   Future<void> logout() => _datasource.clearTokens();
 

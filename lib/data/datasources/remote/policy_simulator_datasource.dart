@@ -54,7 +54,8 @@ class PolicySimulatorDatasource {
       },
       queryParameters: {
         'limit': limit,
-        if (cursor case final c?) 'cursor': c,
+        // STATUS: FIXED — cursor wajib (required) di backend Swagger spec
+        'cursor': cursor ?? '',
       },
     );
   }

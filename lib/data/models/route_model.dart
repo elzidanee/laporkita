@@ -201,4 +201,38 @@ class RouteModel {
         .map((r) => RouteModel.fromRouteJson(r as Map<String, dynamic>))
         .toList();
   }
+
+  /// Factory untuk mem-parsing response backend POST /maps/route.
+  /// Bentuk: { success, data: { coordinates: [[lng,lat],...],
+  ///   distance_meters, duration_seconds }, meta, error }
+  /// Backend hanya mengembalikan satu rute (tanpa steps/alternatif).
+  static List<RouteModel> fromBackendMapsJson(Map<String, dynamic> json) {
+    dynamic data = json['data'] ?? json;
+    if (data is! Map<String, dynamic>) {
+      throw const RouteNotFoundException('Format data rute backend tidak valid.');
+    }
+
+    final coordinates = data['coordinates'] as List<dynamic>?;
+    if (coordinates == null || coordinates.isEmpty) {
+      throw const RouteNotFoundException('Titik koordinat rute kosong.');
+    }
+
+    final points = coordinates.map<LatLng>((coord) {
+      final coordList = coord as List<dynamic>;
+      final lon = (coordList[0] as num).toDouble();
+      final lat = (coordList[1] as num).toDouble();
+      return LatLng(lat, lon);
+    }).toList();
+
+    final distance = (data['distance_meters'] as num?)?.toDouble() ?? 0.0;
+    final duration = (data['duration_seconds'] as num?)?.toDouble() ?? 0.0;
+
+    return [
+      RouteModel(
+        points: points,
+        distanceMeters: distance,
+        durationSeconds: duration,
+      ),
+    ];
+  }
 }

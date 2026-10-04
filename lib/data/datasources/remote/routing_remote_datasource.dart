@@ -1,6 +1,5 @@
 import 'package:dio/dio.dart';
 import 'package:latlong2/latlong.dart';
-import '../../../core/config/app_config.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/network/dio_client.dart';
 import '../../models/route_model.dart';
@@ -83,18 +82,18 @@ class RoutingRemoteDatasource {
     LatLng destination, {
     bool alternatives = true,
   }) async {
-    final altParam = alternatives ? '&alternatives=true' : '';
-    final url =
-        '${AppConfig.osrmBaseUrl}/route/v1/driving/'
-        '${origin.longitude},${origin.latitude};'
-        '${destination.longitude},${destination.latitude}'
-        '?overview=full&geometries=geojson&steps=true$altParam';
+    final payload = <String, dynamic>{
+      'origin_lat': origin.latitude,
+      'origin_lng': origin.longitude,
+      'destination_lat': destination.latitude,
+      'destination_lng': destination.longitude,
+    };
 
     try {
-      final response = await _dio.get(url);
+      final response = await _dio.post('/maps/route', data: payload);
 
       if (response.data is Map<String, dynamic>) {
-        return RouteModel.fromOsrmJsonList(response.data as Map<String, dynamic>);
+        return RouteModel.fromBackendMapsJson(response.data as Map<String, dynamic>);
       } else {
         throw const RouteNotFoundException(
           'Format data respons dari server rute tidak valid.',
@@ -112,9 +111,14 @@ class RoutingRemoteDatasource {
 
       final data = e.response?.data;
       if (data is Map<String, dynamic>) {
-        final code = data['code'] as String?;
-        final message = data['message'] as String? ?? 'Gagal mendapatkan rute.';
-        throw RouteNotFoundException(message, code: code);
+        final err = data['error'];
+        String message = 'Gagal mendapatkan rute.';
+        if (err is Map<String, dynamic>) {
+          message = err['message'] as String? ?? message;
+        } else if (data['message'] is String) {
+          message = data['message'] as String;
+        }
+        throw RouteNotFoundException(message);
       }
 
       throw NetworkException(

@@ -42,7 +42,9 @@ class NotificationRemoteDatasource {
       },
       queryParameters: {
         'limit': limit,
-        if (cursor != null) 'cursor': cursor,
+        // STATUS: FIXED — cursor wajib (required) di backend Swagger spec,
+        // kirim string kosong jika tidak ada (halaman pertama)
+        'cursor': cursor ?? '',
       },
     );
   }

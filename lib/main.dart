@@ -50,6 +50,7 @@ import 'data/repositories/routing_repository.dart';
 import 'data/models/report_model.dart';
 import 'data/models/user_model.dart';
 import 'core/services/fcm_service.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await FcmService.instance.initialize();

@@ -121,7 +121,9 @@ class _AdminMonitoringScreenState extends State<AdminMonitoringScreen> {
             r.status != ReportStatus.completed &&
             r.status != ReportStatus.resolved &&
             ((r.urgencyScore != null &&
-                    (r.urgencyScore! >= 7.0 || r.urgencyScore! >= 70)) ||
+                    (r.urgencyScore! <= 1.0
+                        ? r.urgencyScore! * 100 >= 70
+                        : r.urgencyScore! >= 70)) ||
                 r.needsManualReview))
         .length;
 
