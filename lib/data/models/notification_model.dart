@@ -7,6 +7,8 @@ class NotificationModel {
   final bool isRead;
   final String? type;
   final Map<String, dynamic>? data;
+  final String? referenceReportId;
+  final Map<String, dynamic>? referenceReport;
   final DateTime createdAt;
 
   NotificationModel({
@@ -17,10 +19,40 @@ class NotificationModel {
     this.isRead = false,
     this.type,
     this.data,
+    this.referenceReportId,
+    this.referenceReport,
     required this.createdAt,
   });
 
+  String? get reportId =>
+      referenceReportId ??
+      (data?['report_id'] as String?) ??
+      (data?['id'] as String?);
+
+  String? get reportCode =>
+      referenceReport?['report_code'] as String? ??
+      (data?['report_code'] as String?) ??
+      (data?['reportCode'] as String?);
+
   factory NotificationModel.fromJson(Map<String, dynamic> json) {
+    final refReportId = json['reference_report_id'] as String?;
+    final refReport = json['reference_report'] as Map<String, dynamic>?;
+    final Map<String, dynamic> mergedData = {};
+    if (json['data'] is Map<String, dynamic>) {
+      mergedData.addAll(json['data'] as Map<String, dynamic>);
+    }
+    if (refReportId != null && refReportId.isNotEmpty) {
+      mergedData['report_id'] = refReportId;
+      mergedData['id'] = refReportId;
+    }
+    if (refReport != null) {
+      if (refReport['id'] != null) mergedData['report_id'] = refReport['id'];
+      if (refReport['report_code'] != null) {
+        mergedData['report_code'] = refReport['report_code'];
+        mergedData['reportCode'] = refReport['report_code'];
+      }
+    }
+
     return NotificationModel(
       id: json['id'] as String? ?? '',
       userId: json['user_id'] as String? ?? '',
@@ -28,9 +60,12 @@ class NotificationModel {
       message: json['message'] as String? ?? json['body'] as String? ?? '',
       isRead: json['is_read'] as bool? ?? json['read'] as bool? ?? false,
       type: json['type'] as String?,
-      data: json['data'] as Map<String, dynamic>?,
+      data: mergedData.isNotEmpty ? mergedData : (json['data'] as Map<String, dynamic>?),
+      referenceReportId: refReportId,
+      referenceReport: refReport,
       createdAt: json['created_at'] != null
-          ? DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now()
+          ? DateTime.tryParse(json['created_at'].toString())?.toLocal() ??
+              DateTime.now()
           : DateTime.now(),
     );
   }

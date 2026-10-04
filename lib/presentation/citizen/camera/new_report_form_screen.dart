@@ -193,7 +193,6 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
         (args?['coordinates'] as String?)?.isNotEmpty == true
             ? args!['coordinates']
             : '-7.9827,112.6304';
-    final String? rawTimestamp = args?['timestamp'];
     final aiResult = args?['aiVerification'] as AiVerificationResult?;
     final String? aiCategoryStr = aiResult?.detectedCategory ??
         (args?['detectedCategory'] as String?) ??
@@ -224,26 +223,20 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
       'November',
       'Desember'
     ];
-    final String defaultDateStr =
+    final String dateStr =
         '${now.day} ${months[now.month - 1]} ${now.year}';
-    final String defaultTimeStr =
+    final String timeStr =
         '${now.hour.toString().padLeft(2, '0')}.${now.minute.toString().padLeft(2, '0')} WIB';
-
-    String dateStr = defaultDateStr;
-    String timeStr = defaultTimeStr;
-    if (rawTimestamp != null && rawTimestamp.isNotEmpty) {
-      if (rawTimestamp.contains('|')) {
-        final parts = rawTimestamp.split('|');
-        dateStr = parts[0].trim();
-        timeStr = parts[1].trim();
-      } else {
-        dateStr = rawTimestamp;
-      }
-    }
 
     return BlocConsumer<ReportBloc, ReportState>(
       listener: (context, state) {
         if (state is ReportSubmitSuccess) {
+          final submitTime = state.report.createdAt.toLocal();
+          final String submitDateStr =
+              '${submitTime.day} ${months[submitTime.month - 1]} ${submitTime.year}';
+          final String submitTimeStr =
+              '${submitTime.hour.toString().padLeft(2, '0')}.${submitTime.minute.toString().padLeft(2, '0')} WIB';
+
           Navigator.pushNamed(
             context,
             '/report-success',
@@ -253,7 +246,7 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
               'imagePath': imagePath,
               'location': location,
               'coordinates': coordinates,
-              'timestamp': rawTimestamp,
+              'timestamp': '$submitDateStr | $submitTimeStr',
             },
           );
         } else if (state is ReportError) {

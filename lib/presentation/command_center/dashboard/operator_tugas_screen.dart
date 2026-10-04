@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../data/models/report_model.dart';
 import '../../../data/repositories/report_repository.dart';
 import 'operator_report_detail_screen.dart';
+import '../../shared_widgets/report_thumbnail_image.dart';
 
 class OperatorTugasScreen extends StatefulWidget {
   final bool isTab;
@@ -719,50 +720,20 @@ class _OperatorTugasScreenState extends State<OperatorTugasScreen> {
   }
 
   Widget _buildThumbnailWithWatermark(ReportModel r) {
-    final photoUrl = r.directPhotoUrl != null && r.directPhotoUrl!.isNotEmpty
-        ? r.directPhotoUrl!
-        : (r.media.isNotEmpty ? r.media.first.url : null);
-
-    return ClipRRect(
+    return ReportThumbnailImage(
+      report: r,
+      width: 119,
+      height: 83,
+      fit: BoxFit.cover,
       borderRadius: BorderRadius.circular(8),
-      child: Container(
-        width: 119,
-        height: 83,
-        color: const Color(0xFFE2E8F0),
-        child: Stack(
-          children: [
-            // Photo
-            if (photoUrl != null && photoUrl.isNotEmpty)
-              Image.network(
-                photoUrl,
-                width: 119,
-                height: 83,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => _buildFallbackThumbnail(),
-              )
-            else
-              _buildFallbackThumbnail(),
-
-            // Mini Watermark Stamp Badge (Figma 662:5980)
-            Positioned(
-              left: 3,
-              bottom: 3,
-              child: _buildMiniWatermarkBadge(r),
-            ),
-          ],
-        ),
+      overlay: Positioned(
+        left: 3,
+        bottom: 3,
+        child: _buildMiniWatermarkBadge(r),
       ),
     );
   }
 
-  Widget _buildFallbackThumbnail() {
-    return Container(
-      color: const Color(0xFFCBD5E1),
-      child: Center(
-        child: Icon(Icons.image_outlined, size: 28, color: Colors.grey.shade600),
-      ),
-    );
-  }
 
   Widget _buildMiniWatermarkBadge(ReportModel r) {
     return Container(

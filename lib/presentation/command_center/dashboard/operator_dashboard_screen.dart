@@ -10,6 +10,7 @@ import 'operator_laporan_screen.dart';
 import 'operator_monitoring_screen.dart';
 import 'operator_profile_screen.dart';
 import 'operator_notifikasi_screen.dart';
+import '../../shared_widgets/report_thumbnail_image.dart';
 
 class OperatorDashboardScreen extends StatefulWidget {
   const OperatorDashboardScreen({super.key});
@@ -1053,47 +1054,20 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
 
   // ── THUMBNAIL WITH WATERMARK ──────────────────────────────────────────────
   Widget _buildThumbnailWithWatermark(ReportModel r) {
-    final photoUrl = r.directPhotoUrl != null && r.directPhotoUrl!.isNotEmpty
-        ? r.directPhotoUrl!
-        : (r.media.isNotEmpty ? r.media.first.url : null);
-
-    return ClipRRect(
+    return ReportThumbnailImage(
+      report: r,
+      width: 119,
+      height: 83,
+      fit: BoxFit.cover,
       borderRadius: BorderRadius.circular(8),
-      child: Container(
-        width: 119,
-        height: 83,
-        color: const Color(0xFFE2E8F0),
-        child: Stack(
-          children: [
-            if (photoUrl != null && photoUrl.isNotEmpty)
-              Image.network(
-                photoUrl,
-                width: 119,
-                height: 83,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => _buildFallbackThumbnail(),
-              )
-            else
-              _buildFallbackThumbnail(),
-            Positioned(
-              left: 3,
-              bottom: 3,
-              child: _buildMiniWatermarkBadge(r),
-            ),
-          ],
-        ),
+      overlay: Positioned(
+        left: 3,
+        bottom: 3,
+        child: _buildMiniWatermarkBadge(r),
       ),
     );
   }
 
-  Widget _buildFallbackThumbnail() {
-    return Container(
-      color: const Color(0xFFCBD5E1),
-      child: Center(
-        child: Icon(Icons.image_outlined, size: 28, color: Colors.grey.shade600),
-      ),
-    );
-  }
 
   Widget _buildMiniWatermarkBadge(ReportModel r) {
     return Container(

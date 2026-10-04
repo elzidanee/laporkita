@@ -70,11 +70,15 @@ class _FotoProgressScreenState extends State<FotoProgressScreen> {
     return months[(month - 1) % 12];
   }
 
-  String _formatDate(DateTime dt) =>
-      '${dt.day} ${_monthName(dt.month)} ${dt.year}';
+  String _formatDate(DateTime dt) {
+    final local = dt.toLocal();
+    return '${local.day} ${_monthName(local.month)} ${local.year}';
+  }
 
-  String _formatTime(DateTime dt) =>
-      '${dt.hour.toString().padLeft(2, '0')}.${dt.minute.toString().padLeft(2, '0')}';
+  String _formatTime(DateTime dt) {
+    final local = dt.toLocal();
+    return '${local.hour.toString().padLeft(2, '0')}.${local.minute.toString().padLeft(2, '0')} WIB';
+  }
 
   double _progressFromStatus(ReportStatus status) {
     switch (status) {

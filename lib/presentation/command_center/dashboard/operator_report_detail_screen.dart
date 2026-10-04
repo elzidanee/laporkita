@@ -11,6 +11,7 @@ import '../../../data/repositories/notification_repository.dart';
 import 'operator_foto_sebelum_screen.dart';
 import 'operator_update_progress_screen.dart';
 import 'operator_foto_sesudah_screen.dart';
+import '../../shared_widgets/report_thumbnail_image.dart';
 
 class OperatorReportDetailScreen extends StatefulWidget {
   final ReportModel report;
@@ -569,76 +570,38 @@ class _OperatorReportDetailScreenState
   }
 
   Widget _buildHeroPhotoWithWatermark(ReportModel r) {
-    final photoUrl = r.directPhotoUrl != null && r.directPhotoUrl!.isNotEmpty
-        ? r.directPhotoUrl!
-        : (r.media.isNotEmpty ? r.media.first.url : null);
-
-    return ClipRRect(
+    return ReportThumbnailImage(
+      report: r,
+      width: double.infinity,
+      height: 204,
+      fit: BoxFit.cover,
       borderRadius: BorderRadius.circular(12),
-      child: Container(
-        height: 204,
-        width: double.infinity,
-        color: const Color(0xFFE2E8F0),
-        child: Stack(
-          children: [
-            // Background Image
-            if (photoUrl != null && photoUrl.isNotEmpty)
-              Image.network(
-                photoUrl,
-                width: double.infinity,
-                height: 204,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => _buildFallbackPhoto(),
-              )
-            else
-              _buildFallbackPhoto(),
-
-            // Gradient shade for readability
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withValues(alpha: 0.4),
-                    ],
-                  ),
+      overlay: Stack(
+        children: [
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: 0.4),
+                  ],
                 ),
               ),
             ),
-
-            // Authentic LaporKita Watermark Badge (Figma Frame 2687)
-            Positioned(
-              left: 10,
-              bottom: 10,
-              child: _buildWatermarkBadge(r),
-            ),
-          ],
-        ),
+          ),
+          Positioned(
+            left: 10,
+            bottom: 10,
+            child: _buildWatermarkBadge(r),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildFallbackPhoto() {
-    return Container(
-      color: const Color(0xFFCBD5E1),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.image_outlined, size: 48, color: Colors.grey.shade600),
-            const SizedBox(height: 6),
-            Text(
-              'Foto Infrastruktur LaporKita',
-              style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey.shade700),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildWatermarkBadge(ReportModel r) {
     return Container(

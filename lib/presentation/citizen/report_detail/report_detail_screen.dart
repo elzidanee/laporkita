@@ -1419,8 +1419,8 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
           .toList();
       final verifiedTime = verifiedAt?.isNotEmpty == true
           ? () {
-              final d = verifiedAt!.first.createdAt;
-              return '${d.day} ${_monthName(d.month)} ${d.year} | ${d.hour.toString().padLeft(2, '0')}.${d.minute.toString().padLeft(2, '0')}';
+              final d = verifiedAt!.first.createdAt.toLocal();
+              return '${d.day} ${_monthName(d.month)} ${d.year} | ${d.hour.toString().padLeft(2, '0')}.${d.minute.toString().padLeft(2, '0')} WIB';
             }()
           : dateStr;
       timelineItems.add(_buildTimelineItem(
@@ -1441,8 +1441,8 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
           .toList();
       final assignedTime = assignedAt?.isNotEmpty == true
           ? () {
-              final d = assignedAt!.first.createdAt;
-              return '${d.day} ${_monthName(d.month)} ${d.year} | ${d.hour.toString().padLeft(2, '0')}.${d.minute.toString().padLeft(2, '0')}';
+              final d = assignedAt!.first.createdAt.toLocal();
+              return '${d.day} ${_monthName(d.month)} ${d.year} | ${d.hour.toString().padLeft(2, '0')}.${d.minute.toString().padLeft(2, '0')} WIB';
             }()
           : dateStr;
       timelineItems.add(_buildTimelineItem(
@@ -1463,8 +1463,8 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
           .toList();
       final inProgressTime = inProgressAt?.isNotEmpty == true
           ? () {
-              final d = inProgressAt!.first.createdAt;
-              return '${d.day} ${_monthName(d.month)} ${d.year} | ${d.hour.toString().padLeft(2, '0')}.${d.minute.toString().padLeft(2, '0')}';
+              final d = inProgressAt!.first.createdAt.toLocal();
+              return '${d.day} ${_monthName(d.month)} ${d.year} | ${d.hour.toString().padLeft(2, '0')}.${d.minute.toString().padLeft(2, '0')} WIB';
             }()
           : dateStr;
       timelineItems.add(_buildTimelineItem(
@@ -1495,8 +1495,8 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
           .toList();
       final completedTime = completedAt?.isNotEmpty == true
           ? () {
-              final d = completedAt!.first.createdAt;
-              return '${d.day} ${_monthName(d.month)} ${d.year} | ${d.hour.toString().padLeft(2, '0')}.${d.minute.toString().padLeft(2, '0')}';
+              final d = completedAt!.first.createdAt.toLocal();
+              return '${d.day} ${_monthName(d.month)} ${d.year} | ${d.hour.toString().padLeft(2, '0')}.${d.minute.toString().padLeft(2, '0')} WIB';
             }()
           : dateStr;
 

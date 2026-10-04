@@ -172,13 +172,28 @@ class _CitizenNotifikasiTabState extends State<CitizenNotifikasiTab> {
       }
     }
 
-    final reportId = item.data?['report_id'] as String? ??
-        item.data?['id'] as String?;
-    if (reportId != null && reportId.isNotEmpty && mounted) {
+    String? reportId = item.reportId;
+    String? reportCode = item.reportCode;
+
+    // Fallback: cari kode laporan dari pesan jika ada (misal #LP-2026-000007)
+    if (reportId == null || reportId.isEmpty) {
+      final regex = RegExp(r'#LP[-_]\d{4}[-_]\d+');
+      final match = regex.firstMatch(item.message);
+      if (match != null) {
+        reportCode = match.group(0);
+        reportId = reportCode;
+      }
+    }
+
+    if (mounted) {
       Navigator.pushNamed(
         context,
         '/tracking-progress',
-        arguments: {'reportId': reportId, 'id': reportId},
+        arguments: {
+          if (reportId != null) 'reportId': reportId,
+          if (reportId != null) 'id': reportId,
+          if (reportCode != null) 'reportCode': reportCode,
+        },
       );
     }
   }

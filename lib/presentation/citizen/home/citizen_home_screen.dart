@@ -20,13 +20,13 @@ class _CitizenHomeScreenState extends State<CitizenHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.greenPrimary,
+      backgroundColor: AppColors.white,
       body: Stack(
         children: [
           // Screen body tab content dengan bottom padding agar tidak tertutup navbar
           Padding(
             padding: EdgeInsets.only(
-              bottom: 90 + MediaQuery.of(context).padding.bottom,
+              bottom: 84 + MediaQuery.of(context).padding.bottom,
             ),
             child: IndexedStack(
               index: _currentIndex,

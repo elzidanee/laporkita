@@ -137,89 +137,94 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
     return Column(
       children: [
         // 1. Top Green Header Section
-        SafeArea(
-          bottom: false,
-          child: Container(
-            color: AppColors.greenPrimary,
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
-            child: BlocBuilder<AuthBloc, AuthState>(
-              builder: (context, authState) {
-                String userName = 'Warga';
-                if (authState is AuthAuthenticated) {
-                  userName = authState.user.fullName;
-                }
+        Container(
+          color: AppColors.greenPrimary,
+          child: SafeArea(
+            bottom: false,
+            child: Container(
+              color: AppColors.greenPrimary,
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
+              child: BlocBuilder<AuthBloc, AuthState>(
+                builder: (context, authState) {
+                  String userName = 'Warga';
+                  if (authState is AuthAuthenticated) {
+                    userName = authState.user.fullName;
+                  }
 
-                return Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // Welcome Text Column
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Hallo!, selamat datang',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(
-                                  color: AppColors.white.withValues(alpha: 0.9),
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w400,
-                                ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '$userName !',
-                            style: Theme.of(context)
-                                .textTheme
-                                .headlineMedium
-                                ?.copyWith(
-                                  color: AppColors.white,
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Ayo jaga kota kita bersama!',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(
-                                  color: AppColors.white.withValues(alpha: 0.85),
-                                  fontSize: 12,
-                                ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Logo LK Top Right
-                    Image.asset(
-                      'assets/images/logoLK.png',
-                      height: 38,
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppColors.white.withValues(alpha: 0.2),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Text(
-                          'LK',
-                          style: TextStyle(
-                            color: AppColors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                          ),
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Welcome Text Column
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Hallo!, selamat datang',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
+                                    color:
+                                        AppColors.white.withValues(alpha: 0.9),
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '$userName !',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .headlineMedium
+                                  ?.copyWith(
+                                    color: AppColors.white,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Ayo jaga kota kita bersama!',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color:
+                                        AppColors.white.withValues(alpha: 0.85),
+                                    fontSize: 12,
+                                  ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                  ],
-                );
-              },
+
+                      // Logo LK Top Right
+                      Image.asset(
+                        'assets/images/logoLK.png',
+                        height: 38,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.white.withValues(alpha: 0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Text(
+                            'LK',
+                            style: TextStyle(
+                              color: AppColors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
             ),
           ),
         ),

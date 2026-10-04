@@ -355,6 +355,37 @@ class ReportRepository {
 
   Future<ReportModel> getReportById(String id) async {
     await _ensureStorageLoaded();
+
+    // Resolusi jika ID yang dioper adalah report_code (misal #LP-2026-000007 atau LP-2026-000007)
+    if (id.startsWith('#') || id.startsWith('LP-') || id.startsWith('LP_')) {
+      final codeToMatch = id.toLowerCase();
+      final localMatch = _cachedReports.values.cast<ReportModel?>().firstWhere(
+            (r) =>
+                r?.reportCode.toLowerCase() == codeToMatch ||
+                r?.formattedReportCode.toLowerCase() == codeToMatch,
+            orElse: () => _submittedReports.cast<ReportModel?>().firstWhere(
+                  (r) =>
+                      r?.reportCode.toLowerCase() == codeToMatch ||
+                      r?.formattedReportCode.toLowerCase() == codeToMatch,
+                  orElse: () => null,
+                ),
+          );
+      if (localMatch != null) {
+        id = localMatch.id;
+      } else {
+        try {
+          final res = await getReports(limit: 50);
+          final match = res.data?.firstWhere(
+            (r) =>
+                r.reportCode.toLowerCase() == codeToMatch ||
+                r.formattedReportCode.toLowerCase() == codeToMatch,
+            orElse: () => res.data!.first,
+          );
+          if (match != null) id = match.id;
+        } catch (_) {}
+      }
+    }
+
     ReportModel result;
     bool fromServer = false;
     try {

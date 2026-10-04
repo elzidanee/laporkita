@@ -89,8 +89,9 @@ class ReportMediaModel {
           json['path'] as String? ??
           '',
       uploadedBy: json['uploaded_by'] as String?,
-      createdAt: DateTime.tryParse(json['created_at'] as String? ?? '') ??
-          DateTime.now(),
+      createdAt:
+          DateTime.tryParse(json['created_at'] as String? ?? '')?.toLocal() ??
+              DateTime.now(),
     );
   }
 
@@ -140,8 +141,9 @@ class ReportStatusHistoryModel {
           json['actor_id'] as String? ??
           json['changer_id'] as String?,
       actorName: changer?['full_name'] as String?,
-      createdAt: DateTime.tryParse(json['created_at'] as String? ?? '') ??
-          DateTime.now(),
+      createdAt:
+          DateTime.tryParse(json['created_at'] as String? ?? '')?.toLocal() ??
+              DateTime.now(),
     );
   }
 
@@ -269,12 +271,14 @@ class ReportModel {
     final String? serverPhotoUrl = (rawPhoto != null &&
             rawPhoto.isNotEmpty &&
             !rawPhoto.contains('storage.example.com') &&
-            !rawPhoto.contains('images.unsplash.com'))
+            !rawPhoto.contains('images.unsplash.com') &&
+            !rawPhoto.contains('storage.laporkita.malangkota.go.id'))
         ? rawPhoto
         : (initialMedia != null &&
                 initialMedia.url.isNotEmpty &&
                 !initialMedia.url.contains('storage.example.com') &&
-                !initialMedia.url.contains('images.unsplash.com')
+                !initialMedia.url.contains('images.unsplash.com') &&
+                !initialMedia.url.contains('storage.laporkita.malangkota.go.id')
             ? initialMedia.url
             : null);
 
@@ -301,10 +305,12 @@ class ReportModel {
           ? double.tryParse(json['urgency_score'].toString())
           : null,
       needsManualReview: json['needs_manual_review'] == true,
-      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ??
-          DateTime.now(),
-      updatedAt: DateTime.tryParse(json['updated_at']?.toString() ?? '') ??
-          DateTime.now(),
+      createdAt:
+          DateTime.tryParse(json['created_at']?.toString() ?? '')?.toLocal() ??
+              DateTime.now(),
+      updatedAt:
+          DateTime.tryParse(json['updated_at']?.toString() ?? '')?.toLocal() ??
+              DateTime.now(),
       rawAiConfidenceScore: json['ai_confidence_score'] != null
           ? double.tryParse(json['ai_confidence_score'].toString())
           : null,
@@ -313,6 +319,7 @@ class ReportModel {
           : null,
       estimatedCompletionAt: json['estimated_completion_at'] != null
           ? DateTime.tryParse(json['estimated_completion_at'].toString())
+              ?.toLocal()
           : null,
       directPriority: json['priority']?.toString() ??
           json['priority_level']?.toString() ??
@@ -438,7 +445,8 @@ class ReportModel {
       if ((directPhotoUrl!.startsWith('http://') ||
               directPhotoUrl!.startsWith('https://')) &&
           !directPhotoUrl!.contains('images.unsplash.com') &&
-          !directPhotoUrl!.contains('storage.example.com')) {
+          !directPhotoUrl!.contains('storage.example.com') &&
+          !directPhotoUrl!.contains('storage.laporkita.malangkota.go.id')) {
         return directPhotoUrl;
       }
       // 2. Jika merupakan file lokal, pastikan file fisik benar-benar ada di perangkat ini
@@ -458,7 +466,8 @@ class ReportModel {
             m.type == 'initial_photo' &&
             m.url.isNotEmpty &&
             !m.url.contains('storage.example.com') &&
-            !m.url.contains('images.unsplash.com'),
+            !m.url.contains('images.unsplash.com') &&
+            !m.url.contains('storage.laporkita.malangkota.go.id'),
       );
       if (initialMedia.isNotEmpty) {
         return initialMedia.first.url;
@@ -466,7 +475,8 @@ class ReportModel {
       for (final m in media) {
         if (m.url.isNotEmpty &&
             !m.url.contains('storage.example.com') &&
-            !m.url.contains('images.unsplash.com')) {
+            !m.url.contains('images.unsplash.com') &&
+            !m.url.contains('storage.laporkita.malangkota.go.id')) {
           return m.url;
         }
       }
@@ -476,7 +486,8 @@ class ReportModel {
     if (directPhotoUrl != null &&
         directPhotoUrl!.isNotEmpty &&
         !directPhotoUrl!.contains('images.unsplash.com') &&
-        !directPhotoUrl!.contains('storage.example.com')) {
+        !directPhotoUrl!.contains('storage.example.com') &&
+        !directPhotoUrl!.contains('storage.laporkita.malangkota.go.id')) {
       return directPhotoUrl;
     }
 
@@ -512,9 +523,10 @@ class ReportModel {
         if (File(raw).existsSync()) return raw;
       } catch (_) {}
     }
-    // Domain dummy test suite QA atau dummy Unsplash
+    // Domain dummy test suite QA atau dummy Unsplash atau domain internal unreachable
     if (raw.contains('storage.example.com') ||
-        raw.contains('images.unsplash.com')) {
+        raw.contains('images.unsplash.com') ||
+        raw.contains('storage.laporkita.malangkota.go.id')) {
       return null;
     }
     // Sudah absolute URL

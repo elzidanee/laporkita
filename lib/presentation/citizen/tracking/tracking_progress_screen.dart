@@ -81,7 +81,10 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
     }
 
     final String? reportId = widget.reportData?['reportId'] as String? ??
-        widget.reportData?['id'] as String?;
+        widget.reportData?['id'] as String? ??
+        widget.reportData?['report_id'] as String? ??
+        widget.reportData?['reportCode'] as String? ??
+        widget.reportData?['report_code'] as String?;
 
     if (reportId != null && reportId.isNotEmpty) {
       await _refreshFromApi(reportId);
@@ -125,9 +128,22 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
       }
     } catch (e) {
       if (mounted) {
+        // Fallback: cari di cache laporan user jika network/endpoint gagal
+        final match = _userReports.cast<ReportModel?>().firstWhere(
+              (r) =>
+                  r?.id == reportId ||
+                  r?.reportCode.toLowerCase() == reportId.toLowerCase() ||
+                  r?.formattedReportCode.toLowerCase() == reportId.toLowerCase(),
+              orElse: () => null,
+            );
         setState(() {
+          if (match != null) {
+            _report = match;
+            _errorMessage = null;
+          } else {
+            _errorMessage = 'Gagal memuat data laporan terbaru.';
+          }
           _isLoading = false;
-          _errorMessage = 'Gagal memuat data laporan terbaru.';
         });
       }
     }
@@ -142,11 +158,15 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
     return months[(month - 1) % 12];
   }
 
-  String _formatDate(DateTime dt) =>
-      '${dt.day} ${_monthName(dt.month)} ${dt.year}';
+  String _formatDate(DateTime dt) {
+    final local = dt.toLocal();
+    return '${local.day} ${_monthName(local.month)} ${local.year}';
+  }
 
-  String _formatTime(DateTime dt) =>
-      '${dt.hour.toString().padLeft(2, '0')}.${dt.minute.toString().padLeft(2, '0')} WIB';
+  String _formatTime(DateTime dt) {
+    final local = dt.toLocal();
+    return '${local.hour.toString().padLeft(2, '0')}.${local.minute.toString().padLeft(2, '0')} WIB';
+  }
 
   // Progress percentage based on status
   double _progressFromStatus(ReportStatus status) {
@@ -219,7 +239,7 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
                   child: ListView.separated(
                     shrinkWrap: true,
                     itemCount: _userReports.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    separatorBuilder: (_, _) => const Divider(height: 1),
                     itemBuilder: (context, index) {
                       final item = _userReports[index];
                       final isSelected = item.id == _report?.id;
@@ -399,7 +419,12 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
     final report = _report;
 
     // --- Fallback values from passed args if API not yet loaded ---
-    final String? imagePath = widget.reportData?['imagePath'] as String?;
+    final String? imagePath = widget.reportData?['imagePath'] as String? ??
+        (report != null &&
+                report.directPhotoUrl != null &&
+                !report.directPhotoUrl!.startsWith('http')
+            ? report.directPhotoUrl
+            : null);
     final String photoUrl = report?.formattedPhotoUrl ??
         report?.photoUrl ??
         (widget.reportData?['photoUrl'] as String? ?? '');
@@ -649,21 +674,35 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
       }
     }
 
+    final fallbackUrl = ReportModel.getCategoryFallbackImage(title);
+
     Widget imageWidget;
     if (isLocalValid && imagePath != null) {
       imageWidget = Image.file(
         File(imagePath),
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => _placeholderImage(title),
+        errorBuilder: (context, error, stackTrace) => Image.network(
+          fallbackUrl,
+          fit: BoxFit.cover,
+          errorBuilder: (c, e, s) => _placeholderImage(title),
+        ),
       );
-    } else if (photoUrl.isNotEmpty) {
+    } else if (photoUrl.isNotEmpty && photoUrl.startsWith('http')) {
       imageWidget = Image.network(
         photoUrl,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => _placeholderImage(title),
+        errorBuilder: (context, error, stackTrace) => Image.network(
+          fallbackUrl,
+          fit: BoxFit.cover,
+          errorBuilder: (c, e, s) => _placeholderImage(title),
+        ),
       );
     } else {
-      imageWidget = _placeholderImage(title);
+      imageWidget = Image.network(
+        fallbackUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (c, e, s) => _placeholderImage(title),
+      );
     }
 
     return Container(
@@ -1238,7 +1277,8 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
         progressMedia?.isNotEmpty == true ? progressMedia!.last : null;
 
     String thumbUrl = reportPhotoUrl;
-    String progressDateStr = '$dateStr. $timeStr';
+    String progressDateStr =
+        timeStr.isNotEmpty ? '$dateStr | $timeStr' : dateStr;
     String progressLabel = 'Foto Laporan Awal';
 
     if (latestMedia != null) {
@@ -1246,13 +1286,15 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
       if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
         thumbUrl = rawUrl;
       } else {
-        thumbUrl = '${_report?.formattedPhotoUrl?.split('/api/v1').first ?? ''}$rawUrl';
+        thumbUrl =
+            '${_report?.formattedPhotoUrl?.split('/api/v1').first ?? ''}$rawUrl';
       }
-      final d = latestMedia.createdAt;
-      progressDateStr =
-          '${_formatDate(d)}. ${_formatTime(d)}';
+      final d = latestMedia.createdAt.toLocal();
+      progressDateStr = '${_formatDate(d)} | ${_formatTime(d)}';
       progressLabel = 'Sedang diperbaiki';
     }
+
+    final categoryName = _report?.categoryName ?? 'Umum';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1285,16 +1327,27 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: thumbUrl.isNotEmpty
+                child: thumbUrl.isNotEmpty && thumbUrl.startsWith('http')
                     ? Image.network(
                         thumbUrl,
                         width: 100,
                         height: 70,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) =>
-                            _progressPhotoPlaceholder(),
+                        errorBuilder: (context, error, stackTrace) => Image.network(
+                          ReportModel.getCategoryFallbackImage(categoryName),
+                          width: 100,
+                          height: 70,
+                          fit: BoxFit.cover,
+                          errorBuilder: (c, e, s) => _progressPhotoPlaceholder(),
+                        ),
                       )
-                    : _progressPhotoPlaceholder(),
+                    : Image.network(
+                        ReportModel.getCategoryFallbackImage(categoryName),
+                        width: 100,
+                        height: 70,
+                        fit: BoxFit.cover,
+                        errorBuilder: (c, e, s) => _progressPhotoPlaceholder(),
+                      ),
               ),
               const SizedBox(width: 12),
               Expanded(

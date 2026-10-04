@@ -822,8 +822,109 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
   // ── BOTTOM ACTION BAR (Figma node 627:1018) ────────────────────────
 
   Widget _buildBottomActionBar(ReportModel r) {
-    final isFinished = r.status == ReportStatus.completed ||
-        r.status == ReportStatus.resolved;
+    final isPending = r.status == ReportStatus.pendingVerification;
+    final isAssigned = r.status == ReportStatus.assigned;
+    final isInProgress = r.status == ReportStatus.inProgress;
+    final isRejected = r.status == ReportStatus.rejected;
+
+    String actionLabel;
+    IconData? actionIcon;
+    Color actionBg;
+    Color actionFg;
+    Color actionBorder;
+    VoidCallback actionTap;
+
+    if (isPending) {
+      actionLabel = 'Tindak Lanjut';
+      actionIcon = null;
+      actionBg = const Color(0xFF1D9C51);
+      actionFg = Colors.white;
+      actionBorder = const Color(0xFFBCFFC2);
+      actionTap = () async {
+        final updated = await Navigator.push<ReportModel>(
+          context,
+          MaterialPageRoute(
+            builder: (_) => AdminVerificationActionScreen(
+              report: r,
+              initialTabIndex: 0,
+            ),
+          ),
+        );
+        if (updated != null && mounted) {
+          setState(() => _currentReport = updated);
+          _refreshDetail();
+        }
+      };
+    } else if (isAssigned) {
+      actionLabel = 'Sudah Ditugaskan';
+      actionIcon = Icons.check_circle_rounded;
+      actionBg = const Color(0xFFE9F9EE);
+      actionFg = const Color(0xFF1D9C51);
+      actionBorder = const Color(0xFF86EFAC);
+      actionTap = () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Laporan ini telah ditindaklanjuti dan diteruskan ke instansi terkait.',
+            ),
+            backgroundColor: Color(0xFF1D9C51),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      };
+    } else if (isInProgress) {
+      actionLabel = 'Sedang Diproses';
+      actionIcon = Icons.engineering_rounded;
+      actionBg = const Color(0xFFFFF9E9);
+      actionFg = const Color(0xFFD97706);
+      actionBorder = const Color(0xFFFDE68A);
+      actionTap = () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Laporan ini sedang dalam tahap pengerjaan oleh petugas lapangan.',
+            ),
+            backgroundColor: Color(0xFFD97706),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      };
+    } else if (isRejected) {
+      actionLabel = 'Ditolak';
+      actionIcon = Icons.cancel_outlined;
+      actionBg = const Color(0xFFFFF1F2);
+      actionFg = const Color(0xFFE11D48);
+      actionBorder = const Color(0xFFFECDD3);
+      actionTap = () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Laporan ini telah ditolak oleh administrator.',
+            ),
+            backgroundColor: Color(0xFFE11D48),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      };
+    } else {
+      // Completed / Resolved
+      actionLabel = 'Selesai';
+      actionIcon = Icons.task_alt_rounded;
+      actionBg = const Color(0xFFF1F5F9);
+      actionFg = const Color(0xFF64748B);
+      actionBorder = const Color(0xFFCBD5E1);
+      actionTap = () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Laporan ini telah selesai dan tidak dapat diproses atau ditindaklanjuti lagi.',
+            ),
+            backgroundColor: Color(0xFF64748B),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      };
+    }
 
     return Container(
       padding: EdgeInsets.only(
@@ -940,51 +1041,20 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
           ),
           const SizedBox(width: 8),
 
-          // 3. Tindak Lanjut Button (Figma node 627:1027)
+          // 3. Tindak Lanjut / Status Selesai / Ditugaskan Button (Figma node 627:1027)
           Expanded(
             flex: 4,
             child: SizedBox(
               height: 44,
               child: ElevatedButton(
-                onPressed: isFinished
-                    ? () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Laporan ini telah selesai dan tidak dapat diproses atau ditindaklanjuti lagi.',
-                            ),
-                            backgroundColor: Color(0xFF64748B),
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                      }
-                    : () async {
-                        final updated = await Navigator.push<ReportModel>(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => AdminVerificationActionScreen(
-                              report: r,
-                              initialTabIndex: 0,
-                            ),
-                          ),
-                        );
-                        if (updated != null && mounted) {
-                          setState(() => _currentReport = updated);
-                          _refreshDetail();
-                        }
-                      },
+                onPressed: actionTap,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: isFinished
-                      ? const Color(0xFFE2E8F0)
-                      : const Color(0xFF1D9C51),
-                  foregroundColor:
-                      isFinished ? const Color(0xFF94A3B8) : Colors.white,
+                  backgroundColor: actionBg,
+                  foregroundColor: actionFg,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                     side: BorderSide(
-                      color: isFinished
-                          ? const Color(0xFFCBD5E1)
-                          : const Color(0xFFBCFFC2),
+                      color: actionBorder,
                       width: 1.0,
                     ),
                   ),
@@ -994,22 +1064,21 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    if (isFinished) ...[
-                      const Icon(
-                        Icons.check_circle_outline_rounded,
+                    if (actionIcon != null) ...[
+                      Icon(
+                        actionIcon,
                         size: 16,
-                        color: Color(0xFF94A3B8),
+                        color: actionFg,
                       ),
                       const SizedBox(width: 4),
                     ],
                     Flexible(
                       child: Text(
-                        isFinished ? 'Selesai' : 'Tindak Lanjut',
+                        actionLabel,
                         style: GoogleFonts.poppins(
-                          fontSize: 15,
+                          fontSize: 14,
                           fontWeight: FontWeight.w500,
-                          color:
-                              isFinished ? const Color(0xFF94A3B8) : Colors.white,
+                          color: actionFg,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,

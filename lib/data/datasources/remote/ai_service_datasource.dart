@@ -18,13 +18,14 @@ class AiServiceDatasource {
     _dio = Dio(
       BaseOptions(
         baseUrl: AppConfig.aiServiceUrl,
-        connectTimeout: const Duration(seconds: 10),
-        receiveTimeout: const Duration(seconds: 30),
-        sendTimeout: const Duration(seconds: 20),
+        connectTimeout: const Duration(seconds: 15),
+        receiveTimeout: const Duration(seconds: 40),
+        sendTimeout: const Duration(seconds: 30),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'User-Agent': 'LaporKita-MobileApp/1.0 (Flutter)',
+          'User-Agent':
+              'Mozilla/5.0 (Linux; Android 14; Mobile) LaporKita/1.0',
           if (AppConfig.aiApiKey.isNotEmpty) 'X-API-Key': AppConfig.aiApiKey,
         },
       ),

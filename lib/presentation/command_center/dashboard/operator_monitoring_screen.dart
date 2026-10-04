@@ -1,10 +1,10 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../data/models/report_model.dart';
 import '../../../data/repositories/report_repository.dart';
 import 'operator_report_detail_screen.dart';
+import '../../shared_widgets/report_thumbnail_image.dart';
 
 class OperatorMonitoringScreen extends StatefulWidget {
   final bool isTab;
@@ -1010,31 +1010,12 @@ class _OperatorMonitoringScreenState extends State<OperatorMonitoringScreen> {
   }
 
   Widget _buildThumbnailImage(ReportModel report) {
-    final url = report.primaryPhotoUrl;
-    if (url != null && url.isNotEmpty) {
-      if (url.startsWith('http')) {
-        return Image.network(
-          url,
-          fit: BoxFit.cover,
-          errorBuilder: (_, _, _) => _buildFallbackImage(),
-        );
-      } else if (File(url).existsSync()) {
-        return Image.file(
-          File(url),
-          fit: BoxFit.cover,
-          errorBuilder: (_, _, _) => _buildFallbackImage(),
-        );
-      }
-    }
-    return _buildFallbackImage();
-  }
-
-  Widget _buildFallbackImage() {
-    return Container(
-      color: const Color(0xFFE2E8F0),
-      child: const Center(
-        child: Icon(Icons.broken_image_rounded, color: Colors.grey, size: 28),
-      ),
+    return ReportThumbnailImage(
+      report: report,
+      width: 84,
+      height: 64,
+      fit: BoxFit.cover,
+      borderRadius: BorderRadius.circular(8),
     );
   }
 }

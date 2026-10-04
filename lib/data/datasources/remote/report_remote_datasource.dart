@@ -227,13 +227,17 @@ class ReportRemoteDatasource {
     String reportId, {
     bool isValid = true,
     String? notes,
+    double? latitude,
+    double? longitude,
   }) async {
     final response = await _dioClient.post<Map<String, dynamic>>(
       '/reports/$reportId/validate',
       fromJson: (json) => json as Map<String, dynamic>,
       data: {
         'is_valid': isValid,
-        if (notes != null && notes.isNotEmpty) 'notes': notes,
+        if (notes != null && notes.isNotEmpty) 'note': notes,
+        if (latitude != null) 'latitude': latitude,
+        if (longitude != null) 'longitude': longitude,
       },
     );
     return response.data!;
