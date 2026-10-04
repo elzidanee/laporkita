@@ -22,10 +22,8 @@ class AppConfig {
 
   /// Internal API Key untuk autentikasi service-to-service ke FastAPI AI.
   /// Di-inject via --dart-define=AI_API_KEY=... saat build/run untuk CI/CD.
-  static const String aiApiKey = String.fromEnvironment(
-    'AI_API_KEY',
-    defaultValue: 'laporkita_sec_e62232a17817b3676927b5fefda6bad1cbe4',
-  );
+  /// WAJIB diset via --dart-define; JANGAN hardcode di source code.
+  static const String aiApiKey = String.fromEnvironment('AI_API_KEY');
 
   /// URL OSRM Demo Server (Open Source Routing Machine)
   static const String osrmBaseUrl = String.fromEnvironment(

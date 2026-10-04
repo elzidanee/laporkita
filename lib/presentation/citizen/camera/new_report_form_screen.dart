@@ -302,7 +302,7 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // 1. Top Header Card
-                        _buildTopHeaderCard(imagePath: imagePath),
+                        _buildTopHeaderCard(imagePath: imagePath, aiResult: aiResult),
                         const SizedBox(height: 16),
 
                         // 2. Field 1: Lokasi
@@ -652,7 +652,7 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
     );
   }
 
-  Widget _buildTopHeaderCard({required String? imagePath}) {
+  Widget _buildTopHeaderCard({required String? imagePath, required AiVerificationResult? aiResult}) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -736,8 +736,8 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
                 const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: const [
-                    Text(
+                  children: [
+                    const Text(
                       'Confidence',
                       style: TextStyle(
                         fontSize: 13,
@@ -745,8 +745,8 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
                       ),
                     ),
                     Text(
-                      '98%',
-                      style: TextStyle(
+                      aiResult != null ? '${aiResult.confidencePercent}%' : '-',
+                      style: const TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.bold,
                         color: AppColors.greenPrimary,

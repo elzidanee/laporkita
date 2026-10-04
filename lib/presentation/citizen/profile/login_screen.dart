@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -359,7 +360,16 @@ class _LoginScreenState extends State<LoginScreen> {
 
                                   // Social Login: "Masuk dengan google"
                                   OutlinedButton(
-                                    onPressed: isLoading ? null : _handleLogin,
+                                    onPressed: isLoading
+                                        ? null
+                                        : () {
+                                            AppAlert.info(
+                                              context,
+                                              title: 'Fitur Google Sign-In',
+                                              message:
+                                                  'Masuk dengan Google saat ini sedang dalam pengembangan. Silakan masuk menggunakan email & kata sandi.',
+                                            );
+                                          },
                                     style: OutlinedButton.styleFrom(
                                       foregroundColor: AppColors.neutral900,
                                       minimumSize:
@@ -423,75 +433,76 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                                   const SizedBox(height: 16),
 
-                                  // Quick Demo Login Helper
-                                  Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF8FAFC),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: const [
-                                            Icon(Icons.bolt_rounded, size: 16, color: AppColors.greenPrimary),
-                                            SizedBox(width: 6),
-                                            Text(
-                                              'Akun Uji Coba (Isi Cepat):',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w600,
-                                                color: AppColors.neutral700,
+                                  // Quick Demo Login Helper — debug only, hilang di release
+                                  if (kDebugMode)
+                                    Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF8FAFC),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: const [
+                                              Icon(Icons.bolt_rounded, size: 16, color: AppColors.greenPrimary),
+                                              SizedBox(width: 6),
+                                              Text(
+                                                'Akun Uji Coba (Isi Cepat):',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: AppColors.neutral700,
+                                                ),
                                               ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Wrap(
-                                          spacing: 6,
-                                          runSpacing: 6,
-                                          children: [
-                                            ActionChip(
-                                              label: const Text('Operator DPUPR', style: TextStyle(fontSize: 11)),
-                                              backgroundColor: Colors.white,
-                                              side: const BorderSide(color: AppColors.border),
-                                              onPressed: () {
-                                                setState(() {
-                                                  _identifierController.text = 'operator.dpupr@laporkita.malangkota.go.id';
-                                                  _passwordController.text = 'Password123!';
-                                                });
-                                              },
-                                            ),
-                                            ActionChip(
-                                              label: const Text('Admin', style: TextStyle(fontSize: 11)),
-                                              backgroundColor: Colors.white,
-                                              side: const BorderSide(color: AppColors.border),
-                                              onPressed: () {
-                                                setState(() {
-                                                  _identifierController.text = 'admin@laporkita.malangkota.go.id';
-                                                  _passwordController.text = 'AdminLaporKita2026!';
-                                                });
-                                              },
-                                            ),
-                                            ActionChip(
-                                              label: const Text('Warga', style: TextStyle(fontSize: 11)),
-                                              backgroundColor: Colors.white,
-                                              side: const BorderSide(color: AppColors.border),
-                                              onPressed: () {
-                                                setState(() {
-                                                  _identifierController.text = 'warga@laporkita.malangkota.go.id';
-                                                  _passwordController.text = 'Password123!';
-                                                });
-                                              },
-                                            ),
-                                          ],
-                                        ),
-                                      ],
+                                            ],
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Wrap(
+                                            spacing: 6,
+                                            runSpacing: 6,
+                                            children: [
+                                              ActionChip(
+                                                label: const Text('Operator', style: TextStyle(fontSize: 11)),
+                                                backgroundColor: Colors.white,
+                                                side: const BorderSide(color: AppColors.border),
+                                                onPressed: () {
+                                                  setState(() {
+                                                    _identifierController.text = 'operator.dpupr@laporkita.malangkota.go.id';
+                                                    _passwordController.text = 'Password123!';
+                                                  });
+                                                },
+                                              ),
+                                              ActionChip(
+                                                label: const Text('Admin', style: TextStyle(fontSize: 11)),
+                                                backgroundColor: Colors.white,
+                                                side: const BorderSide(color: AppColors.border),
+                                                onPressed: () {
+                                                  setState(() {
+                                                    _identifierController.text = 'admin@laporkita.malangkota.go.id';
+                                                    _passwordController.text = 'AdminLaporKita2026!';
+                                                  });
+                                                },
+                                              ),
+                                              ActionChip(
+                                                label: const Text('Warga', style: TextStyle(fontSize: 11)),
+                                                backgroundColor: Colors.white,
+                                                side: const BorderSide(color: AppColors.border),
+                                                onPressed: () {
+                                                  setState(() {
+                                                    _identifierController.text = 'warga@laporkita.malangkota.go.id';
+                                                    _passwordController.text = 'Password123!';
+                                                  });
+                                                },
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 20),
+                                  if (kDebugMode) const SizedBox(height: 20),
                                 ],
                               ),
                             ),
