@@ -161,12 +161,13 @@ class _OperatorUpdateProgressScreenState
       }
 
       // Upload foto progress via media endpoint
+      // PENTING: type HARUS 'progress_photo' agar tampil di tracking screen citizen
       for (final photoPath in _progressPhotos) {
         try {
           await repo.uploadReportMedia(
             reportId: _currentReport.id,
             filePath: photoPath,
-            type: 'progress',
+            type: 'progress_photo',
           );
         } catch (photoErr) {
           debugPrint('warning [UpdateProgress] Gagal upload foto: $photoErr');

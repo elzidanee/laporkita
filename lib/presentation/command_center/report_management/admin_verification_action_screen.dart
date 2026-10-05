@@ -1588,7 +1588,45 @@ class _AdminVerificationActionScreenState
     final nav = Navigator.of(context);
 
     try {
-      // 1. Fetch live reports to check for candidate duplicates
+      // 1. Ubah status ke 'verified' di backend SEBELUM navigasi ke layar assign.
+      //    Ini memastikan citizen tracking screen menampilkan status terbaru.
+      //    Skip jika sudah verified/assigned (idempoten).
+      ReportModel verifiedReport = widget.report.copyWith(
+        category: {'name': _selectedCategory},
+        directPriority: _selectedPriority,
+      );
+
+      if (widget.report.status != ReportStatus.verified &&
+          widget.report.status != ReportStatus.assigned) {
+        try {
+          verifiedReport = await repo.updateReportStatus(
+            widget.report.id,
+            ReportStatus.verified.apiValue,
+            notes: _adminNotesController.text.trim().isNotEmpty
+                ? 'Verifikasi Admin: ${_adminNotesController.text.trim()}'
+                : 'Laporan telah diverifikasi admin dan siap ditugaskan.',
+            existingReport: widget.report,
+          );
+          // Sertakan metadata verifikasi manual/AI dari form
+          verifiedReport = verifiedReport.copyWith(
+            category: {'name': _selectedCategory},
+            directPriority: _selectedPriority,
+          );
+        } catch (verifyErr) {
+          final errStr = verifyErr.toString().toLowerCase();
+          // Idempotensi: jika backend menolak karena sudah verified, lanjutkan saja
+          if (errStr.contains('tidak dapat mengubah status') ||
+              errStr.contains('verified') ||
+              errStr.contains('cannot')) {
+            debugPrint(
+                'info [AdminVerification] Status sudah verified/selanjutnya, lanjut: $verifyErr');
+          } else {
+            rethrow;
+          }
+        }
+      }
+
+      // 2. Fetch live reports untuk cek duplikat
       final response = await repo.getReports(limit: 50);
       final all = response.data ?? [];
 
@@ -1676,10 +1714,7 @@ class _AdminVerificationActionScreenState
           context,
           MaterialPageRoute(
             builder: (_) => AdminDuplicateDetectionScreen(
-              currentReport: widget.report.copyWith(
-                category: {'name': _selectedCategory},
-                directPriority: _selectedPriority,
-              ),
+              currentReport: verifiedReport,
               similarReports: candidates.take(3).toList(),
               similarityPercentage: calculatedSimilarity,
             ),
@@ -1700,10 +1735,7 @@ class _AdminVerificationActionScreenState
           context,
           MaterialPageRoute(
             builder: (_) => AdminAssignReportScreen(
-              report: widget.report.copyWith(
-                category: {'name': _selectedCategory},
-                directPriority: _selectedPriority,
-              ),
+              report: verifiedReport,
             ),
           ),
         );
@@ -1725,6 +1757,7 @@ class _AdminVerificationActionScreenState
       }
     }
   }
+
 
   void _showRejectDialog() {
     if (widget.report.status == ReportStatus.completed ||
