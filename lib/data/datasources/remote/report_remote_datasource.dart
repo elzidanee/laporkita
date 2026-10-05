@@ -93,7 +93,10 @@ class ReportRemoteDatasource {
       'latitude': latitude,
       'longitude': longitude,
       if (addressText case final addr?) 'address_text': addr,
-      if (description case final desc?) 'description': desc,
+      if (description case final desc?) ...{
+        'description': desc,
+        'notes': desc,
+      },
       // STATUS: FIXED — idempotency_key TIDAK dikirim sebagai body,
       // melainkan sebagai header x-idempotency-key (sesuai Swagger spec)
     };
@@ -156,7 +159,9 @@ class ReportRemoteDatasource {
         latitude: result.latitude,
         longitude: result.longitude,
         addressText: result.addressText,
-        description: result.description,
+        description: (result.description != null && result.description!.isNotEmpty)
+            ? result.description
+            : description,
         directPhotoUrl: photoPath,
         supportCount: result.supportCount,
         viewCount: result.viewCount,
@@ -171,6 +176,12 @@ class ReportRemoteDatasource {
         statusHistory: result.statusHistory,
         count: result.count,
       );
+    }
+
+    if ((result.description == null || result.description!.isEmpty) &&
+        description != null &&
+        description.isNotEmpty) {
+      return result.copyWith(description: description);
     }
 
     return result;

@@ -57,6 +57,33 @@ class _OperatorReportDetailScreenState
     super.initState();
     _currentReport = widget.report;
     _selectedStatus = _mapToOperatorStatus(_currentReport.status);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadFreshReport();
+    });
+  }
+
+  Future<void> _loadFreshReport() async {
+    try {
+      final repo = context.read<ReportRepository>();
+      final fresh = await repo.getReportById(_currentReport.id);
+      if (mounted) {
+        setState(() {
+          _currentReport = _currentReport.copyWith(
+            status: fresh.status,
+            description: (fresh.description != null && fresh.description!.trim().isNotEmpty)
+                ? fresh.description
+                : _currentReport.description,
+            directPhotoUrl: fresh.directPhotoUrl ?? _currentReport.directPhotoUrl,
+            statusHistory: fresh.statusHistory.isNotEmpty
+                ? fresh.statusHistory
+                : _currentReport.statusHistory,
+            category: fresh.category ?? _currentReport.category,
+            addressText: fresh.addressText ?? _currentReport.addressText,
+          );
+          _selectedStatus = _mapToOperatorStatus(_currentReport.status);
+        });
+      }
+    } catch (_) {}
   }
 
   ReportStatus _mapToOperatorStatus(ReportStatus status) {
@@ -480,22 +507,34 @@ class _OperatorReportDetailScreenState
 
               // 3. Description Section (Figma 662:6378)
               Text(
-                'Deskripsi :',
+                'Catatan / Deskripsi Citizen :',
                 style: GoogleFonts.poppins(
                   fontSize: 14,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
                   color: Colors.black,
                 ),
               ),
               const SizedBox(height: 6),
-              Text(
-                (r.description != null && r.description!.isNotEmpty)
-                    ? r.description!
-                    : 'Jalan sudah tidak layak karena banyak retakan dan lubang disepanjang jalan.',
-                style: GoogleFonts.poppins(
-                  fontSize: 13,
-                  height: 1.5,
-                  color: const Color(0xFF2D3748),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Text(
+                  (r.description != null && r.description!.trim().isNotEmpty)
+                      ? r.description!
+                      : 'Citizen tidak menambahkan catatan tambahan.',
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    height: 1.5,
+                    fontWeight: FontWeight.w400,
+                    color: (r.description != null && r.description!.trim().isNotEmpty)
+                        ? const Color(0xFF1E293B)
+                        : const Color(0xFF94A3B8),
+                  ),
                 ),
               ),
               const SizedBox(height: 24),

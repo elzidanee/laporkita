@@ -118,6 +118,45 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
     );
   }
 
+  static String _formatAiCategory(String? raw) {
+    if (raw == null || raw.isEmpty || raw.trim().toLowerCase() == 'tidak terdeteksi') {
+      return '';
+    }
+    final clean = raw.trim();
+    final lower = clean.toLowerCase();
+
+    if (lower == 'jalan_rusak' || lower == 'pothole' || lower == 'jalan' || lower == 'jalan berlubang') {
+      return 'Jalan Rusak';
+    }
+    if (lower == 'trotoar_rusak' || lower == 'trotoar' || lower == 'sidewalk') {
+      return 'Trotoar Rusak';
+    }
+    if (lower == 'drainase' || lower == 'banjir' || lower == 'drainage' || lower == 'got' || lower == 'genangan' || lower == 'banjir & drainase') {
+      return 'Banjir & Drainase';
+    }
+    if (lower == 'lampu_jalan' || lower == 'lampu' || lower == 'penerangan' || lower == 'street_light' || lower == 'penerangan jalan') {
+      return 'Penerangan Jalan';
+    }
+    if (lower == 'rambu_lalu_lintas' || lower == 'rambu' || lower == 'traffic_sign') {
+      return 'Rambu Lalu Lintas';
+    }
+    if (lower == 'sampah' || lower == 'kebersihan' || lower == 'waste' || lower == 'garbage' || lower == 'sampah & kebersihan') {
+      return 'Sampah & Kebersihan';
+    }
+    if (lower == 'fasilitas' || lower == 'fasilitas_umum') {
+      return 'Fasilitas Umum';
+    }
+
+    if (clean.contains('_')) {
+      return clean
+          .split('_')
+          .map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}' : '')
+          .join(' ');
+    }
+
+    return clean;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -196,7 +235,58 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
     final aiResult = args?['aiVerification'] as AiVerificationResult?;
     final String? aiCategoryStr = aiResult?.detectedCategory ??
         (args?['detectedCategory'] as String?) ??
-        (args?['claimedCategory'] as String?);
+        (args?['claimedCategory'] as String?) ??
+        (args?['categoryName'] as String?) ??
+        (args?['category'] as String?);
+
+    // Kategori dari BLoC state
+    final catState = context.watch<CategoryBloc>().state;
+    List<CategoryModel> categories = _defaultCategories;
+    if (catState is CategoryLoaded && catState.categories.isNotEmpty) {
+      categories = catState.categories;
+    }
+
+    final bool hasAiCategory = aiCategoryStr != null &&
+        aiCategoryStr.isNotEmpty &&
+        aiCategoryStr.toLowerCase() != 'tidak terdeteksi' &&
+        aiCategoryStr.toLowerCase() != 'bukan_fasilitas';
+
+    final String formattedAiCat = _formatAiCategory(aiCategoryStr);
+
+    if (_selectedCategory == null && categories.isNotEmpty) {
+      if (hasAiCategory) {
+        _selectedCategory = _matchCategory(aiCategoryStr, categories);
+      } else {
+        _selectedCategory = categories.first;
+      }
+    } else if (_selectedCategory != null &&
+        !categories.contains(_selectedCategory)) {
+      _selectedCategory = categories.firstWhere(
+        (c) =>
+            c.id == _selectedCategory!.id ||
+            c.name.toLowerCase() == _selectedCategory!.name.toLowerCase(),
+        orElse: () => categories.first,
+      );
+    }
+
+    // Judul rekomendasi AI: sesuaikan dengan kategori yang direkomendasikan AI, bukan default jalan rusak
+    final String aiCategoryHeaderTitle = hasAiCategory
+        ? (formattedAiCat.isNotEmpty
+            ? formattedAiCat
+            : (_selectedCategory?.name ?? 'Kategori Terdeteksi'))
+        : (_selectedCategory?.name ?? (categories.isNotEmpty ? categories.first.name : 'Pilih Kategori'));
+
+    // Inisialisasi catatan pelapor dari arguments/AI auto-description bila masih kosong
+    final String? incomingNotes = (args?['notes'] as String?) ??
+        (args?['description'] as String?) ??
+        (args?['catatan'] as String?) ??
+        (aiResult?.autoDescription);
+
+    if (_notesController.text.isEmpty &&
+        incomingNotes != null &&
+        incomingNotes.isNotEmpty) {
+      _notesController.text = incomingNotes;
+    }
 
     double lat = -7.9827;
     double lng = 112.6304;
@@ -295,7 +385,11 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // 1. Top Header Card
-                        _buildTopHeaderCard(imagePath: imagePath, aiResult: aiResult),
+                        _buildTopHeaderCard(
+                          imagePath: imagePath,
+                          aiResult: aiResult,
+                          aiCategoryTitle: aiCategoryHeaderTitle,
+                        ),
                         const SizedBox(height: 16),
 
                         // 2. Field 1: Lokasi
@@ -645,7 +739,11 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
     );
   }
 
-  Widget _buildTopHeaderCard({required String? imagePath, required AiVerificationResult? aiResult}) {
+  Widget _buildTopHeaderCard({
+    required String? imagePath,
+    required AiVerificationResult? aiResult,
+    required String aiCategoryTitle,
+  }) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -719,7 +817,7 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  _selectedCategory?.name ?? 'Jalan Rusak',
+                  aiCategoryTitle,
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,

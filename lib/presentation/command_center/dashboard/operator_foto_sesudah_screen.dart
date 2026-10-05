@@ -428,13 +428,15 @@ class _OperatorFotoSesudahScreenState extends State<OperatorFotoSesudahScreen> {
         ),
         const SizedBox(height: 2),
         Text(
-          _currentReport.description?.isNotEmpty == true
+          (_currentReport.description != null && _currentReport.description!.trim().isNotEmpty)
               ? _currentReport.description!
-              : 'Jalan sudah tidak layak karena banyak retakan dan lubang disepanjang jalan.',
+              : 'Tidak ada catatan tambahan dari warga.',
           style: GoogleFonts.poppins(
             fontSize: 13,
-            fontWeight: FontWeight.w300,
-            color: Colors.black87,
+            fontWeight: FontWeight.w400,
+            color: (_currentReport.description != null && _currentReport.description!.trim().isNotEmpty)
+                ? Colors.black87
+                : const Color(0xFF94A3B8),
             height: 1.5,
           ),
         ),

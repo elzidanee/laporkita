@@ -522,28 +522,36 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
   // ── DESKRIPSI SECTION (Figma node 627:877) ─────────────────────────
 
   Widget _buildDescriptionSection(ReportModel r) {
+    final hasNote = r.description != null && r.description!.trim().isNotEmpty;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Deskripsi :',
+          'Catatan / Deskripsi Citizen :',
           style: GoogleFonts.poppins(
             fontSize: 13,
-            fontWeight: FontWeight.w300,
+            fontWeight: FontWeight.w500,
             color: Colors.black,
             height: 1.6,
           ),
         ),
-        const SizedBox(height: 2),
-        Text(
-          r.description != null && r.description!.trim().isNotEmpty
-              ? r.description!
-              : 'Jalan sudah tidak layak karena banyak retakan dan lubang disepanjang jalan.',
-          style: GoogleFonts.poppins(
-            fontSize: 13,
-            fontWeight: FontWeight.w300,
-            color: Colors.black,
-            height: 1.6,
+        const SizedBox(height: 4),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Text(
+            hasNote ? r.description! : 'Tidak ada catatan tambahan dari warga.',
+            style: GoogleFonts.poppins(
+              fontSize: 13,
+              fontWeight: FontWeight.w400,
+              color: hasNote ? Colors.black87 : const Color(0xFF94A3B8),
+              height: 1.5,
+            ),
           ),
         ),
       ],
@@ -1229,8 +1237,54 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
                     ],
                   ),
                   const SizedBox(height: 8),
+                  // Catatan dari Citizen / Pelapor
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0FDF4),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFBBF7D0)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.assignment_outlined,
+                              size: 16,
+                              color: Color(0xFF16A34A),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Catatan dari Citizen (Pelapor):',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF166534),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          (_currentReport.description != null &&
+                                  _currentReport.description!.trim().isNotEmpty)
+                              ? _currentReport.description!
+                              : 'Tidak ada catatan tambahan dari warga.',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w400,
+                            color: const Color(0xFF1E293B),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   SizedBox(
-                    height: 200,
+                    height: 170,
                     child: _isLoadingComments
                         ? const Center(
                             child: CircularProgressIndicator(

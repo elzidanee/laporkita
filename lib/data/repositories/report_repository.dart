@@ -159,6 +159,11 @@ class ReportRepository {
           } catch (_) {}
         }
       }
+      if (existingLocal?.description != null &&
+          existingLocal!.description!.isNotEmpty &&
+          (reportToAdd.description == null || reportToAdd.description!.isEmpty)) {
+        reportToAdd = reportToAdd.copyWith(description: existingLocal.description);
+      }
 
       _cachedReports[reportToAdd.id] = reportToAdd;
       if (!seenIds.contains(reportToAdd.id)) {
@@ -481,6 +486,11 @@ class ReportRepository {
           }
         } catch (_) {}
       }
+      if ((result.description == null || result.description!.isEmpty) &&
+          existingLocal?.description != null &&
+          existingLocal!.description!.isNotEmpty) {
+        result = result.copyWith(description: existingLocal.description);
+      }
     }
 
     return result;
@@ -515,6 +525,12 @@ class ReportRepository {
           result = result.copyWith(directPhotoUrl: photoPath);
         }
       } catch (_) {}
+    }
+
+    if ((result.description == null || result.description!.isEmpty) &&
+        description != null &&
+        description.isNotEmpty) {
+      result = result.copyWith(description: description);
     }
 
     _submittedReports.removeWhere((item) => item.id == result.id);

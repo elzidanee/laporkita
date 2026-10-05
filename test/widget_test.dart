@@ -99,6 +99,27 @@ void main() {
       expect(model.status.displayName, equals('Sedang Diproses'));
       expect(model.latitude, equals(-7.9827));
       expect(model.categoryName, equals('Jalan Berlubang'));
+      expect(model.description, equals('Jalan berlubang cukup dalam'));
+    });
+
+    test('ReportModel.fromJson mengurai notes dan catatan citizen dengan benar', () {
+      final jsonWithNotes = {
+        'id': 'rpt-124',
+        'report_code': '#LP-2026-002',
+        'status': 'pending_verification',
+        'notes': 'Lampu jalan mati dekat perempatan',
+      };
+      final modelNotes = ReportModel.fromJson(jsonWithNotes);
+      expect(modelNotes.description, equals('Lampu jalan mati dekat perempatan'));
+
+      final jsonWithCatatan = {
+        'id': 'rpt-125',
+        'report_code': '#LP-2026-003',
+        'status': 'pending_verification',
+        'catatan': 'Saluran air tersumbat sampah',
+      };
+      final modelCatatan = ReportModel.fromJson(jsonWithCatatan);
+      expect(modelCatatan.description, equals('Saluran air tersumbat sampah'));
     });
 
     test('NotificationModel.fromJson mengurai JSON notifikasi backend', () {

@@ -290,13 +290,15 @@ class ReportModel {
       status: ReportStatus.fromString(json['status']?.toString() ?? ''),
       latitude: double.tryParse(json['latitude']?.toString() ?? '0') ?? 0.0,
       longitude: double.tryParse(json['longitude']?.toString() ?? '0') ?? 0.0,
-      description: (json['description']?.toString()?.isNotEmpty == true)
-          ? json['description'].toString()
-          : (json['notes']?.toString()?.isNotEmpty == true)
-              ? json['notes'].toString()
-              : (json['note']?.toString()?.isNotEmpty == true)
-                  ? json['note'].toString()
-                  : json['catatan']?.toString(),
+      description: (json['description'] != null && json['description'].toString().trim().isNotEmpty)
+          ? json['description'].toString().trim()
+          : (json['notes'] != null && json['notes'].toString().trim().isNotEmpty)
+              ? json['notes'].toString().trim()
+              : (json['note'] != null && json['note'].toString().trim().isNotEmpty)
+                  ? json['note'].toString().trim()
+                  : (json['catatan'] != null && json['catatan'].toString().trim().isNotEmpty)
+                      ? json['catatan'].toString().trim()
+                      : null,
       directPhotoUrl: serverPhotoUrl,
       supportCount: json['support_count'] is int
           ? json['support_count'] as int

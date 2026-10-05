@@ -642,6 +642,54 @@ class _AdminVerificationActionScreenState
           ),
         ],
 
+        // Card: Catatan dari Citizen / Pelapor
+        Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 16),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF0FDF4),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFBBF7D0)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.assignment_outlined,
+                    size: 18,
+                    color: Color(0xFF16A34A),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Catatan dari Citizen (Pelapor):',
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF166534),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                (widget.report.description != null &&
+                        widget.report.description!.trim().isNotEmpty)
+                    ? widget.report.description!
+                    : 'Citizen tidak menambahkan catatan tambahan.',
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w400,
+                  color: const Color(0xFF1E293B),
+                  height: 1.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+
         // 1. Card: Hasil Pemeriksaan Manual (Figma Node 607:3323)
         Container(
           width: double.infinity,
