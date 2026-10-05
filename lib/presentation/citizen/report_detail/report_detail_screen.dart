@@ -191,8 +191,9 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
   Widget build(BuildContext context) {
     final report = _report;
 
-    final title = report?.categoryName ??
-        (widget.reportData?['title'] as String? ?? 'Jalan Rusak');
+    final title = (report?.categoryName != null && report!.categoryName.isNotEmpty)
+        ? report.categoryName
+        : (widget.reportData?['title'] as String? ?? 'Laporan Fasilitas');
     final address = report?.addressText ??
         (widget.reportData?['address'] as String? ?? 'Jl. Ahmad Yani no. 15');
     final fullAddress = report?.addressText ??
@@ -212,7 +213,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
         report?.photoUrl ??
         (widget.reportData?['photoUrl'] as String? ?? '');
 
-    final createdAt = report?.createdAt ?? DateTime.now();
+    final createdAt = (report?.createdAt ?? DateTime.now()).toLocal();
     final dateStr =
         '${createdAt.day} ${_monthName(createdAt.month)} ${createdAt.year}';
     final timeStr =
@@ -1351,7 +1352,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     String progressPhotoDateStr = dateStr;
     String progressPhotoTimeStr = timeStr;
     if (latestProgressPhoto != null) {
-      final d = latestProgressPhoto.createdAt;
+      final d = latestProgressPhoto.createdAt.toLocal();
       progressPhotoDateStr =
           '${d.day} ${_monthName(d.month)} ${d.year}';
       progressPhotoTimeStr =
@@ -1381,7 +1382,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     String validationPhotoDateStr = dateStr;
     String validationPhotoTimeStr = timeStr;
     if (latestValidationPhoto != null) {
-      final d = latestValidationPhoto.createdAt;
+      final d = latestValidationPhoto.createdAt.toLocal();
       validationPhotoDateStr =
           '${d.day} ${_monthName(d.month)} ${d.year}';
       validationPhotoTimeStr =
@@ -1998,7 +1999,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
               final name = user?['full_name'] as String? ?? 'Kalandra Garendra';
               final content = c['content'] as String? ??
                   'Semoga cepat diperbaiki, karena sangat membahayakan';
-              final time = c['created_at'] as String? ?? '2 jam yang lalu';
+              final time = _formatCommentTime(c['created_at']);
 
               return _buildCommentCard(
                 name: name,
@@ -2081,6 +2082,21 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
         const SizedBox(height: 24),
       ],
     );
+  }
+
+  String _formatCommentTime(dynamic raw) {
+    if (raw == null) return 'Baru saja';
+    final str = raw.toString();
+    if (str.isEmpty) return 'Baru saja';
+    final dt = DateTime.tryParse(str);
+    if (dt == null) return str;
+    final local = dt.toLocal();
+    final diff = DateTime.now().difference(local);
+    if (diff.inSeconds < 60) return 'Baru saja';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} menit yang lalu';
+    if (diff.inHours < 24) return '${diff.inHours} jam yang lalu';
+    if (diff.inDays < 7) return '${diff.inDays} hari yang lalu';
+    return '${local.day} ${_monthName(local.month)} ${local.year} | ${local.hour.toString().padLeft(2, '0')}.${local.minute.toString().padLeft(2, '0')} WIB';
   }
 
   Widget _buildCommentCard({

@@ -168,17 +168,42 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
     return '${local.hour.toString().padLeft(2, '0')}.${local.minute.toString().padLeft(2, '0')} WIB';
   }
 
-  // Progress percentage based on status
-  double _progressFromStatus(ReportStatus status) {
+  // Progress percentage based on report status and operator progress updates
+  double _calculateProgress(ReportModel? report) {
+    if (report == null) return 0.15;
+    final status = report.status;
     switch (status) {
       case ReportStatus.pendingVerification:
         return 0.15;
       case ReportStatus.verified:
         return 0.30;
       case ReportStatus.assigned:
-        return 0.50;
+        return 0.40;
       case ReportStatus.inProgress:
-        return 0.75;
+        // Cek apakah ada persentase progres dinamis dari operator di history atau notes
+        final regex = RegExp(r'(\d+)\s*%');
+        // 1. Cek dari status history terbaru
+        for (final h in report.statusHistory.reversed) {
+          if (h.note != null) {
+            final match = regex.firstMatch(h.note!);
+            if (match != null) {
+              final pct = double.tryParse(match.group(1)!);
+              if (pct != null && pct > 0 && pct <= 100) {
+                return pct / 100.0;
+              }
+            }
+          }
+        }
+        // 2. Cek jika ada foto progres
+        final progressPhotosCount = report.media.where((m) =>
+            m.type == 'progress_photo' ||
+            m.type == 'progress' ||
+            m.type == 'in_progress').length;
+        if (progressPhotosCount > 0) {
+          final calculated = 0.50 + (progressPhotosCount * 0.15);
+          return calculated > 0.85 ? 0.85 : calculated;
+        }
+        return 0.50;
       case ReportStatus.completed:
         return 0.95;
       case ReportStatus.resolved:
@@ -190,8 +215,10 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
     }
   }
 
-  String _progressLabel(ReportStatus status) {
-    return '${(_progressFromStatus(status) * 100).toInt()}%';
+
+
+  String _progressLabel(ReportModel? report) {
+    return '${(_calculateProgress(report) * 100).toInt()}%';
   }
 
   void _showReportPickerSheet() {
@@ -539,7 +566,7 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
                   const SizedBox(height: 12),
 
                   // Progress Card
-                  _buildProgressCard(status),
+                  _buildProgressCard(report),
                   const SizedBox(height: 12),
 
                   // Estimasi Selesai Card
@@ -1067,9 +1094,9 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
   }
 
   // ── Progress Card ──────────────────────────────────────────────────────────
-  Widget _buildProgressCard(ReportStatus status) {
-    final value = _progressFromStatus(status);
-    final label = _progressLabel(status);
+  Widget _buildProgressCard(ReportModel? report) {
+    final value = _calculateProgress(report);
+    final label = _progressLabel(report);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -1326,15 +1353,20 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
     // 1. Prioritaskan foto bukti penyelesaian (completion_photo) dari operator
     final completionMedia = _report?.media
         .where((m) =>
-            m.type == 'completion_photo' &&
+            (m.type == 'completion_photo' ||
+             m.type == 'validation_photo' ||
+             m.type == 'completed' ||
+             m.type == 'completion') &&
             m.url.isNotEmpty &&
             !m.url.contains('storage.example.com'))
         .toList();
 
-    // 2. Ambil foto progres (progress_photo)
+    // 2. Ambil foto progres (progress_photo / progress / in_progress)
     final progressMedia = _report?.media
         .where((m) =>
-            m.type == 'progress_photo' &&
+            (m.type == 'progress_photo' ||
+             m.type == 'progress' ||
+             m.type == 'in_progress') &&
             m.url.isNotEmpty &&
             !m.url.contains('storage.example.com'))
         .toList();
@@ -1367,7 +1399,7 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
       badgeTextColor = AppColors.neutral900;
     }
 
-    String thumbUrl = latestMedia?.url ?? reportPhotoUrl;
+    String thumbUrl = latestMedia?.formattedUrl ?? latestMedia?.url ?? reportPhotoUrl;
     if (thumbUrl.isEmpty && _report?.primaryPhotoUrl != null) {
       thumbUrl = _report!.primaryPhotoUrl!;
     }

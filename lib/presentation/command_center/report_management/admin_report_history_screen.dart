@@ -47,22 +47,24 @@ class _AdminReportHistoryScreenState extends State<AdminReportHistoryScreen> {
   }
 
   String _formatDateTime(DateTime dt) {
+    final localDt = dt.toLocal();
     const months = [
       'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
       'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
     ];
-    final month = months[dt.month - 1];
-    final hh = dt.hour.toString().padLeft(2, '0');
-    final mm = dt.minute.toString().padLeft(2, '0');
-    return '${dt.day} $month ${dt.year} | $hh.$mm';
+    final month = months[localDt.month - 1];
+    final hh = localDt.hour.toString().padLeft(2, '0');
+    final mm = localDt.minute.toString().padLeft(2, '0');
+    return '${localDt.day} $month ${localDt.year} | $hh.$mm WIB';
   }
 
   String _formatDateOnly(DateTime dt) {
+    final localDt = dt.toLocal();
     const months = [
       'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
       'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
     ];
-    return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
+    return '${localDt.day} ${months[localDt.month - 1]} ${localDt.year}';
   }
 
   String _getOpdName() {

@@ -534,6 +534,13 @@ class ReportRepository {
       result = result.copyWith(description: description);
     }
 
+    if (result.category == null || (result.category?['name'] as String?)?.isEmpty == true) {
+      result = result.copyWith(category: {
+        'id': categoryId,
+        'name': result.categoryName,
+      });
+    }
+
     _submittedReports.removeWhere((item) => item.id == result.id);
     _submittedReports.insert(0, result);
     await _savePersistedState();

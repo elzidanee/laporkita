@@ -105,6 +105,36 @@ class ReportMediaModel {
       'created_at': createdAt.toIso8601String(),
     };
   }
+
+  /// URL foto yang sudah diformat absolut dan aman ditampilkan
+  String get formattedUrl {
+    if (url.isEmpty) return '';
+    // Berkas lokal
+    if (!url.startsWith('http')) {
+      try {
+        if (File(url).existsSync()) return url;
+      } catch (_) {}
+    }
+    // URL dummy
+    if (url.contains('storage.example.com') ||
+        url.contains('images.unsplash.com') ||
+        url.contains('storage.laporkita.malangkota.go.id')) {
+      return '';
+    }
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    // URL relatif
+    try {
+      final baseUri = Uri.parse(AppConfig.baseUrl);
+      final host =
+          '${baseUri.scheme}://${baseUri.host}${baseUri.hasPort ? ':${baseUri.port}' : ''}';
+      final path = url.startsWith('/') ? url : '/$url';
+      return '$host$path';
+    } catch (_) {
+      return url;
+    }
+  }
 }
 
 class ReportStatusHistoryModel {
@@ -556,7 +586,32 @@ class ReportModel {
   }
 
   /// Nama kategori
-  String get categoryName => category?['name'] as String? ?? 'Umum';
+  String get categoryName {
+    final name = category?['name'] as String?;
+    if (name != null && name.trim().isNotEmpty && name.toLowerCase() != 'umum') {
+      return name;
+    }
+    // Fallback dari categoryId jika backend mengembalikan baris tanpa relational join
+    switch (categoryId) {
+      case 'c1000000-0000-4000-8000-000000000001':
+        return 'Jalan Berlubang';
+      case 'c2000000-0000-4000-8000-000000000002':
+        return 'Lampu Jalan';
+      case 'c3000000-0000-4000-8000-000000000003':
+        return 'Rambu Lalu Lintas';
+      case 'c4000000-0000-4000-8000-000000000004':
+        return 'Trotoar';
+      case 'c5000000-0000-4000-8000-000000000005':
+        return 'Drainase';
+      case 'cat-sampah':
+        return 'Sampah & Kebersihan';
+      case 'cat-fasilitas':
+        return 'Fasilitas Umum';
+      default:
+        if (name != null && name.trim().isNotEmpty) return name;
+        return 'Fasilitas Umum';
+    }
+  }
 
   /// Nama pelapor
   String get reporterName => reporter?['full_name'] as String? ?? 'Anonim';
@@ -689,32 +744,46 @@ class ReportModel {
   /// Primary photo url of the report
   String? get primaryPhotoUrl {
     if (directPhotoUrl != null && directPhotoUrl!.isNotEmpty) {
-      return directPhotoUrl;
+      return formattedPhotoUrl ?? directPhotoUrl;
     }
     if (media.isNotEmpty) {
       try {
         final initial = media.firstWhere(
-          (m) => m.url.isNotEmpty,
+          (m) => m.formattedUrl.isNotEmpty || m.url.isNotEmpty,
           orElse: () => media.first,
         );
+        if (initial.formattedUrl.isNotEmpty) return initial.formattedUrl;
         if (initial.url.isNotEmpty) return initial.url;
       } catch (_) {}
     }
     return null;
   }
 
-  /// URL foto bukti penyelesaian (completion_photo)
+  /// URL foto bukti penyelesaian (completion_photo / validation_photo)
   String? get completionPhotoUrl {
     if (media.isNotEmpty) {
       final completion = media.where(
         (m) =>
-            m.type == 'completion_photo' &&
+            (m.type == 'completion_photo' ||
+             m.type == 'validation_photo' ||
+             m.type == 'completed' ||
+             m.type == 'completion') &&
             m.url.isNotEmpty &&
             !m.url.contains('storage.example.com'),
       );
-      if (completion.isNotEmpty) return completion.first.url;
-      final anyCompletion = media.where((m) => m.type == 'completion_photo' && m.url.isNotEmpty);
-      if (anyCompletion.isNotEmpty) return anyCompletion.first.url;
+      if (completion.isNotEmpty) {
+        return completion.last.formattedUrl.isNotEmpty
+            ? completion.last.formattedUrl
+            : completion.last.url;
+      }
+      final anyCompletion = media.where((m) =>
+          (m.type == 'completion_photo' || m.type == 'validation_photo') &&
+          m.url.isNotEmpty);
+      if (anyCompletion.isNotEmpty) {
+        return anyCompletion.last.formattedUrl.isNotEmpty
+            ? anyCompletion.last.formattedUrl
+            : anyCompletion.last.url;
+      }
     }
     return null;
   }

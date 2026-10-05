@@ -10,6 +10,7 @@ import '../../../data/models/report_model.dart';
 import '../../../data/repositories/report_repository.dart';
 import 'admin_report_history_screen.dart';
 import 'admin_verification_action_screen.dart';
+import 'admin_assign_report_screen.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Detail Laporan | Admin  (Figma: node 551-2)
@@ -831,6 +832,7 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
 
   Widget _buildBottomActionBar(ReportModel r) {
     final isPending = r.status == ReportStatus.pendingVerification;
+    final isVerified = r.status == ReportStatus.verified;
     final isAssigned = r.status == ReportStatus.assigned;
     final isInProgress = r.status == ReportStatus.inProgress;
     final isRejected = r.status == ReportStatus.rejected;
@@ -858,9 +860,33 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
             ),
           ),
         );
-        if (updated != null && mounted) {
-          setState(() => _currentReport = updated);
-          _refreshDetail();
+        if (mounted) {
+          if (updated != null) {
+            setState(() => _currentReport = updated);
+          }
+          await _refreshDetail();
+        }
+      };
+    } else if (isVerified) {
+      actionLabel = 'Tugaskan ke OPD';
+      actionIcon = Icons.forward_to_inbox_rounded;
+      actionBg = const Color(0xFF1D9C51);
+      actionFg = Colors.white;
+      actionBorder = const Color(0xFFBCFFC2);
+      actionTap = () async {
+        final updated = await Navigator.push<ReportModel>(
+          context,
+          MaterialPageRoute(
+            builder: (_) => AdminAssignReportScreen(
+              report: r,
+            ),
+          ),
+        );
+        if (mounted) {
+          if (updated != null) {
+            setState(() => _currentReport = updated);
+          }
+          await _refreshDetail();
         }
       };
     } else if (isAssigned) {
@@ -1312,14 +1338,17 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
                                       'Petugas / Admin';
                                   final content =
                                       c['content'] ?? c['message'] ?? '';
-                                  final createdAtStr = c['created_at'];
+                                  final createdAtStr = c['created_at'] ?? c['createdAt'];
                                   String timeStr = '';
                                   if (createdAtStr != null) {
                                     final dt = DateTime.tryParse(
                                         createdAtStr.toString());
                                     if (dt != null) {
-                                      timeStr = _formatDateTimeCompact(dt);
+                                      timeStr = _formatDateTimeCompact(dt.toLocal());
                                     }
+                                  }
+                                  if (timeStr.isEmpty) {
+                                    timeStr = _formatDateTimeCompact(DateTime.now().toLocal());
                                   }
                                   return Column(
                                     crossAxisAlignment:
@@ -1451,27 +1480,29 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
   }
 
   String _formatDateTimeCompact(DateTime dt) {
+    final localDt = dt.toLocal();
     const months = [
       'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
       'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
     ];
-    final month = months[dt.month - 1];
-    final hh = dt.hour.toString().padLeft(2, '0');
-    final mm = dt.minute.toString().padLeft(2, '0');
-    return '${dt.day} $month ${dt.year} | $hh.$mm';
+    final month = months[localDt.month - 1];
+    final hh = localDt.hour.toString().padLeft(2, '0');
+    final mm = localDt.minute.toString().padLeft(2, '0');
+    return '${localDt.day} $month ${localDt.year} | $hh.$mm WIB';
   }
 
   String _formatDateTimeFull(DateTime dt) {
+    final localDt = dt.toLocal();
     const days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
     const months = [
       'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
       'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
     ];
-    final dayName = days[dt.weekday - 1];
-    final monthName = months[dt.month - 1];
-    final hh = dt.hour.toString().padLeft(2, '0');
-    final mm = dt.minute.toString().padLeft(2, '0');
-    return '$dayName, ${dt.day} $monthName ${dt.year} | $hh.$mm WIB';
+    final dayName = days[localDt.weekday - 1];
+    final monthName = months[localDt.month - 1];
+    final hh = localDt.hour.toString().padLeft(2, '0');
+    final mm = localDt.minute.toString().padLeft(2, '0');
+    return '$dayName, ${localDt.day} $monthName ${localDt.year} | $hh.$mm WIB';
   }
 
   String _inferOpd(String categoryName) {

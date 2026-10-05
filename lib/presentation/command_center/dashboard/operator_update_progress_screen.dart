@@ -153,11 +153,22 @@ class _OperatorUpdateProgressScreenState
           _currentReport.id,
           targetStatus.apiValue,
           notes: _descController.text.trim().isNotEmpty
-              ? _descController.text.trim()
+              ? '${_descController.text.trim()} (Progress ${_progressPercentage.toInt()}%)'
               : 'Progress pengerjaan: ${_progressPercentage.toInt()}%',
           existingReport: _currentReport,
         );
         _currentReport = updated;
+      } else {
+        // Status sudah in_progress, backend melarang update status yang sama.
+        // Simpan catatan persentase progres operator via endpoint komentar
+        final noteText = _descController.text.trim().isNotEmpty
+            ? '${_descController.text.trim()} (Progress ${_progressPercentage.toInt()}%)'
+            : 'Progress pengerjaan: ${_progressPercentage.toInt()}%';
+        try {
+          await repo.addComment(_currentReport.id, noteText);
+        } catch (commentErr) {
+          debugPrint('warning [UpdateProgress] Gagal simpan komentar progress: $commentErr');
+        }
       }
 
       // Upload foto progress via media endpoint
@@ -173,6 +184,11 @@ class _OperatorUpdateProgressScreenState
           debugPrint('warning [UpdateProgress] Gagal upload foto: $photoErr');
         }
       }
+
+      // Re-fetch report agar _currentReport memiliki daftar media dan histori terbaru
+      try {
+        _currentReport = await repo.getReportById(_currentReport.id);
+      } catch (_) {}
 
       try {
         notifRepo.addStatusUpdateNotification(
@@ -220,7 +236,7 @@ class _OperatorUpdateProgressScreenState
             ),
           );
         } else {
-          Navigator.pop(context);
+          Navigator.pop(context, _currentReport);
         }
       }
     } catch (e) {

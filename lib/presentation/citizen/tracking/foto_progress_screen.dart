@@ -80,20 +80,60 @@ class _FotoProgressScreenState extends State<FotoProgressScreen> {
     return '${local.hour.toString().padLeft(2, '0')}.${local.minute.toString().padLeft(2, '0')} WIB';
   }
 
-  double _progressFromStatus(ReportStatus status) {
+  double _calculateProgress(ReportModel? report) {
+    if (report == null) return 0.15;
+    final status = report.status;
     switch (status) {
-      case ReportStatus.pendingVerification: return 0.15;
-      case ReportStatus.verified: return 0.30;
-      case ReportStatus.assigned: return 0.50;
-      case ReportStatus.inProgress: return 0.75;
-      case ReportStatus.completed: return 0.95;
-      case ReportStatus.resolved: return 1.0;
-      case ReportStatus.rejected: return 0.0;
-      case ReportStatus.disputed: return 0.50;
+      case ReportStatus.pendingVerification:
+        return 0.15;
+      case ReportStatus.verified:
+        return 0.30;
+      case ReportStatus.assigned:
+        return 0.40;
+      case ReportStatus.inProgress:
+        final regex = RegExp(r'(\d+)\s*%');
+        for (final h in report.statusHistory.reversed) {
+          if (h.note != null) {
+            final match = regex.firstMatch(h.note!);
+            if (match != null) {
+              final pct = double.tryParse(match.group(1)!);
+              if (pct != null && pct > 0 && pct <= 100) {
+                return pct / 100.0;
+              }
+            }
+          }
+        }
+        final progressPhotosCount = report.media.where((m) =>
+            m.type == 'progress_photo' ||
+            m.type == 'progress' ||
+            m.type == 'in_progress').length;
+        if (progressPhotosCount > 0) {
+          final calculated = 0.50 + (progressPhotosCount * 0.15);
+          return calculated > 0.85 ? 0.85 : calculated;
+        }
+        return 0.50;
+      case ReportStatus.completed:
+        return 0.95;
+      case ReportStatus.resolved:
+        return 1.0;
+      case ReportStatus.rejected:
+        return 0.0;
+      case ReportStatus.disputed:
+        return 0.50;
     }
   }
 
+  double _progressFromStatus(ReportStatus status) {
+    return _calculateProgress(_report);
+  }
+
   String _buildAbsoluteUrl(String rawUrl) {
+    if (rawUrl.isEmpty) return '';
+    if (!rawUrl.startsWith('http')) {
+      try {
+        if (File(rawUrl).existsSync()) return rawUrl;
+      } catch (_) {}
+    }
     if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
       return rawUrl;
     }
@@ -174,7 +214,10 @@ class _FotoProgressScreenState extends State<FotoProgressScreen> {
 
     final List<ReportMediaModel> completionMedia = allMedia
         .where((m) =>
-            m.type == 'completion_photo' &&
+            (m.type == 'completion_photo' ||
+             m.type == 'validation_photo' ||
+             m.type == 'completed' ||
+             m.type == 'completion') &&
             m.url.isNotEmpty &&
             !m.url.contains('storage.example.com'))
         .toList()
@@ -182,7 +225,9 @@ class _FotoProgressScreenState extends State<FotoProgressScreen> {
 
     final List<ReportMediaModel> progressMedia = allMedia
         .where((m) =>
-            m.type == 'progress_photo' &&
+            (m.type == 'progress_photo' ||
+             m.type == 'progress' ||
+             m.type == 'in_progress') &&
             m.url.isNotEmpty &&
             !m.url.contains('storage.example.com'))
         .toList()
@@ -244,7 +289,7 @@ class _FotoProgressScreenState extends State<FotoProgressScreen> {
                     date: '$dateStr | $timeStr',
                     progressText: itemTitle,
                     description: itemDesc,
-                    imageUrl: _buildAbsoluteUrl(media.url),
+                    imageUrl: _buildAbsoluteUrl(media.formattedUrl.isNotEmpty ? media.formattedUrl : media.url),
                     isNew: idx == 0,
                   ),
                 );
@@ -267,7 +312,7 @@ class _FotoProgressScreenState extends State<FotoProgressScreen> {
                     date: '$dateStr | $timeStr',
                     progressText: 'Progres Pengerjaan $pct%',
                     description: 'Petugas sedang melakukan penanganan perbaikan di lokasi.',
-                    imageUrl: _buildAbsoluteUrl(media.url),
+                    imageUrl: _buildAbsoluteUrl(media.formattedUrl.isNotEmpty ? media.formattedUrl : media.url),
                     isNew: completionMedia.isEmpty && idx == 0,
                   ),
                 );
@@ -284,7 +329,7 @@ class _FotoProgressScreenState extends State<FotoProgressScreen> {
                     date: '${_formatDate(dt)} | ${_formatTime(dt)}',
                     progressText: 'Foto Awal Laporan',
                     description: 'Kondisi kerusakan saat laporan pertama kali dibuat.',
-                    imageUrl: _buildAbsoluteUrl(media.url),
+                    imageUrl: _buildAbsoluteUrl(media.formattedUrl.isNotEmpty ? media.formattedUrl : media.url),
                     isNew: false,
                   ),
                 );

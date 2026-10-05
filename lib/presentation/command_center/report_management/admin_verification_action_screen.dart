@@ -33,6 +33,7 @@ class _AdminVerificationActionScreenState
     extends State<AdminVerificationActionScreen> {
   late int _activeTabIndex;
   bool _isProcessing = false;
+  ReportModel? _lastVerifiedReport;
 
   // Manual Review Form State (Figma Node 627:1160)
   bool _manualPhotoValid = true; // Foto sesuai laporan
@@ -90,14 +91,20 @@ class _AdminVerificationActionScreenState
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          children: [
-            const SizedBox(height: 8),
-            // Top Bar: Back Chevron + Share Button (Figma Node 554:578)
-            _buildTopBar(),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        Navigator.pop(context, _lastVerifiedReport);
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          child: Column(
+            children: [
+              const SizedBox(height: 8),
+              // Top Bar: Back Chevron + Share Button (Figma Node 554:578)
+              _buildTopBar(),
             const SizedBox(height: 8),
 
             // Tab Bar: AI Verification vs Manual Review (Figma Node 554:586)
@@ -141,8 +148,9 @@ class _AdminVerificationActionScreenState
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   // ── TOP BAR (Figma Node 627:1096 & 627:1165) ─────────────────────
 
@@ -155,7 +163,7 @@ class _AdminVerificationActionScreenState
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             InkWell(
-              onTap: () => Navigator.pop(context),
+              onTap: () => Navigator.pop(context, _lastVerifiedReport),
               borderRadius: BorderRadius.circular(20.5),
               child: Container(
                 width: 41,
@@ -1612,6 +1620,7 @@ class _AdminVerificationActionScreenState
             category: {'name': _selectedCategory},
             directPriority: _selectedPriority,
           );
+          _lastVerifiedReport = verifiedReport;
         } catch (verifyErr) {
           final errStr = verifyErr.toString().toLowerCase();
           // Idempotensi: jika backend menolak karena sudah verified, lanjutkan saja
@@ -1620,6 +1629,7 @@ class _AdminVerificationActionScreenState
               errStr.contains('cannot')) {
             debugPrint(
                 'info [AdminVerification] Status sudah verified/selanjutnya, lanjut: $verifyErr');
+            _lastVerifiedReport = verifiedReport;
           } else {
             rethrow;
           }
@@ -1743,6 +1753,7 @@ class _AdminVerificationActionScreenState
           nav.pop(result);
         } else if (mounted) {
           setState(() => _isProcessing = false);
+          nav.pop(_lastVerifiedReport ?? verifiedReport);
         }
       }
     } catch (e) {
@@ -2091,6 +2102,7 @@ class _AdminVerificationActionScreenState
   }
 
   String _formatDateTimeFull(DateTime dt) {
+    final localDt = dt.toLocal();
     const days = [
       'Senin',
       'Selasa',
@@ -2114,11 +2126,11 @@ class _AdminVerificationActionScreenState
       'November',
       'Desember'
     ];
-    final dayName = days[dt.weekday - 1];
-    final monthName = months[dt.month - 1];
-    final hh = dt.hour.toString().padLeft(2, '0');
-    final mm = dt.minute.toString().padLeft(2, '0');
-    return '$dayName, ${dt.day} $monthName ${dt.year} | $hh.$mm WIB';
+    final dayName = days[localDt.weekday - 1];
+    final monthName = months[localDt.month - 1];
+    final hh = localDt.hour.toString().padLeft(2, '0');
+    final mm = localDt.minute.toString().padLeft(2, '0');
+    return '$dayName, ${localDt.day} $monthName ${localDt.year} | $hh.$mm WIB';
   }
 
   double _calcDistanceMeters(

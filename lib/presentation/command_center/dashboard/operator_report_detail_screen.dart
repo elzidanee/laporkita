@@ -74,6 +74,7 @@ class _OperatorReportDetailScreenState
                 ? fresh.description
                 : _currentReport.description,
             directPhotoUrl: fresh.directPhotoUrl ?? _currentReport.directPhotoUrl,
+            media: fresh.media.isNotEmpty ? fresh.media : _currentReport.media,
             statusHistory: fresh.statusHistory.isNotEmpty
                 ? fresh.statusHistory
                 : _currentReport.statusHistory,
@@ -116,12 +117,13 @@ class _OperatorReportDetailScreenState
       'November',
       'Desember'
     ];
-    final d = date.day;
-    final m = months[date.month - 1];
-    final y = date.year;
-    final h = date.hour.toString().padLeft(2, '0');
-    final min = date.minute.toString().padLeft(2, '0');
-    return '$d $m $y | $h.$min';
+    final localDate = date.toLocal();
+    final d = localDate.day;
+    final m = months[localDate.month - 1];
+    final y = localDate.year;
+    final h = localDate.hour.toString().padLeft(2, '0');
+    final min = localDate.minute.toString().padLeft(2, '0');
+    return '$d $m $y | $h.$min WIB';
   }
 
   String _formatDateFull(DateTime date) {
@@ -148,12 +150,13 @@ class _OperatorReportDetailScreenState
       'November',
       'Desember'
     ];
-    final dayName = days[date.weekday - 1];
-    final d = date.day;
-    final m = months[date.month - 1];
-    final y = date.year;
-    final h = date.hour.toString().padLeft(2, '0');
-    final min = date.minute.toString().padLeft(2, '0');
+    final localDate = date.toLocal();
+    final dayName = days[localDate.weekday - 1];
+    final d = localDate.day;
+    final m = months[localDate.month - 1];
+    final y = localDate.year;
+    final h = localDate.hour.toString().padLeft(2, '0');
+    final min = localDate.minute.toString().padLeft(2, '0');
     return '$dayName, $d $m $y | $h.$min WIB';
   }
 
@@ -960,7 +963,7 @@ class _OperatorReportDetailScreenState
     if (_selectedStatus == ReportStatus.inProgress) {
       buttonText = 'Update Progress / Selesai';
       onTap = () async {
-        await Navigator.push(
+        final res = await Navigator.push<ReportModel>(
           context,
           MaterialPageRoute(
             builder: (context) => OperatorUpdateProgressScreen(
@@ -971,7 +974,16 @@ class _OperatorReportDetailScreenState
             ),
           ),
         );
-        widget.onStatusUpdated?.call();
+        if (mounted) {
+          if (res != null) {
+            setState(() {
+              _currentReport = res;
+              _selectedStatus = res.status;
+            });
+          }
+          await _loadFreshReport();
+          widget.onStatusUpdated?.call();
+        }
       };
     } else if (_selectedStatus == ReportStatus.completed ||
         _selectedStatus == ReportStatus.resolved) {

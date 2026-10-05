@@ -1163,14 +1163,15 @@ class _GovernmentReportsScreenState extends State<GovernmentReportsScreen> {
                 builder: (_) => AdminReportDetailScreen(report: r),
               ),
             );
-            if (updated != null && mounted) {
-              setState(() {
-                final idx = _allReports.indexWhere((e) => e.id == updated.id);
-                if (idx != -1) {
-                  _allReports[idx] = updated;
-                }
-              });
-            } else if (mounted) {
+            if (mounted) {
+              if (updated != null) {
+                setState(() {
+                  final idx = _allReports.indexWhere((e) => e.id == updated.id);
+                  if (idx != -1) {
+                    _allReports[idx] = updated;
+                  }
+                });
+              }
               _fetchReports();
             }
           },
@@ -1613,10 +1614,11 @@ class _GovernmentReportsScreenState extends State<GovernmentReportsScreen> {
       'Nov',
       'Des'
     ];
-    final dayName = days[(dt.weekday - 1) % 7];
-    final monthName = months[(dt.month - 1) % 12];
-    final hour = dt.hour.toString().padLeft(2, '0');
-    final minute = dt.minute.toString().padLeft(2, '0');
-    return '$dayName, ${dt.day} $monthName ${dt.year} | $hour.$minute WIB';
+    final localDt = dt.toLocal();
+    final dayName = days[(localDt.weekday - 1) % 7];
+    final monthName = months[(localDt.month - 1) % 12];
+    final hour = localDt.hour.toString().padLeft(2, '0');
+    final minute = localDt.minute.toString().padLeft(2, '0');
+    return '$dayName, ${localDt.day} $monthName ${localDt.year} | $hour.$minute WIB';
   }
 }

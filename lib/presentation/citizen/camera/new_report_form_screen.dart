@@ -17,6 +17,7 @@ class NewReportFormScreen extends StatefulWidget {
 class _NewReportFormScreenState extends State<NewReportFormScreen> {
   late TextEditingController _notesController;
   CategoryModel? _selectedCategory;
+  bool _userChangedCategory = false;
 
   static final List<CategoryModel> _defaultCategories = [
     CategoryModel(
@@ -165,7 +166,8 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
         lower.contains('berlubang') ||
         lower.contains('pothole') ||
         lower.contains('aspal') ||
-        lower.contains('rusak')) {
+        lower == 'jalan rusak' ||
+        lower == 'jalan_rusak') {
       final match = categories.where(
         (c) =>
             c.name.toLowerCase().contains('jalan') ||
@@ -497,7 +499,7 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
                           imagePath: imagePath,
                           aiResult: aiResult,
                           aiCategoryTitle: displayCategoryTitle,
-                          hasAiRecommendation: hasAiCategory,
+                          hasAiRecommendation: hasAiCategory && !_userChangedCategory,
                         ),
                         const SizedBox(height: 16),
 
@@ -607,15 +609,15 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
                                             ),
                                             const SizedBox(width: 6),
                                             Text(
-                                              hasAiCategory
+                                              (hasAiCategory && !_userChangedCategory)
                                                   ? '*rekomendasi AI'
                                                   : '*dapat diubah',
                                               style: TextStyle(
                                                 fontSize: 11,
-                                                color: hasAiCategory
+                                                color: (hasAiCategory && !_userChangedCategory)
                                                     ? AppColors.greenPrimary
                                                     : AppColors.neutral400,
-                                                fontWeight: hasAiCategory
+                                                fontWeight: (hasAiCategory && !_userChangedCategory)
                                                     ? FontWeight.bold
                                                     : FontWeight.normal,
                                               ),
@@ -674,6 +676,7 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
                                                         setState(() {
                                                           _selectedCategory =
                                                               newValue;
+                                                          _userChangedCategory = true;
                                                         });
                                                       }
                                                     },
