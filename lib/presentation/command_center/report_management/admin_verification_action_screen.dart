@@ -658,17 +658,19 @@ class _AdminVerificationActionScreenState
               Row(
                 children: [
                   const Icon(
-                    Icons.assignment_outlined,
+                    Icons.record_voice_over_outlined,
                     size: 18,
                     color: Color(0xFF16A34A),
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    'Catatan dari Citizen (Pelapor):',
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF166534),
+                  Expanded(
+                    child: Text(
+                      'Catatan Citizen (Pelapor):',
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF166534),
+                      ),
                     ),
                   ),
                 ],
