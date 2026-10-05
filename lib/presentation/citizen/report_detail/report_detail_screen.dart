@@ -1396,6 +1396,10 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       } else {
         validationPhotoUrl = report?.formattedPhotoUrl ?? raw;
       }
+    } else if (isCompleted) {
+      validationPhotoUrl = report?.completionPhotoUrl ??
+          widget.reportData?['capturedPhotoPath'] as String? ??
+          widget.reportData?['imagePath'] as String?;
     }
 
     // Kumpulkan item timeline yang sudah terjadi
@@ -1500,10 +1504,17 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
             }()
           : dateStr;
 
-      final bool hasValidated = latestValidationPhoto != null ||
+      final bool hasValidated = (report?.status == ReportStatus.resolved) ||
+          latestValidationPhoto != null ||
           (report?.statusHistory.any(
-                  (h) => h.note?.toLowerCase().contains('pelapor') == true) ??
+                  (h) => h.note?.toLowerCase().contains('pelapor') == true ||
+                         h.note?.toLowerCase().contains('validasi') == true ||
+                         h.note?.toLowerCase().contains('sesuai') == true) ??
               false);
+
+      final String cardTitle = (report?.status == ReportStatus.resolved)
+          ? 'Foto Validasi Warga (Selesai)'
+          : 'Foto Bukti Penyelesaian';
 
       timelineItems.add(_buildTimelineItem(
         title: 'Selesai',
@@ -1518,7 +1529,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
         customChild: validationPhotoUrl != null
             ? _buildProgressPhotoCard(
                 photoUrl: validationPhotoUrl,
-                title: 'Foto Validasi',
+                title: cardTitle,
                 dateStr: validationPhotoDateStr,
                 timeStr: validationPhotoTimeStr,
               )
@@ -1526,7 +1537,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       ));
 
       // Card Validasi Perbaikan di bawah Timeline (Figma node 230:766)
-      if (!hasValidated) {
+      if (!hasValidated && report?.status != ReportStatus.resolved) {
         timelineItems.add(const SizedBox(height: 12));
         timelineItems.add(_buildValidationPromptCard(report));
       }
@@ -1602,12 +1613,15 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                         'Jl. simpang ibrahim',
                     'date': widget.reportData?['date'] ?? '31 Maret 2026',
                     'supports': report?.supportCount ?? _supportCount,
-                    'photoUrl': report?.formattedPhotoUrl ??
+                    'photoUrl': report?.completionPhotoUrl ??
+                        report?.formattedPhotoUrl ??
                         report?.photoUrl ??
                         widget.reportData?['photoUrl'],
                     'imagePath': widget.reportData?['imagePath'] ??
                         report?.directPhotoUrl,
                     'reportModel': report,
+                    'latitude': report?.latitude,
+                    'longitude': report?.longitude,
                   },
                 );
               },

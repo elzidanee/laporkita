@@ -571,15 +571,18 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
                       final Map<String, dynamic> valArgs = report != null
                           ? {
                               'id': report.id,
+                              'reportId': report.id,
                               'reportCode': report.reportCode,
                               'title': report.categoryName,
                               'address': report.addressText ?? 'Malang',
                               'fullAddress':
                                   report.addressText ?? 'Kota Malang',
                               'supports': report.supportCount,
-                              'photoUrl': report.formattedPhotoUrl,
-                              'imagePath': imagePath,
+                              'photoUrl': report.completionPhotoUrl ?? report.formattedPhotoUrl,
+                              'imagePath': imagePath ?? report.directPhotoUrl,
                               'reportModel': report,
+                              'latitude': report.latitude,
+                              'longitude': report.longitude,
                             }
                           : Map<String, dynamic>.from(widget.reportData ?? {});
                       Navigator.pushNamed(
@@ -849,13 +852,21 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
   }
 
   Widget _buildCitizenValidationCard(BuildContext context, ReportModel? report) {
+    final isCompleted = report?.status == ReportStatus.completed;
+    final isResolved = report?.status == ReportStatus.resolved;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(16),
-        border:
-            Border.all(color: AppColors.greenPrimary.withValues(alpha: 0.3)),
+        border: Border.all(
+          color: isResolved
+              ? AppColors.greenPrimary
+              : isCompleted
+                  ? AppColors.greenPrimary.withValues(alpha: 0.5)
+                  : AppColors.neutral200,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -868,66 +879,110 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            children: const [
-              Icon(Icons.verified_user_rounded,
-                  color: AppColors.greenPrimary, size: 22),
-              SizedBox(width: 8),
-              Text(
-                'Validasi Warga (Citizen Validation)',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.neutral900,
+            children: [
+              Icon(
+                isResolved
+                    ? Icons.verified_rounded
+                    : Icons.verified_user_rounded,
+                color: isResolved || isCompleted
+                    ? AppColors.greenPrimary
+                    : AppColors.neutral500,
+                size: 22,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  isResolved
+                      ? 'Laporan Tervalidasi Warga'
+                      : 'Validasi Warga (Citizen Validation)',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.neutral900,
+                  ),
                 ),
               ),
+              if (isResolved)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.greenLight,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Text(
+                    'Selesai',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.greenPrimary,
+                    ),
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: 6),
-          const Text(
-            'Apakah perbaikan di lokasi ini sudah sesuai? Berikan konfirmasi validasi warga Anda.',
-            style: TextStyle(
+          Text(
+            isResolved
+                ? 'Perbaikan di lokasi telah dikonfirmasi dan tervalidasi oleh warga. Terima kasih atas kepedulian Anda.'
+                : isCompleted
+                    ? 'Petugas telah menyelesaikan perbaikan. Silakan periksa hasil pekerjaan dan berikan konfirmasi validasi Anda.'
+                    : 'Validasi perbaikan dapat diberikan setelah petugas menyelesaikan pekerjaan fisik di lapangan.',
+            style: const TextStyle(
               fontSize: 11,
               color: AppColors.neutral700,
               height: 1.3,
             ),
           ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                final Map<String, dynamic> valData = report != null
-                    ? {
-                        'id': report.id,
-                        'reportCode': report.reportCode,
-                        'title': report.categoryName,
-                        'location': report.addressText,
-                        'photoUrl': report.formattedPhotoUrl,
-                        'imagePath': widget.reportData?['imagePath'],
-                      }
-                    : Map<String, dynamic>.from(widget.reportData ?? {});
-                Navigator.pushNamed(
-                  context,
-                  '/give-validation',
-                  arguments: valData,
-                );
-              },
-              icon: const Icon(Icons.verified, size: 18),
-              label: const Text(
-                'Beri Validasi Perbaikan Foto',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.greenPrimary,
-                foregroundColor: AppColors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+          if (isCompleted) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  final Map<String, dynamic> valData = report != null
+                      ? {
+                          'id': report.id,
+                          'reportId': report.id,
+                          'reportCode': report.reportCode,
+                          'title': report.categoryName,
+                          'location': report.addressText,
+                          'address': report.addressText ?? 'Malang',
+                          'fullAddress':
+                              report.addressText ?? 'Kota Malang',
+                          'supports': report.supportCount,
+                          'photoUrl': report.completionPhotoUrl ??
+                              report.formattedPhotoUrl,
+                          'imagePath': widget.reportData?['imagePath'] ??
+                              report.directPhotoUrl,
+                          'reportModel': report,
+                          'latitude': report.latitude,
+                          'longitude': report.longitude,
+                        }
+                      : Map<String, dynamic>.from(widget.reportData ?? {});
+                  Navigator.pushNamed(
+                    context,
+                    '/validasi-laporan',
+                    arguments: valData,
+                  );
+                },
+                icon: const Icon(Icons.verified, size: 18),
+                label: const Text(
+                  'Beri Validasi Perbaikan Foto',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                 ),
-                elevation: 0,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.greenPrimary,
+                  foregroundColor: AppColors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                ),
               ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -1268,33 +1323,115 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
     String dateStr,
     String timeStr,
   ) {
-    // Find latest progress photo from media list (type: progress_photo)
-    final progressMedia = _report?.media
-        .where((m) => m.type == 'progress_photo')
+    // 1. Prioritaskan foto bukti penyelesaian (completion_photo) dari operator
+    final completionMedia = _report?.media
+        .where((m) =>
+            m.type == 'completion_photo' &&
+            m.url.isNotEmpty &&
+            !m.url.contains('storage.example.com'))
         .toList();
 
-    final latestMedia =
-        progressMedia?.isNotEmpty == true ? progressMedia!.last : null;
+    // 2. Ambil foto progres (progress_photo)
+    final progressMedia = _report?.media
+        .where((m) =>
+            m.type == 'progress_photo' &&
+            m.url.isNotEmpty &&
+            !m.url.contains('storage.example.com'))
+        .toList();
 
-    String thumbUrl = reportPhotoUrl;
+    ReportMediaModel? latestMedia;
+    String progressLabel;
+    String badgeLabel;
+    Color badgeColor;
+    Color badgeTextColor;
+
+    if (completionMedia != null && completionMedia.isNotEmpty) {
+      latestMedia = completionMedia.last;
+      progressLabel = _report?.status == ReportStatus.resolved
+          ? 'Validasi Warga (Selesai)'
+          : 'Hasil Perbaikan Petugas';
+      badgeLabel = 'Selesai';
+      badgeColor = AppColors.greenPrimary;
+      badgeTextColor = AppColors.white;
+    } else if (progressMedia != null && progressMedia.isNotEmpty) {
+      latestMedia = progressMedia.last;
+      progressLabel = 'Sedang Diperbaiki';
+      badgeLabel = 'Progres';
+      badgeColor = const Color(0xFFF2AE01);
+      badgeTextColor = AppColors.white;
+    } else {
+      latestMedia = null;
+      progressLabel = 'Foto Laporan Awal';
+      badgeLabel = 'Awal';
+      badgeColor = AppColors.neutral100;
+      badgeTextColor = AppColors.neutral900;
+    }
+
+    String thumbUrl = latestMedia?.url ?? reportPhotoUrl;
+    if (thumbUrl.isEmpty && _report?.primaryPhotoUrl != null) {
+      thumbUrl = _report!.primaryPhotoUrl!;
+    }
+
     String progressDateStr =
         timeStr.isNotEmpty ? '$dateStr | $timeStr' : dateStr;
-    String progressLabel = 'Foto Laporan Awal';
 
     if (latestMedia != null) {
-      final rawUrl = latestMedia.url;
-      if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
-        thumbUrl = rawUrl;
-      } else {
-        thumbUrl =
-            '${_report?.formattedPhotoUrl?.split('/api/v1').first ?? ''}$rawUrl';
-      }
       final d = latestMedia.createdAt.toLocal();
       progressDateStr = '${_formatDate(d)} | ${_formatTime(d)}';
-      progressLabel = 'Sedang diperbaiki';
     }
 
     final categoryName = _report?.categoryName ?? 'Umum';
+
+    // Cek apakah thumbnail merupakan berkas lokal
+    bool isLocalThumb = false;
+    if (thumbUrl.isNotEmpty && !thumbUrl.startsWith('http')) {
+      try {
+        isLocalThumb = File(thumbUrl).existsSync();
+      } catch (_) {
+        isLocalThumb = false;
+      }
+    }
+
+    Widget thumbWidget;
+    if (isLocalThumb) {
+      thumbWidget = Image.file(
+        File(thumbUrl),
+        width: 100,
+        height: 70,
+        fit: BoxFit.cover,
+        errorBuilder: (c, e, s) => Image.network(
+          ReportModel.getCategoryFallbackImage(categoryName),
+          width: 100,
+          height: 70,
+          fit: BoxFit.cover,
+          errorBuilder: (c, e, s) => _progressPhotoPlaceholder(),
+        ),
+      );
+    } else if (thumbUrl.isNotEmpty &&
+        thumbUrl.startsWith('http') &&
+        !thumbUrl.contains('storage.example.com')) {
+      thumbWidget = Image.network(
+        thumbUrl,
+        width: 100,
+        height: 70,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Image.network(
+          ReportModel.getCategoryFallbackImage(categoryName),
+          width: 100,
+          height: 70,
+          fit: BoxFit.cover,
+          errorBuilder: (c, e, s) => _progressPhotoPlaceholder(),
+        ),
+      );
+    } else {
+      thumbWidget = Image.network(
+        ReportModel.getCategoryFallbackImage(categoryName),
+        width: 100,
+        height: 70,
+        fit: BoxFit.cover,
+        errorBuilder: (c, e, s) => _progressPhotoPlaceholder(),
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1327,27 +1464,7 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: thumbUrl.isNotEmpty && thumbUrl.startsWith('http')
-                    ? Image.network(
-                        thumbUrl,
-                        width: 100,
-                        height: 70,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => Image.network(
-                          ReportModel.getCategoryFallbackImage(categoryName),
-                          width: 100,
-                          height: 70,
-                          fit: BoxFit.cover,
-                          errorBuilder: (c, e, s) => _progressPhotoPlaceholder(),
-                        ),
-                      )
-                    : Image.network(
-                        ReportModel.getCategoryFallbackImage(categoryName),
-                        width: 100,
-                        height: 70,
-                        fit: BoxFit.cover,
-                        errorBuilder: (c, e, s) => _progressPhotoPlaceholder(),
-                      ),
+                child: thumbWidget,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -1377,19 +1494,15 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: latestMedia != null
-                      ? AppColors.greenPrimary
-                      : AppColors.neutral100,
+                  color: badgeColor,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  latestMedia != null ? 'Baru' : 'Awal',
+                  badgeLabel,
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
-                    color: latestMedia != null
-                        ? AppColors.white
-                        : AppColors.neutral900,
+                    color: badgeTextColor,
                   ),
                 ),
               ),

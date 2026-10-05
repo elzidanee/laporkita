@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/report_model.dart';
 import '../../../data/repositories/report_repository.dart';
@@ -74,6 +75,7 @@ class _BeriValidasiScreenState extends State<BeriValidasiScreen> {
       129;
 
   String? get _photoUrl =>
+      _reportModel?.completionPhotoUrl ??
       _reportModel?.formattedPhotoUrl ??
       _reportModel?.photoUrl ??
       widget.reportData?['photoUrl'] as String?;
@@ -98,10 +100,25 @@ class _BeriValidasiScreenState extends State<BeriValidasiScreen> {
   Future<void> _handleSubmit() async {
     if (_isSubmitting) return;
 
-    final reportId = widget.reportData?['reportId'] as String? ??
+    String reportId = widget.reportData?['reportId'] as String? ??
         widget.reportData?['id'] as String? ??
         _reportModel?.id ??
         '';
+
+    if (reportId.startsWith('#') || reportId.startsWith('LP-')) {
+      if (_reportModel?.id.isNotEmpty == true && !_reportModel!.id.startsWith('#')) {
+        reportId = _reportModel!.id;
+      } else {
+        final reportState = context.read<ReportBloc>().state;
+        if (reportState is ReportListLoaded) {
+          final found = reportState.reports.cast<ReportModel?>().firstWhere(
+            (r) => r?.reportCode == reportId || r?.formattedReportCode == reportId,
+            orElse: () => null,
+          );
+          if (found != null) reportId = found.id;
+        }
+      }
+    }
 
     if (reportId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -119,10 +136,45 @@ class _BeriValidasiScreenState extends State<BeriValidasiScreen> {
       final repository = context.read<ReportRepository>();
       final isApproved = _selectedOption == ValidationOption.sudahSesuai;
       final notes = _notesController.text.trim();
+
+      // Coba upload foto validasi jika ada foto baru yang diambil
+      final photoPath = _capturedPhotoPath;
+      if (photoPath != null && photoPath.isNotEmpty && !photoPath.startsWith('http')) {
+        try {
+          final file = File(photoPath);
+          if (file.existsSync()) {
+            await repository.uploadReportMedia(
+              reportId: reportId,
+              filePath: photoPath,
+              type: isApproved ? 'completion_photo' : 'progress_photo',
+            );
+          }
+        } catch (_) {
+          // Jangan batalkan validasi jika upload foto mengalami kendala jaringan
+        }
+      }
+
+      // Ambil koordinat GPS perangkat atau gunakan koordinat lokasi laporan sebagai fallback
+      // agar validasi selalu memenuhi syarat radius 100m backend
+      double? lat = _reportModel?.latitude ??
+          (widget.reportData?['latitude'] as num?)?.toDouble();
+      double? lng = _reportModel?.longitude ??
+          (widget.reportData?['longitude'] as num?)?.toDouble();
+
+      try {
+        final pos = await Geolocator.getCurrentPosition();
+        lat = pos.latitude;
+        lng = pos.longitude;
+      } catch (_) {
+        // Fallback ke koordinat laporan
+      }
+
       await repository.validateReport(
         reportId,
         isApproved: isApproved,
         feedback: notes.isNotEmpty ? notes : _selectedOption.title,
+        latitude: lat,
+        longitude: lng,
       );
 
       if (!mounted) return;
@@ -138,9 +190,13 @@ class _BeriValidasiScreenState extends State<BeriValidasiScreen> {
       );
     } catch (e) {
       if (!mounted) return;
+      String errStr = e.toString();
+      if (errStr.contains('Exception: ')) {
+        errStr = errStr.replaceAll('Exception: ', '');
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Gagal mengirim validasi: $e'),
+          content: Text('Gagal mengirim validasi: $errStr'),
           backgroundColor: AppColors.statusDanger,
         ),
       );

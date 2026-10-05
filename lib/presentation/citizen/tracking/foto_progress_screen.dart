@@ -169,14 +169,32 @@ class _FotoProgressScreenState extends State<FotoProgressScreen> {
       estimasiLabel = diff > 0 ? '$diff Hari Lagi' : 'Segera';
     }
 
-    // Kumpulkan semua media foto
+    // Kumpulkan semua media foto dari backend
     final List<ReportMediaModel> allMedia = report?.media ?? [];
-    final List<ReportMediaModel> progressMedia = allMedia
-        .where((m) => m.type == 'progress_photo')
+
+    final List<ReportMediaModel> completionMedia = allMedia
+        .where((m) =>
+            m.type == 'completion_photo' &&
+            m.url.isNotEmpty &&
+            !m.url.contains('storage.example.com'))
         .toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    final List<ReportMediaModel> initialMedia =
-        allMedia.where((m) => m.type == 'initial_photo').toList();
+
+    final List<ReportMediaModel> progressMedia = allMedia
+        .where((m) =>
+            m.type == 'progress_photo' &&
+            m.url.isNotEmpty &&
+            !m.url.contains('storage.example.com'))
+        .toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+    final List<ReportMediaModel> initialMedia = allMedia
+        .where((m) =>
+            m.type == 'initial_photo' &&
+            m.url.isNotEmpty &&
+            !m.url.contains('storage.example.com'))
+        .toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
     return SafeArea(
       child: SingleChildScrollView(
@@ -203,7 +221,37 @@ class _FotoProgressScreenState extends State<FotoProgressScreen> {
             ),
             const SizedBox(height: 12),
 
-            // Foto progress dari backend (progress_photo type)
+            // 1. Foto bukti penyelesaian / validasi perbaikan selesai (completion_photo)
+            if (completionMedia.isNotEmpty) ...[
+              ...completionMedia.asMap().entries.map((entry) {
+                final idx = entry.key;
+                final media = entry.value;
+                final dt = media.createdAt;
+                final dateStr = _formatDate(dt);
+                final timeStr = _formatTime(dt);
+
+                final bool isResolvedStatus = status == ReportStatus.resolved;
+                final String itemTitle = isResolvedStatus && idx == 0
+                    ? 'Validasi Warga (Selesai)'
+                    : 'Hasil Perbaikan (Selesai)';
+                final String itemDesc = isResolvedStatus && idx == 0
+                    ? 'Foto kondisi perbaikan yang telah divalidasi dan dinyatakan tuntas.'
+                    : 'Pekerjaan perbaikan di lapangan telah rampung oleh petugas.';
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _buildTimelineItem(
+                    date: '$dateStr | $timeStr',
+                    progressText: itemTitle,
+                    description: itemDesc,
+                    imageUrl: _buildAbsoluteUrl(media.url),
+                    isNew: idx == 0,
+                  ),
+                );
+              }),
+            ],
+
+            // 2. Foto progres pengerjaan (progress_photo)
             if (progressMedia.isNotEmpty) ...[
               ...progressMedia.asMap().entries.map((entry) {
                 final idx = entry.key;
@@ -217,16 +265,16 @@ class _FotoProgressScreenState extends State<FotoProgressScreen> {
                   padding: const EdgeInsets.only(bottom: 12),
                   child: _buildTimelineItem(
                     date: '$dateStr | $timeStr',
-                    progressText: 'Progres $pct%',
-                    description: 'Foto progres penanganan laporan',
+                    progressText: 'Progres Pengerjaan $pct%',
+                    description: 'Petugas sedang melakukan penanganan perbaikan di lokasi.',
                     imageUrl: _buildAbsoluteUrl(media.url),
-                    isNew: idx == 0,
+                    isNew: completionMedia.isEmpty && idx == 0,
                   ),
                 );
               }),
             ],
 
-            // Foto awal laporan sebagai item terakhir timeline
+            // 3. Foto awal laporan sebagai item penutup timeline
             if (initialMedia.isNotEmpty) ...[
               ...initialMedia.map((media) {
                 final dt = media.createdAt;
@@ -235,7 +283,7 @@ class _FotoProgressScreenState extends State<FotoProgressScreen> {
                   child: _buildTimelineItem(
                     date: '${_formatDate(dt)} | ${_formatTime(dt)}',
                     progressText: 'Foto Awal Laporan',
-                    description: 'Foto saat laporan pertama kali dibuat',
+                    description: 'Kondisi kerusakan saat laporan pertama kali dibuat.',
                     imageUrl: _buildAbsoluteUrl(media.url),
                     isNew: false,
                   ),
@@ -243,12 +291,12 @@ class _FotoProgressScreenState extends State<FotoProgressScreen> {
               }),
             ],
 
-            // Jika tidak ada media sama sekali, tampilkan foto laporan utama sebagai fallback
-            if (progressMedia.isEmpty && initialMedia.isEmpty && report != null)
+            // Fallback jika tidak ada media di database tapi ada report
+            if (completionMedia.isEmpty && progressMedia.isEmpty && initialMedia.isEmpty && report != null)
               _buildTimelineItem(
                 date: '${_formatDate(report.createdAt)} | ${_formatTime(report.createdAt)}',
                 progressText: 'Foto Awal Laporan',
-                description: 'Foto saat laporan pertama kali dibuat',
+                description: 'Kondisi kerusakan saat laporan pertama kali dibuat.',
                 imageUrl: report.formattedPhotoUrl ??
                     report.photoUrl ??
                     '',

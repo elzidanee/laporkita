@@ -571,6 +571,8 @@ class ReportRepository {
     String reportId, {
     bool isApproved = true,
     String? feedback,
+    double? latitude,
+    double? longitude,
   }) async {
     await _ensureStorageLoaded();
 
@@ -579,6 +581,8 @@ class ReportRepository {
       reportId,
       isValid: isApproved,
       notes: feedback,
+      latitude: latitude,
+      longitude: longitude,
     );
 
     // Setelah API berhasil, hapus override lokal (jika ada) agar data fresh dari backend

@@ -44,6 +44,7 @@ class _ValidasiLaporanScreenState extends State<ValidasiLaporanScreen> {
       129;
 
   String? get _photoUrl =>
+      _reportModel?.completionPhotoUrl ??
       _reportModel?.formattedPhotoUrl ??
       _reportModel?.photoUrl ??
       widget.reportData?['photoUrl'] as String?;
@@ -64,6 +65,8 @@ class _ValidasiLaporanScreenState extends State<ValidasiLaporanScreen> {
 
       if (pickedFile != null && mounted) {
         final forwardData = Map<String, dynamic>.from(widget.reportData ?? {});
+        forwardData['id'] = _reportModel?.id ?? widget.reportData?['id'] ?? widget.reportData?['reportId'];
+        forwardData['reportId'] = _reportModel?.id ?? widget.reportData?['reportId'] ?? widget.reportData?['id'];
         forwardData['imagePath'] = pickedFile.path;
         forwardData['capturedPhotoPath'] = pickedFile.path;
         forwardData['reportCode'] = _reportCode;
@@ -71,6 +74,8 @@ class _ValidasiLaporanScreenState extends State<ValidasiLaporanScreen> {
         forwardData['address'] = _address;
         forwardData['supports'] = _supportCount;
         forwardData['photoUrl'] = _photoUrl;
+        forwardData['latitude'] = _reportModel?.latitude ?? widget.reportData?['latitude'];
+        forwardData['longitude'] = _reportModel?.longitude ?? widget.reportData?['longitude'];
 
         Navigator.pushNamed(
           context,
@@ -94,12 +99,16 @@ class _ValidasiLaporanScreenState extends State<ValidasiLaporanScreen> {
 
   void _handleOpenCamera() {
     final forwardData = Map<String, dynamic>.from(widget.reportData ?? {});
+    forwardData['id'] = _reportModel?.id ?? widget.reportData?['id'] ?? widget.reportData?['reportId'];
+    forwardData['reportId'] = _reportModel?.id ?? widget.reportData?['reportId'] ?? widget.reportData?['id'];
     forwardData['reportCode'] = _reportCode;
     forwardData['title'] = _title;
     forwardData['address'] = _address;
     forwardData['supports'] = _supportCount;
     forwardData['photoUrl'] = _photoUrl;
     forwardData['imagePath'] = _imagePath;
+    forwardData['latitude'] = _reportModel?.latitude ?? widget.reportData?['latitude'];
+    forwardData['longitude'] = _reportModel?.longitude ?? widget.reportData?['longitude'];
 
     Navigator.pushNamed(
       context,
