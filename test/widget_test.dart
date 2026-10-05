@@ -181,5 +181,30 @@ void main() {
       final farPoint = ReportRepository.calculateDistanceMeters(-7.9827, 112.6304, -7.9500, 112.6100);
       expect(farPoint, greaterThan(100.0)); // Tempat berbeda -> TIDAK boleh dianggap duplikat
     });
+
+    test('CategoryModel equality dan hashCode konsisten sesuai ID', () {
+      final cat1 = CategoryModel(
+        id: 'c2000000-0000-4000-8000-000000000002',
+        name: 'Lampu Jalan',
+        isActive: true,
+        createdAt: DateTime.now(),
+      );
+      final cat2 = CategoryModel(
+        id: 'c2000000-0000-4000-8000-000000000002',
+        name: 'Lampu Jalan',
+        isActive: true,
+        createdAt: DateTime.now(),
+      );
+      final cat3 = CategoryModel(
+        id: 'c1000000-0000-4000-8000-000000000001',
+        name: 'Jalan Berlubang',
+        isActive: true,
+        createdAt: DateTime.now(),
+      );
+
+      expect(cat1 == cat2, isTrue);
+      expect(cat1.hashCode == cat2.hashCode, isTrue);
+      expect(cat1 == cat3, isFalse);
+    });
   });
 }

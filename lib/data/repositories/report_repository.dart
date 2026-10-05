@@ -593,6 +593,45 @@ class ReportRepository {
   }) async {
     await _ensureStorageLoaded();
 
+    if (reportId.startsWith('mock-')) {
+      final old = _cachedReports[reportId] ??
+          _submittedReports.firstWhere(
+            (r) => r.id == reportId,
+            orElse: () => _getFallbackMockReports().firstWhere(
+              (r) => r.id == reportId,
+              orElse: () => _getFallbackMockReports().first,
+            ),
+          );
+      final newStatus = isApproved ? ReportStatus.resolved : ReportStatus.disputed;
+      final history = List<ReportStatusHistoryModel>.from(old.statusHistory);
+      history.add(ReportStatusHistoryModel(
+        id: 'hist-${DateTime.now().millisecondsSinceEpoch}',
+        reportId: reportId,
+        targetStatus: newStatus,
+        note: (isApproved
+                ? 'Validasi warga: perbaikan selesai'
+                : 'Validasi warga: perbaikan belum sesuai') +
+            (feedback != null && feedback.isNotEmpty ? ' - $feedback' : ''),
+        createdAt: DateTime.now(),
+      ));
+      final updated = old.copyWith(
+        status: newStatus,
+        statusHistory: history,
+      );
+      _cachedReports[reportId] = updated;
+      _statusOverrides[reportId] = {
+        'status': newStatus.apiValue,
+        'updated_at': DateTime.now().toIso8601String(),
+        'note': feedback,
+      };
+      await _savePersistedState();
+      return {
+        'id': reportId,
+        'status': newStatus.apiValue,
+        'is_approved': isApproved,
+      };
+    }
+
     // Kirim ke API — biarkan exception naik jika gagal agar caller bisa handle
     final result = await _datasource.validateReport(
       reportId,

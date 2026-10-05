@@ -46,8 +46,8 @@ class CategoryModel {
       identical(this, other) ||
       other is CategoryModel &&
           runtimeType == other.runtimeType &&
-          (id == other.id || name == other.name);
+          id == other.id;
 
   @override
-  int get hashCode => id.hashCode ^ name.hashCode;
+  int get hashCode => id.hashCode;
 }

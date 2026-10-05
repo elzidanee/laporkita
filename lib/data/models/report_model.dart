@@ -290,6 +290,9 @@ class ReportModel {
       status: ReportStatus.fromString(json['status']?.toString() ?? ''),
       latitude: double.tryParse(json['latitude']?.toString() ?? '0') ?? 0.0,
       longitude: double.tryParse(json['longitude']?.toString() ?? '0') ?? 0.0,
+      addressText: json['address_text']?.toString() ??
+          json['address']?.toString() ??
+          json['location']?.toString(),
       description: (json['description'] != null && json['description'].toString().trim().isNotEmpty)
           ? json['description'].toString().trim()
           : (json['notes'] != null && json['notes'].toString().trim().isNotEmpty)

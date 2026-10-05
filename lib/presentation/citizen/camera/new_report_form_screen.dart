@@ -19,12 +19,54 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
   CategoryModel? _selectedCategory;
 
   static final List<CategoryModel> _defaultCategories = [
-    CategoryModel(id: 'cat-jalan', name: 'Jalan Rusak', isActive: true, createdAt: DateTime.now()),
-    CategoryModel(id: 'cat-sampah', name: 'Sampah & Kebersihan', isActive: true, createdAt: DateTime.now()),
-    CategoryModel(id: 'cat-banjir', name: 'Banjir & Drainase', isActive: true, createdAt: DateTime.now()),
-    CategoryModel(id: 'cat-lampu', name: 'Penerangan Jalan', isActive: true, createdAt: DateTime.now()),
-    CategoryModel(id: 'cat-fasilitas', name: 'Fasilitas Umum', isActive: true, createdAt: DateTime.now()),
-    CategoryModel(id: 'cat-lain', name: 'Lainnya', isActive: true, createdAt: DateTime.now()),
+    CategoryModel(
+      id: 'c1000000-0000-4000-8000-000000000001',
+      name: 'Jalan Berlubang',
+      isActive: true,
+      createdAt: DateTime.now(),
+    ),
+    CategoryModel(
+      id: 'c2000000-0000-4000-8000-000000000002',
+      name: 'Lampu Jalan',
+      isActive: true,
+      createdAt: DateTime.now(),
+    ),
+    CategoryModel(
+      id: 'c3000000-0000-4000-8000-000000000003',
+      name: 'Rambu Lalu Lintas',
+      isActive: true,
+      createdAt: DateTime.now(),
+    ),
+    CategoryModel(
+      id: 'c4000000-0000-4000-8000-000000000004',
+      name: 'Trotoar',
+      isActive: true,
+      createdAt: DateTime.now(),
+    ),
+    CategoryModel(
+      id: 'c5000000-0000-4000-8000-000000000005',
+      name: 'Drainase',
+      isActive: true,
+      createdAt: DateTime.now(),
+    ),
+    CategoryModel(
+      id: 'cat-sampah',
+      name: 'Sampah & Kebersihan',
+      isActive: true,
+      createdAt: DateTime.now(),
+    ),
+    CategoryModel(
+      id: 'cat-fasilitas',
+      name: 'Fasilitas Umum',
+      isActive: true,
+      createdAt: DateTime.now(),
+    ),
+    CategoryModel(
+      id: 'cat-lain',
+      name: 'Lainnya',
+      isActive: true,
+      createdAt: DateTime.now(),
+    ),
   ];
 
   static CategoryModel _matchCategory(
@@ -42,71 +84,110 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
       }
     }
 
-    // 2. Keyword mapping
-    if (lower.contains('jalan') ||
-        lower.contains('lubang') ||
-        lower.contains('berlubang') ||
-        lower.contains('pothole') ||
-        lower.contains('aspal') ||
-        lower.contains('trotoar')) {
-      return categories.firstWhere(
-        (c) => c.name.toLowerCase().contains('jalan') || c.id.contains('jalan'),
-        orElse: () => categories.first,
+    // 2. Specific checks FIRST (urutan prioritas agar kategori spesifik tidak tertelan oleh kata "jalan")
+    // Lampu / Penerangan Jalan
+    if (lower.contains('lampu') ||
+        lower.contains('penerangan') ||
+        lower.contains('street_light') ||
+        lower.contains('light')) {
+      final match = categories.where(
+        (c) =>
+            c.name.toLowerCase().contains('lampu') ||
+            c.name.toLowerCase().contains('penerangan') ||
+            c.id.contains('lampu'),
       );
+      if (match.isNotEmpty) return match.first;
     }
 
+    // Rambu Lalu Lintas
+    if (lower.contains('rambu') ||
+        lower.contains('traffic') ||
+        lower.contains('sign') ||
+        lower.contains('marka')) {
+      final match = categories.where(
+        (c) =>
+            c.name.toLowerCase().contains('rambu') ||
+            c.name.toLowerCase().contains('traffic') ||
+            c.id.contains('rambu'),
+      );
+      if (match.isNotEmpty) return match.first;
+    }
+
+    // Trotoar / Jalur Pejalan Kaki
+    if (lower.contains('trotoar') ||
+        lower.contains('sidewalk') ||
+        lower.contains('pedestrian')) {
+      final match = categories.where(
+        (c) =>
+            c.name.toLowerCase().contains('trotoar') ||
+            c.id.contains('trotoar'),
+      );
+      if (match.isNotEmpty) return match.first;
+    }
+
+    // Drainase / Banjir / Got / Saluran Air
+    if (lower.contains('drainase') ||
+        lower.contains('banjir') ||
+        lower.contains('genangan') ||
+        lower.contains('got') ||
+        lower.contains('saluran') ||
+        lower.contains('sungai') ||
+        lower.contains('flood')) {
+      final match = categories.where(
+        (c) =>
+            c.name.toLowerCase().contains('drainase') ||
+            c.name.toLowerCase().contains('banjir') ||
+            c.id.contains('drainase') ||
+            c.id.contains('banjir'),
+      );
+      if (match.isNotEmpty) return match.first;
+    }
+
+    // Sampah & Kebersihan
     if (lower.contains('sampah') ||
         lower.contains('bersih') ||
         lower.contains('limbah') ||
         lower.contains('kotor') ||
         lower.contains('waste') ||
         lower.contains('garbage')) {
-      return categories.firstWhere(
-        (c) => c.name.toLowerCase().contains('sampah') || c.id.contains('sampah'),
-        orElse: () => categories.first,
-      );
-    }
-
-    if (lower.contains('banjir') ||
-        lower.contains('drainase') ||
-        lower.contains('genangan') ||
-        lower.contains('got') ||
-        lower.contains('sungai') ||
-        lower.contains('flood')) {
-      return categories.firstWhere(
+      final match = categories.where(
         (c) =>
-            c.name.toLowerCase().contains('banjir') ||
-            c.name.toLowerCase().contains('drainase') ||
-            c.id.contains('banjir'),
-        orElse: () => categories.first,
+            c.name.toLowerCase().contains('sampah') ||
+            c.name.toLowerCase().contains('kebersihan') ||
+            c.id.contains('sampah'),
       );
+      if (match.isNotEmpty) return match.first;
     }
 
-    if (lower.contains('lampu') ||
-        lower.contains('penerangan') ||
-        lower.contains('listrik') ||
-        lower.contains('gelap') ||
-        lower.contains('light')) {
-      return categories.firstWhere(
+    // Jalan Berlubang / Aspal / Kerusakan Jalan (hanya dicek jika bukan lampu/rambu/trotoar)
+    if (lower.contains('jalan') ||
+        lower.contains('lubang') ||
+        lower.contains('berlubang') ||
+        lower.contains('pothole') ||
+        lower.contains('aspal') ||
+        lower.contains('rusak')) {
+      final match = categories.where(
         (c) =>
-            c.name.toLowerCase().contains('lampu') ||
-            c.name.toLowerCase().contains('penerangan') ||
-            c.id.contains('lampu'),
-        orElse: () => categories.first,
+            c.name.toLowerCase().contains('jalan') ||
+            c.name.toLowerCase().contains('lubang') ||
+            c.id.contains('jalan') ||
+            c.id.contains('lubang'),
       );
+      if (match.isNotEmpty) return match.first;
     }
 
+    // Fasilitas Umum
     if (lower.contains('fasilitas') ||
         lower.contains('taman') ||
         lower.contains('halte') ||
         lower.contains('jembatan') ||
         lower.contains('bangunan')) {
-      return categories.firstWhere(
+      final match = categories.where(
         (c) =>
             c.name.toLowerCase().contains('fasilitas') ||
             c.id.contains('fasilitas'),
-        orElse: () => categories.first,
       );
+      if (match.isNotEmpty) return match.first;
     }
 
     // 3. Partial substring match
@@ -125,25 +206,49 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
     final clean = raw.trim();
     final lower = clean.toLowerCase();
 
-    if (lower == 'jalan_rusak' || lower == 'pothole' || lower == 'jalan' || lower == 'jalan berlubang') {
-      return 'Jalan Rusak';
+    if (lower == 'jalan_berlubang' ||
+        lower == 'pothole' ||
+        lower == 'jalan berlubang' ||
+        lower == 'jalan rusak' ||
+        lower == 'jalan_rusak' ||
+        lower == 'jalan') {
+      return 'Jalan Berlubang';
     }
     if (lower == 'trotoar_rusak' || lower == 'trotoar' || lower == 'sidewalk') {
-      return 'Trotoar Rusak';
+      return 'Trotoar';
     }
-    if (lower == 'drainase' || lower == 'banjir' || lower == 'drainage' || lower == 'got' || lower == 'genangan' || lower == 'banjir & drainase') {
-      return 'Banjir & Drainase';
+    if (lower == 'drainase' ||
+        lower == 'banjir' ||
+        lower == 'drainage' ||
+        lower == 'got' ||
+        lower == 'genangan' ||
+        lower == 'banjir & drainase') {
+      return 'Drainase';
     }
-    if (lower == 'lampu_jalan' || lower == 'lampu' || lower == 'penerangan' || lower == 'street_light' || lower == 'penerangan jalan') {
-      return 'Penerangan Jalan';
+    if (lower == 'lampu_jalan' ||
+        lower == 'lampu' ||
+        lower == 'penerangan' ||
+        lower == 'street_light' ||
+        lower == 'penerangan jalan' ||
+        lower == 'lampu jalan') {
+      return 'Lampu Jalan';
     }
-    if (lower == 'rambu_lalu_lintas' || lower == 'rambu' || lower == 'traffic_sign') {
+    if (lower == 'rambu_lalu_lintas' ||
+        lower == 'rambu' ||
+        lower == 'traffic_sign' ||
+        lower == 'rambu lalu lintas') {
       return 'Rambu Lalu Lintas';
     }
-    if (lower == 'sampah' || lower == 'kebersihan' || lower == 'waste' || lower == 'garbage' || lower == 'sampah & kebersihan') {
+    if (lower == 'sampah' ||
+        lower == 'kebersihan' ||
+        lower == 'waste' ||
+        lower == 'garbage' ||
+        lower == 'sampah & kebersihan') {
       return 'Sampah & Kebersihan';
     }
-    if (lower == 'fasilitas' || lower == 'fasilitas_umum') {
+    if (lower == 'fasilitas' ||
+        lower == 'fasilitas_umum' ||
+        lower == 'fasilitas umum') {
       return 'Fasilitas Umum';
     }
 
@@ -259,22 +364,25 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
       } else {
         _selectedCategory = categories.first;
       }
-    } else if (_selectedCategory != null &&
-        !categories.contains(_selectedCategory)) {
-      _selectedCategory = categories.firstWhere(
+    } else if (_selectedCategory != null && categories.isNotEmpty) {
+      final matching = categories.where(
         (c) =>
             c.id == _selectedCategory!.id ||
             c.name.toLowerCase() == _selectedCategory!.name.toLowerCase(),
-        orElse: () => categories.first,
       );
+      if (matching.isNotEmpty) {
+        _selectedCategory = matching.first;
+      }
     }
 
-    // Judul rekomendasi AI: sesuaikan dengan kategori yang direkomendasikan AI, bukan default jalan rusak
-    final String aiCategoryHeaderTitle = hasAiCategory
-        ? (formattedAiCat.isNotEmpty
+    // Judul di atas card (di bawah teks "Kategori AI" / "Kategori Laporan"):
+    // Harus secara dinamis menyesuaikan dengan kategori yang aktif pada form pengaduan.
+    // Jika ada rekomendasi AI, awal dibuka akan menampilkan kategori AI tersebut.
+    // Jika warga mengubah dropdown kategori, judul di header card langsung ikut berganti.
+    final String displayCategoryTitle = _selectedCategory?.name ??
+        (formattedAiCat.isNotEmpty
             ? formattedAiCat
-            : (_selectedCategory?.name ?? 'Kategori Terdeteksi'))
-        : (_selectedCategory?.name ?? (categories.isNotEmpty ? categories.first.name : 'Pilih Kategori'));
+            : (categories.isNotEmpty ? categories.first.name : 'Pilih Kategori'));
 
     // Inisialisasi catatan pelapor dari arguments/AI auto-description bila masih kosong
     final String? incomingNotes = (args?['notes'] as String?) ??
@@ -388,7 +496,8 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
                         _buildTopHeaderCard(
                           imagePath: imagePath,
                           aiResult: aiResult,
-                          aiCategoryTitle: aiCategoryHeaderTitle,
+                          aiCategoryTitle: displayCategoryTitle,
+                          hasAiRecommendation: hasAiCategory,
                         ),
                         const SizedBox(height: 16),
 
@@ -450,28 +559,13 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
                               categories = catState.categories;
                             }
 
-                            final bool hasAiCategory = aiCategoryStr != null &&
-                                aiCategoryStr.isNotEmpty &&
-                                aiCategoryStr != 'Tidak Terdeteksi';
-
-                            if (_selectedCategory == null &&
-                                categories.isNotEmpty) {
-                              if (hasAiCategory) {
-                                _selectedCategory =
-                                    _matchCategory(aiCategoryStr, categories);
-                              } else {
-                                _selectedCategory = categories.first;
-                              }
-                            } else if (_selectedCategory != null &&
-                                !categories.contains(_selectedCategory)) {
-                              _selectedCategory = categories.firstWhere(
-                                (c) =>
-                                    c.id == _selectedCategory!.id ||
-                                    c.name.toLowerCase() ==
-                                        _selectedCategory!.name.toLowerCase(),
-                                orElse: () => categories.first,
-                              );
-                            }
+                            final CategoryModel? dropdownValue =
+                                (_selectedCategory != null &&
+                                        categories.contains(_selectedCategory))
+                                    ? _selectedCategory
+                                    : (categories.isNotEmpty
+                                        ? categories.first
+                                        : null);
 
                             return Container(
                               padding: const EdgeInsets.all(14),
@@ -554,7 +648,7 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
                                               : DropdownButtonHideUnderline(
                                                   child: DropdownButton<
                                                       CategoryModel>(
-                                                    value: _selectedCategory,
+                                                    value: dropdownValue,
                                                     isExpanded: true,
                                                     icon: const Icon(Icons
                                                         .keyboard_arrow_down_rounded),
@@ -743,6 +837,7 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
     required String? imagePath,
     required AiVerificationResult? aiResult,
     required String aiCategoryTitle,
+    required bool hasAiRecommendation,
   }) {
     return Container(
       padding: const EdgeInsets.all(12),
@@ -808,9 +903,9 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Kategori AI',
-                  style: TextStyle(
+                Text(
+                  hasAiRecommendation ? 'Kategori AI' : 'Kategori Laporan',
+                  style: const TextStyle(
                     fontSize: 13,
                     color: AppColors.neutral900,
                   ),

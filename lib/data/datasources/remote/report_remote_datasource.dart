@@ -93,10 +93,7 @@ class ReportRemoteDatasource {
       'latitude': latitude,
       'longitude': longitude,
       if (addressText case final addr?) 'address_text': addr,
-      if (description case final desc?) ...{
-        'description': desc,
-        'notes': desc,
-      },
+      if (description case final desc?) 'description': desc,
       // STATUS: FIXED — idempotency_key TIDAK dikirim sebagai body,
       // melainkan sebagai header x-idempotency-key (sesuai Swagger spec)
     };
