@@ -290,8 +290,13 @@ class ReportModel {
       status: ReportStatus.fromString(json['status']?.toString() ?? ''),
       latitude: double.tryParse(json['latitude']?.toString() ?? '0') ?? 0.0,
       longitude: double.tryParse(json['longitude']?.toString() ?? '0') ?? 0.0,
-      addressText: json['address_text']?.toString(),
-      description: json['description']?.toString(),
+      description: (json['description']?.toString()?.isNotEmpty == true)
+          ? json['description'].toString()
+          : (json['notes']?.toString()?.isNotEmpty == true)
+              ? json['notes'].toString()
+              : (json['note']?.toString()?.isNotEmpty == true)
+                  ? json['note'].toString()
+                  : json['catatan']?.toString(),
       directPhotoUrl: serverPhotoUrl,
       supportCount: json['support_count'] is int
           ? json['support_count'] as int
