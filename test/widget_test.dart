@@ -161,5 +161,25 @@ void main() {
       expect(ReportStatus.fromString('completed'), equals(ReportStatus.completed));
       expect(ReportStatus.fromString('invalid_status'), equals(ReportStatus.pendingVerification));
     });
+
+    test('ReportRepository.calculateDistanceMeters mengidentifikasi jarak koordinat dengan tepat', () {
+      // Koordinat invalid / kosong harus menghasilkan jarak sangat besar (bukan duplikat)
+      expect(ReportRepository.calculateDistanceMeters(0.0, 0.0, -7.9827, 112.6304), equals(999999.0));
+      expect(ReportRepository.calculateDistanceMeters(-7.9827, 112.6304, 0.0, 0.0), equals(999999.0));
+
+      // Titik yang sama harus berjarak 0 meter
+      final samePoint = ReportRepository.calculateDistanceMeters(-7.9827, 112.6304, -7.9827, 112.6304);
+      expect(samePoint, closeTo(0.0, 0.1));
+
+      // Titik berdekatan (~25 meter)
+      final nearbyPoint = ReportRepository.calculateDistanceMeters(-7.98270, 112.63040, -7.98285, 112.63040);
+      expect(nearbyPoint, lessThan(30.0));
+      expect(nearbyPoint <= 100.0, isTrue); // Masuk batas duplikat (<= 100m)
+
+      // Titik berbeda tempat / jalan lain (> 500 meter atau kiloan meter)
+      // Misal: Sawojajar ke Alun-Alun Malang (~3.5 km)
+      final farPoint = ReportRepository.calculateDistanceMeters(-7.9827, 112.6304, -7.9500, 112.6100);
+      expect(farPoint, greaterThan(100.0)); // Tempat berbeda -> TIDAK boleh dianggap duplikat
+    });
   });
 }

@@ -1592,28 +1592,83 @@ class _AdminVerificationActionScreenState
 
       final candidates = all.where((r) {
         if (r.id == widget.report.id) return false;
-        final sameCat = r.categoryId == widget.report.categoryId ||
-            r.categoryName.toLowerCase() == _selectedCategory.toLowerCase();
+        // Hanya bandingkan dengan laporan aktif yang belum selesai atau ditolak
+        if (r.status == ReportStatus.rejected ||
+            r.status == ReportStatus.completed ||
+            r.status == ReportStatus.resolved) {
+          return false;
+        }
+
+        // Koordinat kedua laporan HARUS valid (tidak boleh 0.0)
+        if (widget.report.latitude == 0.0 ||
+            widget.report.longitude == 0.0 ||
+            r.latitude == 0.0 ||
+            r.longitude == 0.0) {
+          return false;
+        }
+
+        // Hitung jarak geografis riil dalam meter
         final distanceMeters = _calcDistanceMeters(
           widget.report.latitude,
           widget.report.longitude,
           r.latitude,
           r.longitude,
         );
-        final nearby = distanceMeters <= 1500;
-        return sameCat || nearby;
+
+        // JIKA TEMPAT/KOORDINAT BERBEDA (> 100 meter), JANGAN dimasukkan ke laporan duplikat!
+        if (distanceMeters > 100.0) {
+          return false;
+        }
+
+        // Kategori HARUS sama atau serupa
+        final targetCat = _selectedCategory.isNotEmpty
+            ? _selectedCategory.toLowerCase()
+            : widget.report.categoryName.toLowerCase();
+        final rCat = r.categoryName.toLowerCase();
+        final sameCat = (widget.report.categoryId.isNotEmpty &&
+                r.categoryId.isNotEmpty &&
+                r.categoryId == widget.report.categoryId) ||
+            (targetCat.isNotEmpty &&
+                (rCat == targetCat ||
+                    rCat.contains(targetCat) ||
+                    targetCat.contains(rCat)));
+
+        if (!sameCat) return false;
+
+        // Kedua syarat terpenuhi: kategori sama DAN lokasi sangat berdekatan (<= 100m)
+        return true;
       }).toList();
 
       setState(() => _isProcessing = false);
 
-      // Check if user manually checked duplicate OR candidate duplicates exist
-      final hasSimilarity = _manualIsDuplicate ||
-          candidates.isNotEmpty ||
-          widget.report.needsManualReview ||
-          (widget.report.rawAiConfidenceScore != null &&
-              widget.report.rawAiConfidenceScore! >= 0.85);
+      // Deteksi duplikat HANYA dibuka jika:
+      // 1. Admin secara manual mencentang checkbox "Laporan duplikat" (_manualIsDuplicate), ATAU
+      // 2. Benar-benar ada kandidat duplikat nyata dengan kategori sama dan lokasi sangat berdekatan (candidates.isNotEmpty).
+      // JANGAN PERNAH membuka layar duplikat hanya karena skor AI tinggi atau needsManualReview!
+      final hasSimilarity = _manualIsDuplicate || candidates.isNotEmpty;
 
       if (hasSimilarity && mounted) {
+        double calculatedSimilarity = 80.0;
+        if (_manualIsDuplicate && candidates.isEmpty) {
+          calculatedSimilarity = 92.0;
+        } else if (candidates.isNotEmpty) {
+          final closestDist = candidates
+              .map((c) => _calcDistanceMeters(
+                    widget.report.latitude,
+                    widget.report.longitude,
+                    c.latitude,
+                    c.longitude,
+                  ))
+              .reduce(math.min);
+          if (closestDist <= 20) {
+            calculatedSimilarity = 95.0;
+          } else if (closestDist <= 50) {
+            calculatedSimilarity = 88.0;
+          } else {
+            calculatedSimilarity = 78.0;
+          }
+        }
+
         // Navigate to Deteksi Kesamaan (Figma Node 555:608)
         final result = await Navigator.push<ReportModel>(
           context,
@@ -1624,7 +1679,7 @@ class _AdminVerificationActionScreenState
                 directPriority: _selectedPriority,
               ),
               similarReports: candidates.take(3).toList(),
-              similarityPercentage: _manualIsDuplicate ? 92.0 : 85.0,
+              similarityPercentage: calculatedSimilarity,
             ),
           ),
         );

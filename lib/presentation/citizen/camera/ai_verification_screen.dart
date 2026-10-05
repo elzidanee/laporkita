@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/datasources/remote/ai_service_datasource.dart';
 import '../../../data/models/ai_verification_model.dart';
+import '../../../data/models/report_model.dart';
 import '../../../data/repositories/report_repository.dart';
 
 class AiVerificationScreen extends StatefulWidget {
@@ -105,8 +106,8 @@ class _AiVerificationScreenState extends State<AiVerificationScreen>
     if (_isChecking) return;
     setState(() => _isChecking = true);
 
-    double lat = -7.9827;
-    double lng = 112.6304;
+    double lat = 0.0;
+    double lng = 0.0;
     final String? coordinates = args?['coordinates'];
     if (coordinates != null && coordinates.contains(',')) {
       try {
@@ -120,10 +121,22 @@ class _AiVerificationScreenState extends State<AiVerificationScreen>
 
     try {
       final repository = context.read<ReportRepository>();
-      final similarReports = await repository.checkSimilarReports(
-        latitude: lat,
-        longitude: lng,
-      );
+      final detectedCategory = _verificationResult?.detectedCategory ??
+          (args?['detectedCategory'] as String?) ??
+          (args?['claimedCategory'] as String?) ??
+          (args?['categoryName'] as String?) ??
+          (args?['category'] as String?);
+
+      // Hanya periksa potensi laporan serupa jika koordinat GPS valid
+      List<ReportModel> similarReports = [];
+      if (lat != 0.0 && lng != 0.0) {
+        similarReports = await repository.checkSimilarReports(
+          latitude: lat,
+          longitude: lng,
+          categoryName: detectedCategory,
+          maxDistanceMeters: 100.0,
+        );
+      }
       if (!mounted) return;
       if (similarReports.isNotEmpty) {
         Navigator.pushNamed(

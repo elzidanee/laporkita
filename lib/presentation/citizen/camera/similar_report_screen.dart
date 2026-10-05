@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/report_model.dart';
+import '../../../data/repositories/report_repository.dart';
 
 class SimilarReportScreen extends StatelessWidget {
   const SimilarReportScreen({super.key});
@@ -24,6 +25,7 @@ class SimilarReportScreen extends StatelessWidget {
     String supportsText = '0 Dukungan';
     String statusText = 'Menunggu Verifikasi';
     String? photoUrl;
+    double similarityPercent = 88.0;
 
     if (similarReports != null && similarReports.isNotEmpty) {
       final report = similarReports.first;
@@ -34,6 +36,30 @@ class SimilarReportScreen extends StatelessWidget {
       supportsText = '${report.supportCount} Dukungan';
       statusText = report.status.displayName;
       photoUrl = report.formattedPhotoUrl ?? report.photoUrl;
+
+      final coords = args?['coordinates'] as String?;
+      if (coords != null && coords.contains(',')) {
+        try {
+          final parts = coords.split(',');
+          final uLat = double.parse(parts[0].trim());
+          final uLng = double.parse(parts[1].trim());
+          if (uLat != 0 && uLng != 0 && report.latitude != 0 && report.longitude != 0) {
+            final dist = ReportRepository.calculateDistanceMeters(
+              uLat,
+              uLng,
+              report.latitude,
+              report.longitude,
+            );
+            if (dist <= 20) {
+              similarityPercent = 95.0;
+            } else if (dist <= 50) {
+              similarityPercent = 88.0;
+            } else {
+              similarityPercent = 78.0;
+            }
+          }
+        } catch (_) {}
+      }
     }
 
     // Mengutamakan foto terbaru yang baru saja diambil/diinputkan oleh user
@@ -325,8 +351,8 @@ class SimilarReportScreen extends StatelessWidget {
                         children: [
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: const [
-                              Text(
+                            children: [
+                              const Text(
                                 'Tingkat kesamaan',
                                 style: TextStyle(
                                   fontSize: 15,
@@ -335,8 +361,8 @@ class SimilarReportScreen extends StatelessWidget {
                                 ),
                               ),
                               Text(
-                                '90%',
-                                style: TextStyle(
+                                '${similarityPercent.round()}%',
+                                style: const TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.bold,
                                   color: AppColors.statusWarning,
@@ -347,8 +373,8 @@ class SimilarReportScreen extends StatelessWidget {
                           const SizedBox(height: 10),
                           ClipRRect(
                             borderRadius: BorderRadius.circular(6),
-                            child: const LinearProgressIndicator(
-                              value: 0.90,
+                            child: LinearProgressIndicator(
+                              value: (similarityPercent / 100.0).clamp(0.0, 1.0),
                               minHeight: 8,
                               backgroundColor: AppColors.neutral100,
                               color: AppColors.statusWarning,
@@ -379,7 +405,10 @@ class SimilarReportScreen extends StatelessWidget {
                   Navigator.pushNamed(
                     context,
                     '/report-confirmation',
-                    arguments: args,
+                    arguments: {
+                      if (args != null) ...args,
+                      'similarityPercentage': similarityPercent,
+                    },
                   );
                 },
                 style: ElevatedButton.styleFrom(

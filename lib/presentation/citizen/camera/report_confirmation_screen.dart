@@ -51,6 +51,11 @@ class _ReportConfirmationScreenState extends State<ReportConfirmationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final args =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    final double similarityPercent =
+        (args?['similarityPercentage'] as num?)?.toDouble() ?? 88.0;
+
     return Scaffold(
       backgroundColor: AppColors.white,
       appBar: AppBar(
@@ -130,8 +135,8 @@ class _ReportConfirmationScreenState extends State<ReportConfirmationScreen> {
                         children: [
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: const [
-                              Text(
+                            children: [
+                              const Text(
                                 'Tingkat kesamaan',
                                 style: TextStyle(
                                   fontSize: 15,
@@ -140,8 +145,8 @@ class _ReportConfirmationScreenState extends State<ReportConfirmationScreen> {
                                 ),
                               ),
                               Text(
-                                '90%',
-                                style: TextStyle(
+                                '${similarityPercent.round()}%',
+                                style: const TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.bold,
                                   color: AppColors.greenPrimary,
@@ -152,8 +157,8 @@ class _ReportConfirmationScreenState extends State<ReportConfirmationScreen> {
                           const SizedBox(height: 10),
                           ClipRRect(
                             borderRadius: BorderRadius.circular(6),
-                            child: const LinearProgressIndicator(
-                              value: 0.90,
+                            child: LinearProgressIndicator(
+                              value: (similarityPercent / 100.0).clamp(0.0, 1.0),
                               minHeight: 8,
                               backgroundColor: AppColors.neutral100,
                               color: AppColors.greenPrimary,

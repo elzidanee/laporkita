@@ -90,15 +90,34 @@ class _AdminDuplicateDetectionScreenState
                           const SizedBox(height: 14),
                       ],
                     ] else ...[
-                      // Fallback candidate card representing the detected similarity
-                      _buildComparisonCard(
-                        report: widget.currentReport.copyWith(
-                          reportCode: widget.currentReport.reportCode.isNotEmpty
-                              ? '${widget.currentReport.reportCode}_DUP'
-                              : '#LP_2026_0027391',
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8F9FA),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFE0DFDF)),
                         ),
-                        badgeText: '180m',
-                        isHighlight: false,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(
+                              Icons.info_outline_rounded,
+                              color: Color(0xFF64748B),
+                              size: 20,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Tidak ditemukan laporan lain dengan koordinat dan kategori yang berdekatan. Laporan ini ditandai sebagai indikasi duplikat secara manual oleh verifikator.',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  color: const Color(0xFF64748B),
+                                  fontWeight: FontWeight.w400,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
 
@@ -588,7 +607,9 @@ class _AdminDuplicateDetectionScreenState
   }
 
   String _calculateDistanceText(ReportModel a, ReportModel b) {
-    if (a.latitude == 0 || b.latitude == 0) return '180m';
+    if (a.latitude == 0 || b.latitude == 0 || a.longitude == 0 || b.longitude == 0) {
+      return '-';
+    }
     const p = 0.017453292519943295;
     final c = 0.5 -
         math.cos((b.latitude - a.latitude) * p) / 2 +

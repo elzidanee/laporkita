@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../core/network/api_response.dart';
@@ -765,22 +766,100 @@ class ReportRepository {
     return finalReport;
   }
 
+  /// Hitung jarak geografis akurat antar dua pasang koordinat dalam meter (Haversine formula).
+  static double calculateDistanceMeters(
+    double lat1,
+    double lon1,
+    double lat2,
+    double lon2,
+  ) {
+    if (lat1 == 0.0 || lat2 == 0.0 || lon1 == 0.0 || lon2 == 0.0) {
+      return 999999.0;
+    }
+    const p = 0.017453292519943295; // pi / 180
+    final c = 0.5 -
+        math.cos((lat2 - lat1) * p) / 2 +
+        math.cos(lat1 * p) *
+            math.cos(lat2 * p) *
+            (1 - math.cos((lon2 - lon1) * p)) /
+            2;
+    return 12742000 * math.asin(math.sqrt(c));
+  }
+
   /// Check whether there are nearby/similar active reports at lat/lng
+  /// Hanya dianggap laporan duplikat jika:
+  /// 1. Koordinat valid (tidak bernilai 0.0)
+  /// 2. Jarak geografis sangat dekat (maksimal maxDistanceMeters, default 100 meter)
+  /// 3. Kategori kerusakan sama atau beririsan erat
+  /// 4. Status laporan masih aktif (bukan ditolak atau sudah selesai)
   Future<List<ReportModel>> checkSimilarReports({
     required double latitude,
     required double longitude,
-    double radiusDegree = 0.005,
+    double maxDistanceMeters = 100.0,
+    String? categoryId,
+    String? categoryName,
+    String? excludeReportId,
   }) async {
+    // Jika koordinat tidak valid (0.0), jangan pernah masukkan ke laporan duplikat
+    if (latitude == 0.0 || longitude == 0.0) {
+      return [];
+    }
+
     try {
-      final response = await _datasource.getReports(
-        minLat: latitude - radiusDegree,
-        maxLat: latitude + radiusDegree,
-        minLng: longitude - radiusDegree,
-        maxLng: longitude + radiusDegree,
-        limit: 5,
-      );
-      return response.data ?? [];
-    } catch (_) {
+      final response = await getReports(limit: 50);
+      final all = response.data ?? [];
+
+      return all.where((r) {
+        if (excludeReportId != null && r.id == excludeReportId) return false;
+
+        // Jangan masukkan laporan yang sudah ditolak atau sudah selesai diperbaiki
+        if (r.status == ReportStatus.rejected ||
+            r.status == ReportStatus.completed ||
+            r.status == ReportStatus.resolved) {
+          return false;
+        }
+
+        // Koordinat pembanding harus valid
+        if (r.latitude == 0.0 || r.longitude == 0.0) return false;
+
+        // Hitung jarak geografis riil
+        final distanceMeters = calculateDistanceMeters(
+          latitude,
+          longitude,
+          r.latitude,
+          r.longitude,
+        );
+
+        // Jika tempatnya berbeda / koordinatnya berbeda (> maxDistanceMeters), BUKAN DUPLIKAT!
+        if (distanceMeters > maxDistanceMeters) {
+          return false;
+        }
+
+        // Validasi kesesuaian kategori jika disediakan
+        if (categoryId != null && categoryId.isNotEmpty && r.categoryId.isNotEmpty) {
+          if (r.categoryId != categoryId) {
+            if (categoryName != null && categoryName.isNotEmpty && r.categoryName.isNotEmpty) {
+              final cat1 = categoryName.toLowerCase();
+              final cat2 = r.categoryName.toLowerCase();
+              if (cat1 != cat2 && !cat1.contains(cat2) && !cat2.contains(cat1)) {
+                return false;
+              }
+            } else {
+              return false;
+            }
+          }
+        } else if (categoryName != null && categoryName.isNotEmpty && r.categoryName.isNotEmpty) {
+          final cat1 = categoryName.toLowerCase();
+          final cat2 = r.categoryName.toLowerCase();
+          if (cat1 != cat2 && !cat1.contains(cat2) && !cat2.contains(cat1)) {
+            return false;
+          }
+        }
+
+        return true;
+      }).toList();
+    } catch (e) {
+      debugPrint('⚠️ [ReportRepository] checkSimilarReports error: $e');
       return [];
     }
   }
