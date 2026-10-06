@@ -173,6 +173,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                                   const SizedBox(height: 8),
                                   TextFormField(
+                                    key: const Key('login_identifier_field'),
                                     controller: _identifierController,
                                     decoration: InputDecoration(
                                       hintText: 'Masukan email atau nomor HP',
@@ -226,6 +227,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                                   const SizedBox(height: 8),
                                   TextFormField(
+                                    key: const Key('login_password_field'),
                                     controller: _passwordController,
                                     obscureText: _isPasswordObscured,
                                     decoration: InputDecoration(
@@ -316,6 +318,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                                   // Login Primary Button
                                   ElevatedButton(
+                                    key: const Key('login_submit_button'),
                                     onPressed: isLoading ? null : _handleLogin,
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: AppColors.greenPrimary,
