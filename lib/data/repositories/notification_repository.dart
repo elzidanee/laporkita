@@ -54,6 +54,7 @@ class NotificationRepository {
   }
 
   /// Menambahkan notifikasi otomatis saat ada perubahan status dan memicu push notification di HP
+  /// Dilengkapi Deduplication Guard agar notifikasi tidak pernah ganda/ke double
   Future<void> addStatusUpdateNotification({
     required String reportCode,
     required ReportStatus newStatus,
@@ -61,46 +62,94 @@ class NotificationRepository {
     String? reportId,
   }) async {
     await _ensureStorageLoaded();
+    final cleanCode = reportCode.replaceAll('#', '').toLowerCase().trim();
+    final statusType = newStatus.name;
+
     String title = 'Pembaruan Status Laporan';
     String message = 'Status laporan #$reportCode telah diperbarui.';
-    String type = newStatus.name;
+    String type = statusType;
 
     switch (newStatus) {
+      case ReportStatus.pendingVerification:
+        title = 'Laporan Berhasil Terkirim';
+        message = 'Laporan #$reportCode telah diterima dan sedang menunggu verifikasi.';
+        break;
       case ReportStatus.verified:
         title = 'Laporan Anda Diverifikasi';
         message = 'Laporan #$reportCode telah diverifikasi oleh petugas.';
         break;
       case ReportStatus.assigned:
         title = 'Laporan Ditugaskan';
-        message = 'Laporan #$reportCode telah ditugaskan ke tim dinas terkait.';
+        message = 'Laporan #$reportCode telah ditugaskan ke dinas terkait.';
         break;
       case ReportStatus.inProgress:
         title = 'Perbaikan Dimulai';
         message = 'Laporan #$reportCode sedang dikerjakan oleh petugas di lokasi.';
         break;
       case ReportStatus.completed:
-      case ReportStatus.resolved:
         title = 'Perbaikan Selesai';
-        message = 'Laporan #$reportCode telah selesai diperbaiki. Silakan cek dan beri validasi.';
+        message = 'Laporan #$reportCode telah selesai dikerjakan. Silakan berikan validasi Anda.';
+        break;
+      case ReportStatus.resolved:
+        title = 'Laporan Terselesaikan';
+        message = 'Perbaikan laporan #$reportCode telah divalidasi dan dinyatakan tuntas.';
         break;
       case ReportStatus.rejected:
-        title = 'Laporan Ditolak / Dibatalkan';
+        title = 'Laporan Ditolak';
         message = note != null && note.isNotEmpty
-            ? 'Catatan petugas pada laporan #$reportCode: $note'
+            ? 'Laporan #$reportCode ditolak: $note'
             : 'Laporan #$reportCode tidak dapat diproses lebih lanjut.';
         break;
       case ReportStatus.disputed:
         title = 'Hasil Perbaikan Belum Sesuai';
         message = note != null && note.isNotEmpty
-            ? 'Catatan pada laporan #$reportCode: $note'
-            : 'Hasil perbaikan laporan #$reportCode memerlukan peninjauan ulang.';
-        break;
-      default:
+            ? 'Catatan validasi pada laporan #$reportCode: $note'
+            : 'Hasil perbaikan laporan #$reportCode memerlukan peninjauan ulang petugas.';
         break;
     }
 
+    final now = DateTime.now();
+
+    // ── DEDUPLICATION GUARD ──────────────────────────────────────────────
+    // Cek apakah notifikasi untuk status yang sama pada laporan ini sudah ada baru-baru ini (< 10 menit).
+    final existingIdx = _inMemoryNotifications.indexWhere((n) {
+      final nCode = (n.reportCode ?? '').replaceAll('#', '').toLowerCase().trim();
+      final nId = (n.reportId ?? '').toLowerCase().trim();
+      final isCodeMatch = (nCode.isNotEmpty && nCode == cleanCode) ||
+          (reportId != null && reportId.isNotEmpty && nId == reportId.toLowerCase().trim());
+      final isTypeMatch = n.type == statusType || n.type == newStatus.apiValue;
+      return isCodeMatch && isTypeMatch;
+    });
+
+    if (existingIdx != -1) {
+      final existing = _inMemoryNotifications[existingIdx];
+      final age = now.difference(existing.createdAt);
+      if (age.inMinutes < 10) {
+        debugPrint('🛡️ [NotificationRepository] Duplicate status notification suppressed for $reportCode ($statusType)');
+        // Jika ada pesan baru, update data existing tanpa menambah baris duplikat
+        if (note != null && note.isNotEmpty) {
+          _inMemoryNotifications[existingIdx] = NotificationModel(
+            id: existing.id,
+            userId: existing.userId,
+            title: title,
+            message: message,
+            isRead: false,
+            type: type,
+            data: {
+              ...existing.data ?? {},
+              'report_code': reportCode,
+              if (reportId != null) 'report_id': reportId,
+            },
+            createdAt: now,
+          );
+          await _savePersistedState();
+        }
+        return;
+      }
+    }
+
     final newNotif = NotificationModel(
-      id: 'notif-${DateTime.now().millisecondsSinceEpoch}',
+      id: 'notif-${now.millisecondsSinceEpoch}',
       userId: 'me',
       title: title,
       message: message,
@@ -110,7 +159,7 @@ class NotificationRepository {
         'report_code': reportCode,
         if (reportId != null) 'report_id': reportId,
       },
-      createdAt: DateTime.now(),
+      createdAt: now,
     );
 
     _inMemoryNotifications.insert(0, newNotif);
@@ -119,7 +168,7 @@ class NotificationRepository {
     // Munculkan notifikasi pop-up di system tray perangkat secara instan
     try {
       await NotificationService().showNotification(
-        id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        id: reportCode.hashCode.abs() % 100000,
         title: title,
         body: message,
         payload: reportCode,
@@ -127,6 +176,79 @@ class NotificationRepository {
     } catch (e) {
       debugPrint('⚠️ [NotificationRepository] showNotification error: $e');
     }
+  }
+
+  /// Menambahkan notifikasi progres pengerjaan (misal 78%) tanpa mengubah status
+  Future<void> addProgressUpdateNotification({
+    required String reportCode,
+    required int percentage,
+    String? reportId,
+    String? note,
+  }) async {
+    await _ensureStorageLoaded();
+    final cleanCode = reportCode.replaceAll('#', '').toLowerCase().trim();
+    final type = 'progress_update';
+
+    final now = DateTime.now();
+    final title = 'Progres Pengerjaan $percentage%';
+    final message = note != null && note.isNotEmpty
+        ? 'Laporan #$reportCode: $note'
+        : 'Pengerjaan laporan #$reportCode telah mencapai $percentage%.';
+
+    final existingIdx = _inMemoryNotifications.indexWhere((n) {
+      final nCode = (n.reportCode ?? '').replaceAll('#', '').toLowerCase().trim();
+      return nCode == cleanCode && (n.type == type || n.title.contains('Progres Pengerjaan'));
+    });
+
+    if (existingIdx != -1) {
+      final existing = _inMemoryNotifications[existingIdx];
+      // Jika persentase sama dan baru saja dibuat dalam 5 menit, abaikan duplikasi
+      if (existing.title == title && now.difference(existing.createdAt).inMinutes < 5) {
+        return;
+      }
+      // Perbarui notifikasi progres yang sudah ada agar tidak membanjiri daftar
+      _inMemoryNotifications[existingIdx] = NotificationModel(
+        id: existing.id,
+        userId: 'me',
+        title: title,
+        message: message,
+        isRead: false,
+        type: type,
+        data: {
+          'report_code': reportCode,
+          if (reportId != null) 'report_id': reportId,
+          'progress': percentage,
+        },
+        createdAt: now,
+      );
+      await _savePersistedState();
+    } else {
+      final newNotif = NotificationModel(
+        id: 'notif-prog-${now.millisecondsSinceEpoch}',
+        userId: 'me',
+        title: title,
+        message: message,
+        isRead: false,
+        type: type,
+        data: {
+          'report_code': reportCode,
+          if (reportId != null) 'report_id': reportId,
+          'progress': percentage,
+        },
+        createdAt: now,
+      );
+      _inMemoryNotifications.insert(0, newNotif);
+      await _savePersistedState();
+    }
+
+    try {
+      await NotificationService().showNotification(
+        id: reportCode.hashCode.abs() % 100000,
+        title: title,
+        body: message,
+        payload: reportCode,
+      );
+    } catch (_) {}
   }
 
   Future<ApiResponse<List<NotificationModel>>> getNotifications({
@@ -144,21 +266,41 @@ class NotificationRepository {
     } catch (_) {}
 
     final merged = <NotificationModel>[];
-    final seenIds = <String>{};
+    final seenKeys = <String>{};
 
+    String computeKey(NotificationModel n) {
+      final code = (n.reportCode ?? '').replaceAll('#', '').toLowerCase().trim();
+      final type = (n.type ?? '').toLowerCase().trim();
+      final title = n.title.toLowerCase().trim();
+      if (code.isNotEmpty && type.isNotEmpty) {
+        return '${code}_$type';
+      }
+      if (code.isNotEmpty) {
+        return '${code}_$title';
+      }
+      return n.id.isNotEmpty ? n.id : '${title}_${n.message}';
+    }
+
+    // 1. Masukkan notifikasi lokal terlebih dahulu (fresh dari interaksi lokal)
     for (final item in _inMemoryNotifications) {
-      if (!seenIds.contains(item.id)) {
-        seenIds.add(item.id);
+      final key = computeKey(item);
+      if (!seenKeys.contains(key)) {
+        seenKeys.add(key);
         merged.add(item);
       }
     }
 
+    // 2. Masukkan notifikasi dari remote server tanpa duplikasi dengan yang sudah ada
     for (final item in remoteData) {
-      if (!seenIds.contains(item.id)) {
-        seenIds.add(item.id);
+      final key = computeKey(item);
+      if (!seenKeys.contains(key)) {
+        seenKeys.add(key);
         merged.add(item);
       }
     }
+
+    // Urutkan dari yang paling baru ke lama
+    merged.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
     if (merged.isEmpty) {
       merged.addAll(_getInitialFallbackNotifications());

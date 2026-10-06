@@ -679,6 +679,16 @@ class ReportRepository {
     _submittedReports.removeWhere((item) => item.id == result.id);
     _submittedReports.insert(0, result);
     await _savePersistedState();
+
+    try {
+      await _notificationRepository.addStatusUpdateNotification(
+        reportCode: result.reportCode,
+        newStatus: ReportStatus.pendingVerification,
+        note: 'Laporan Anda telah berhasil diajukan dan sedang menunggu verifikasi petugas.',
+        reportId: result.id,
+      );
+    } catch (_) {}
+
     return result;
   }
 
@@ -797,6 +807,17 @@ class ReportRepository {
     } catch (_) {
       // Gagal refresh tidak menghalangi flow sukses — UI akan refresh sendiri
     }
+
+    final validationStatus = isApproved ? ReportStatus.resolved : ReportStatus.disputed;
+    try {
+      final code = _cachedReports[reportId]?.reportCode ?? reportId;
+      await _notificationRepository.addStatusUpdateNotification(
+        reportCode: code,
+        newStatus: validationStatus,
+        note: feedback,
+        reportId: reportId,
+      );
+    } catch (_) {}
 
     await _savePersistedState();
     return result;

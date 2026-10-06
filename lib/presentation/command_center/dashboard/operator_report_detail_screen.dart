@@ -7,7 +7,6 @@ import 'package:latlong2/latlong.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../data/models/report_model.dart';
 import '../../../data/repositories/report_repository.dart';
-import '../../../data/repositories/notification_repository.dart';
 import 'operator_foto_sebelum_screen.dart';
 import 'operator_update_progress_screen.dart';
 import 'operator_foto_sesudah_screen.dart';
@@ -212,14 +211,7 @@ class _OperatorReportDetailScreenState
           _isUpdating = false;
         });
 
-        // Trigger local notification for responsiveness
-        try {
-          context.read<NotificationRepository>().addStatusUpdateNotification(
-                reportCode: _currentReport.reportCode,
-                newStatus: _selectedStatus,
-                note: 'Status laporan diubah ke ${_selectedStatus.displayName}.',
-              );
-        } catch (_) {}
+// repo.updateReportStatus sudah memicu notifikasi status secara otomatis
 
         widget.onStatusUpdated?.call();
 

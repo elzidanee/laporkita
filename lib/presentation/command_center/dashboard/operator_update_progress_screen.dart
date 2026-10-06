@@ -214,14 +214,17 @@ class _OperatorUpdateProgressScreenState
         _currentReport = _currentReport.copyWith(progressPercentage: _progressPercentage);
       }
 
+      // Jika status berubah, repo.updateReportStatus sudah memicu notifikasi otomatis.
+      // Hanya jika status TIDAK berubah (murni pembaruan progres operator), pemicu notifikasi progres dipanggil.
       try {
-        notifRepo.addStatusUpdateNotification(
-          reportCode: _currentReport.reportCode,
-          newStatus: targetStatus,
-          note: statusWillChange
-              ? 'Status laporan ${_currentReport.formattedReportCode} diubah ke ${targetStatus.displayName}.'
-              : 'Progress laporan ${_currentReport.formattedReportCode} diperbarui ke ${_progressPercentage.toInt()}%.',
-        );
+        if (!statusWillChange) {
+          await notifRepo.addProgressUpdateNotification(
+            reportCode: _currentReport.reportCode,
+            percentage: _progressPercentage.toInt(),
+            reportId: _currentReport.id,
+            note: _descController.text.trim().isNotEmpty ? _descController.text.trim() : null,
+          );
+        }
       } catch (_) {}
 
       widget.onStatusUpdated?.call();

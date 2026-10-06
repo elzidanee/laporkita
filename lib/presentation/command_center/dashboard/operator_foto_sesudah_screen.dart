@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../data/models/report_model.dart';
 import '../../../data/repositories/report_repository.dart';
-import '../../../data/repositories/notification_repository.dart';
 import 'operator_camera_screen.dart';
 import 'operator_foto_sebelum_screen.dart';
 import 'operator_update_progress_screen.dart';
@@ -118,7 +117,6 @@ class _OperatorFotoSesudahScreenState extends State<OperatorFotoSesudahScreen> {
 
     try {
       final repo = context.read<ReportRepository>();
-      final notifRepo = context.read<NotificationRepository>();
 
       // 1. Wajib upload foto penyelesaian ke backend terlebih dahulu (Rules.md §1.1)
       if (!pathToUpload.startsWith('http') && File(pathToUpload).existsSync()) {
@@ -147,13 +145,7 @@ class _OperatorFotoSesudahScreenState extends State<OperatorFotoSesudahScreen> {
         }
       }
 
-      try {
-        notifRepo.addStatusUpdateNotification(
-          reportCode: _currentReport.reportCode,
-          newStatus: ReportStatus.completed,
-          note: 'Laporan ${_currentReport.formattedReportCode} selesai dikerjakan oleh petugas OPD.',
-        );
-      } catch (_) {}
+// repo.updateReportStatus sudah memicu notifikasi selesai secara otomatis
 
       widget.onStatusUpdated?.call();
 

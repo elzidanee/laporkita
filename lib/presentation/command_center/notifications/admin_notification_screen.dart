@@ -87,14 +87,12 @@ class _AdminNotificationScreenState extends State<AdminNotificationScreen> {
 
       final notifItems = <AdminNotificationItem>[];
 
-      // Generate realistic admin notifications from actual backend reports
+      // Generate exactly ONE primary current-status notification per report
       for (final r in reports) {
         final code = r.reportCode.isNotEmpty ? r.reportCode : '#LP-${r.id}';
         final opdName = _getOpdName(r);
 
-        // 1. If completed/resolved
-        if (r.status == ReportStatus.completed ||
-            r.status == ReportStatus.resolved) {
+        if (r.status == ReportStatus.completed || r.status == ReportStatus.resolved) {
           final id = 'notif-done-${r.id}';
           notifItems.add(AdminNotificationItem(
             id: id,
@@ -105,10 +103,7 @@ class _AdminNotificationScreenState extends State<AdminNotificationScreen> {
             isRead: _readIds.contains(id),
             report: r,
           ));
-        }
-
-        // 2. If in progress
-        if (r.status == ReportStatus.inProgress) {
+        } else if (r.status == ReportStatus.inProgress) {
           final id = 'notif-prog-${r.id}';
           notifItems.add(AdminNotificationItem(
             id: id,
@@ -119,10 +114,7 @@ class _AdminNotificationScreenState extends State<AdminNotificationScreen> {
             isRead: _readIds.contains(id),
             report: r,
           ));
-        }
-
-        // 3. If forwarded/assigned to agency
-        if (r.status == ReportStatus.assigned || r.assignedAgency != null) {
+        } else if (r.status == ReportStatus.assigned || r.assignedAgency != null) {
           final id = 'notif-assign-${r.id}';
           notifItems.add(AdminNotificationItem(
             id: id,
@@ -133,10 +125,7 @@ class _AdminNotificationScreenState extends State<AdminNotificationScreen> {
             isRead: _readIds.contains(id),
             report: r,
           ));
-        }
-
-        // 4. AI verification finished
-        if (r.status != ReportStatus.pendingVerification) {
+        } else if (r.status == ReportStatus.verified) {
           final id = 'notif-ai-${r.id}';
           final conf = r.rawAiConfidenceScore != null
               ? (r.rawAiConfidenceScore! * 100).round()
@@ -147,27 +136,25 @@ class _AdminNotificationScreenState extends State<AdminNotificationScreen> {
             id: id,
             type: AdminNotifType.aiVerification,
             title: 'AI Verification selesai',
-            subtitle: 'Confidence : $conf%',
-            timeStr: _formatRelativeTime(
-                r.createdAt.add(const Duration(minutes: 2))),
-            isRead: _readIds.contains(id) || r.status == ReportStatus.completed,
+            subtitle: 'Confidence: $conf%\n#$code',
+            timeStr: _formatRelativeTime(r.updatedAt),
+            isRead: _readIds.contains(id),
+            report: r,
+          ));
+        } else {
+          final idNew = 'notif-new-${r.id}';
+          final isVeryRecent =
+              DateTime.now().difference(r.createdAt).inHours < 12;
+          notifItems.add(AdminNotificationItem(
+            id: idNew,
+            type: AdminNotifType.newReport,
+            title: 'Laporan baru masuk',
+            subtitle: 'Laporan #$code',
+            timeStr: _formatRelativeTime(r.createdAt),
+            isRead: _readIds.contains(idNew) ? true : !isVeryRecent,
             report: r,
           ));
         }
-
-        // 5. New report incoming
-        final idNew = 'notif-new-${r.id}';
-        final isVeryRecent =
-            DateTime.now().difference(r.createdAt).inHours < 6;
-        notifItems.add(AdminNotificationItem(
-          id: idNew,
-          type: AdminNotifType.newReport,
-          title: 'Laporan baru masuk',
-          subtitle: 'Laporan #$code',
-          timeStr: _formatRelativeTime(r.createdAt),
-          isRead: _readIds.contains(idNew) ? true : !isVeryRecent,
-          report: r,
-        ));
       }
 
       // If reports are empty, provide fallback matching Figma node 574:3080

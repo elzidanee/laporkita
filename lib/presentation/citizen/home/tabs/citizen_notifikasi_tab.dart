@@ -50,25 +50,31 @@ class _CitizenNotifikasiTabState extends State<CitizenNotifikasiTab> {
           if (!mounted) return;
           final notif = message.notification;
           if (notif != null) {
+            // FcmService sudah menampilkan heads-up notification di tray.
+            // Di tab ini, kita hanya menambahkan data ke list dengan deduplikasi guard.
+            final title = notif.title ?? 'Notifikasi Baru';
+            final body = notif.body ?? '';
+            final msgId = message.messageId;
+
             final newModel = NotificationModel(
-              id: message.messageId ??
-                  DateTime.now().millisecondsSinceEpoch.toString(),
+              id: msgId ?? 'fcm-${DateTime.now().millisecondsSinceEpoch}',
               userId: 'me',
-              title: notif.title ?? 'Notifikasi Baru',
-              message: notif.body ?? '',
+              title: title,
+              message: body,
               isRead: false,
+              data: message.data,
               createdAt: DateTime.now(),
             );
 
             setState(() {
-              _notifications.insert(0, newModel);
+              final exists = _notifications.any((n) =>
+                  (msgId != null && n.id == msgId) ||
+                  (n.title == title && n.message == body &&
+                      DateTime.now().difference(n.createdAt).inMinutes < 5));
+              if (!exists) {
+                _notifications.insert(0, newModel);
+              }
             });
-
-            NotificationService().showNotification(
-              id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-              title: notif.title ?? 'LaporKita Update',
-              body: notif.body ?? '',
-            );
           }
         });
       }
