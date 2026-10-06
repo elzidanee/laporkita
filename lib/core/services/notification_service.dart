@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 /// Service untuk menangani Push & Local Notifications di perangkat
@@ -16,7 +17,7 @@ class NotificationService {
     if (_isInitialized) return;
 
     const androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+        AndroidInitializationSettings('@drawable/ic_notification');
 
     const darwinSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
@@ -55,6 +56,9 @@ class NotificationService {
       channelDescription: 'Notifikasi status laporan dan Route Alert LaporKita',
       importance: Importance.max,
       priority: Priority.high,
+      icon: '@drawable/ic_notification',
+      color: Color(0xFF1D9C51),
+      largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
       showWhen: true,
     );
 
