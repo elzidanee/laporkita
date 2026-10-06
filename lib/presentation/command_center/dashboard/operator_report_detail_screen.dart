@@ -80,6 +80,7 @@ class _OperatorReportDetailScreenState
                 : _currentReport.statusHistory,
             category: fresh.category ?? _currentReport.category,
             addressText: fresh.addressText ?? _currentReport.addressText,
+            progressPercentage: fresh.progressPercentage ?? _currentReport.progressPercentage,
           );
           _selectedStatus = _mapToOperatorStatus(_currentReport.status);
         });

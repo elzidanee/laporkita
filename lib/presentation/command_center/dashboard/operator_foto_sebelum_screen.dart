@@ -91,10 +91,11 @@ class _OperatorFotoSebelumScreenState extends State<OperatorFotoSebelumScreen> {
         final updated = await repo.updateReportStatus(
           _currentReport.id,
           ReportStatus.inProgress.apiValue,
-          notes: 'Petugas mengambil foto sebelum perbaikan dan memulai pengerjaan.',
+          notes: 'Petugas mengambil foto sebelum perbaikan dan memulai pengerjaan. [PROGRESS: 50%]',
           existingReport: _currentReport,
         );
-        _currentReport = updated;
+        await repo.saveProgressPercentage(_currentReport.id, 50.0);
+        _currentReport = updated.copyWith(progressPercentage: 50.0);
         widget.onStatusUpdated?.call();
       } catch (_) {}
 

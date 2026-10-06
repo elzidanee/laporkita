@@ -212,6 +212,7 @@ class ReportModel {
   final double? damageSeverity;
   final DateTime? estimatedCompletionAt;
   final String? directPriority;
+  final double? progressPercentage;
 
   // Relations
   final Map<String, dynamic>? category;
@@ -242,6 +243,7 @@ class ReportModel {
     this.damageSeverity,
     this.estimatedCompletionAt,
     this.directPriority,
+    this.progressPercentage,
     this.category,
     this.reporter,
     this.assignedAgency,
@@ -312,6 +314,23 @@ class ReportModel {
             ? initialMedia.url
             : null);
 
+    double? progressVal;
+    if (json['progress_percentage'] is num) {
+      progressVal = (json['progress_percentage'] as num).toDouble();
+    } else if (json['progress'] is num) {
+      progressVal = (json['progress'] as num).toDouble();
+      if (progressVal <= 1.0 && progressVal > 0) {
+        progressVal = progressVal * 100.0;
+      }
+    } else if (json['progress_percentage'] != null) {
+      progressVal = double.tryParse(json['progress_percentage'].toString());
+    } else if (json['progress'] != null) {
+      progressVal = double.tryParse(json['progress'].toString());
+      if (progressVal != null && progressVal <= 1.0 && progressVal > 0) {
+        progressVal = progressVal * 100.0;
+      }
+    }
+
     return ReportModel(
       id: json['id']?.toString() ?? '',
       reportCode: json['report_code']?.toString() ?? '',
@@ -375,6 +394,7 @@ class ReportModel {
           : null,
       media: mediaList,
       statusHistory: historyList,
+      progressPercentage: progressVal,
       count: countData != null
           ? {
               'supports': countData['supports'] is int ? countData['supports'] as int : 0,
@@ -408,6 +428,7 @@ class ReportModel {
       if (estimatedCompletionAt != null)
         'estimated_completion_at': estimatedCompletionAt!.toIso8601String(),
       if (directPriority != null) 'priority': directPriority,
+      if (progressPercentage != null) 'progress_percentage': progressPercentage,
       if (category != null) 'category': category,
       if (reporter != null) 'reporter': reporter,
       if (assignedAgency != null) 'assigned_agency': assignedAgency,
@@ -438,6 +459,7 @@ class ReportModel {
     double? damageSeverity,
     DateTime? estimatedCompletionAt,
     String? directPriority,
+    double? progressPercentage,
     Map<String, dynamic>? category,
     Map<String, dynamic>? reporter,
     Map<String, dynamic>? assignedAgency,
@@ -466,6 +488,7 @@ class ReportModel {
       damageSeverity: damageSeverity ?? this.damageSeverity,
       estimatedCompletionAt: estimatedCompletionAt ?? this.estimatedCompletionAt,
       directPriority: directPriority ?? this.directPriority,
+      progressPercentage: progressPercentage ?? this.progressPercentage,
       category: category ?? this.category,
       reporter: reporter ?? this.reporter,
       assignedAgency: assignedAgency ?? this.assignedAgency,
@@ -473,6 +496,46 @@ class ReportModel {
       statusHistory: statusHistory ?? this.statusHistory,
       count: count ?? this.count,
     );
+  }
+
+  /// Persentase progres saat ini (0.0 sampai 1.0)
+  double get currentProgress {
+    if (progressPercentage != null && progressPercentage! > 0) {
+      return (progressPercentage! / 100.0).clamp(0.0, 1.0);
+    }
+    final regex = RegExp(
+      r'(?:\[PROGRESS:\s*|Progress\s*|progres\s*)(\d+)\s*%?\]?',
+      caseSensitive: false,
+    );
+    for (final h in statusHistory.reversed) {
+      if (h.note != null && h.note!.isNotEmpty) {
+        final match = regex.firstMatch(h.note!);
+        if (match != null) {
+          final pct = double.tryParse(match.group(1)!);
+          if (pct != null && pct >= 0 && pct <= 100) {
+            return (pct / 100.0).clamp(0.0, 1.0);
+          }
+        }
+      }
+    }
+    switch (status) {
+      case ReportStatus.pendingVerification:
+        return 0.15;
+      case ReportStatus.verified:
+        return 0.30;
+      case ReportStatus.assigned:
+        return 0.40;
+      case ReportStatus.inProgress:
+        return 0.50;
+      case ReportStatus.completed:
+        return 0.95;
+      case ReportStatus.resolved:
+        return 1.0;
+      case ReportStatus.rejected:
+        return 0.0;
+      case ReportStatus.disputed:
+        return 0.50;
+    }
   }
 
   /// Confidence score hasil verifikasi AI server-side (null jika backend tidak kirim).

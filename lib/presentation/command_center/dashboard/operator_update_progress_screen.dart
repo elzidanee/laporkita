@@ -47,8 +47,25 @@ class _OperatorUpdateProgressScreenState
   void initState() {
     super.initState();
     _currentReport = widget.report;
-    _descController.text =
-        'Pengerjaan pengaspalan tahap pertama sudah selesai. Sedang persiapan untuk tahap kedua.';
+    final repo = context.read<ReportRepository>();
+    final savedPct = repo.getProgressPercentage(_currentReport.id) ??
+        repo.getProgressPercentage(_currentReport.reportCode);
+    if (savedPct != null) {
+      _progressPercentage = savedPct;
+    } else if (_currentReport.progressPercentage != null) {
+      _progressPercentage = _currentReport.progressPercentage!;
+    } else {
+      _progressPercentage = (_currentReport.currentProgress * 100).clamp(0.0, 100.0);
+      if (_progressPercentage == 0 && _currentReport.status == ReportStatus.inProgress) {
+        _progressPercentage = 50.0;
+      }
+    }
+    if (_currentReport.status == ReportStatus.completed || _currentReport.status == ReportStatus.resolved) {
+      _selectedStatus = 'Selesai Dikerjakan';
+    } else if (_currentReport.status == ReportStatus.inProgress) {
+      _selectedStatus = 'Sedang Dikerjakan';
+    }
+    _descController.text = '';
     if (widget.initialPhotoPath != null) {
       _progressPhotos.add(widget.initialPhotoPath!);
     }
@@ -143,27 +160,29 @@ class _OperatorUpdateProgressScreenState
       final isCompleted = _progressPercentage >= 100 || _selectedStatus == 'Selesai Dikerjakan';
       final targetStatus = isCompleted ? ReportStatus.completed : ReportStatus.inProgress;
 
+      // 1. Simpan persentase progres ke repository (memori & persistent storage)
+      await repo.saveProgressPercentage(_currentReport.id, _progressPercentage);
+
       // Cek apakah status benar-benar berubah.
       // Backend menolak transisi ke status yang sama (in_progress → in_progress).
-      // Jika status tidak berubah, cukup upload foto tanpa memanggil status endpoint.
       final statusWillChange = targetStatus != _currentReport.status;
+
+      final progressTag = '[PROGRESS: ${_progressPercentage.toInt()}%]';
+      final noteText = _descController.text.trim().isNotEmpty
+          ? '${_descController.text.trim()} $progressTag'
+          : 'Progress pengerjaan: ${_progressPercentage.toInt()}% $progressTag';
 
       if (statusWillChange) {
         final updated = await repo.updateReportStatus(
           _currentReport.id,
           targetStatus.apiValue,
-          notes: _descController.text.trim().isNotEmpty
-              ? '${_descController.text.trim()} (Progress ${_progressPercentage.toInt()}%)'
-              : 'Progress pengerjaan: ${_progressPercentage.toInt()}%',
+          notes: noteText,
           existingReport: _currentReport,
         );
-        _currentReport = updated;
+        _currentReport = updated.copyWith(progressPercentage: _progressPercentage);
       } else {
         // Status sudah in_progress, backend melarang update status yang sama.
         // Simpan catatan persentase progres operator via endpoint komentar
-        final noteText = _descController.text.trim().isNotEmpty
-            ? '${_descController.text.trim()} (Progress ${_progressPercentage.toInt()}%)'
-            : 'Progress pengerjaan: ${_progressPercentage.toInt()}%';
         try {
           await repo.addComment(_currentReport.id, noteText);
         } catch (commentErr) {
@@ -174,21 +193,26 @@ class _OperatorUpdateProgressScreenState
       // Upload foto progress via media endpoint
       // PENTING: type HARUS 'progress_photo' agar tampil di tracking screen citizen
       for (final photoPath in _progressPhotos) {
-        try {
-          await repo.uploadReportMedia(
-            reportId: _currentReport.id,
-            filePath: photoPath,
-            type: 'progress_photo',
-          );
-        } catch (photoErr) {
-          debugPrint('warning [UpdateProgress] Gagal upload foto: $photoErr');
+        if (!photoPath.startsWith('http') && File(photoPath).existsSync()) {
+          try {
+            await repo.uploadReportMedia(
+              reportId: _currentReport.id,
+              filePath: photoPath,
+              type: 'progress_photo',
+            );
+          } catch (photoErr) {
+            debugPrint('warning [UpdateProgress] Gagal upload foto: $photoErr');
+          }
         }
       }
 
       // Re-fetch report agar _currentReport memiliki daftar media dan histori terbaru
       try {
-        _currentReport = await repo.getReportById(_currentReport.id);
-      } catch (_) {}
+        final fresh = await repo.getReportById(_currentReport.id);
+        _currentReport = fresh.copyWith(progressPercentage: _progressPercentage);
+      } catch (_) {
+        _currentReport = _currentReport.copyWith(progressPercentage: _progressPercentage);
+      }
 
       try {
         notifRepo.addStatusUpdateNotification(

@@ -171,8 +171,51 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
   // Progress percentage based on report status and operator progress updates
   double _calculateProgress(ReportModel? report) {
     if (report == null) return 0.15;
-    final status = report.status;
-    switch (status) {
+
+    // Status terminal
+    if (report.status == ReportStatus.rejected) return 0.0;
+    if (report.status == ReportStatus.resolved) return 1.0;
+    if (report.status == ReportStatus.completed) {
+      if (report.progressPercentage != null && report.progressPercentage! >= 100) {
+        return 1.0;
+      }
+      return 0.95;
+    }
+
+    // 1. Cek langsung dari progressPercentage di ReportModel
+    if (report.progressPercentage != null && report.progressPercentage! > 0) {
+      return (report.progressPercentage! / 100.0).clamp(0.0, 1.0);
+    }
+
+    // 2. Cek apakah tersimpan di ReportRepository override
+    try {
+      final repo = context.read<ReportRepository>();
+      final saved = repo.getProgressPercentage(report.id) ??
+          repo.getProgressPercentage(report.reportCode);
+      if (saved != null && saved > 0) {
+        return (saved / 100.0).clamp(0.0, 1.0);
+      }
+    } catch (_) {}
+
+    // 3. Cek persentase progres dinamis dari operator di history atau notes
+    final regex = RegExp(
+      r'(?:\[PROGRESS:\s*|Progress\s*|progres\s*)(\d+)\s*%?\]?',
+      caseSensitive: false,
+    );
+    for (final h in report.statusHistory.reversed) {
+      if (h.note != null && h.note!.isNotEmpty) {
+        final match = regex.firstMatch(h.note!);
+        if (match != null) {
+          final pct = double.tryParse(match.group(1)!);
+          if (pct != null && pct > 0 && pct <= 100) {
+            return (pct / 100.0).clamp(0.0, 1.0);
+          }
+        }
+      }
+    }
+
+    // 4. Baseline status jika belum ada input progres operator
+    switch (report.status) {
       case ReportStatus.pendingVerification:
         return 0.15;
       case ReportStatus.verified:
@@ -180,29 +223,6 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
       case ReportStatus.assigned:
         return 0.40;
       case ReportStatus.inProgress:
-        // Cek apakah ada persentase progres dinamis dari operator di history atau notes
-        final regex = RegExp(r'(\d+)\s*%');
-        // 1. Cek dari status history terbaru
-        for (final h in report.statusHistory.reversed) {
-          if (h.note != null) {
-            final match = regex.firstMatch(h.note!);
-            if (match != null) {
-              final pct = double.tryParse(match.group(1)!);
-              if (pct != null && pct > 0 && pct <= 100) {
-                return pct / 100.0;
-              }
-            }
-          }
-        }
-        // 2. Cek jika ada foto progres
-        final progressPhotosCount = report.media.where((m) =>
-            m.type == 'progress_photo' ||
-            m.type == 'progress' ||
-            m.type == 'in_progress').length;
-        if (progressPhotosCount > 0) {
-          final calculated = 0.50 + (progressPhotosCount * 0.15);
-          return calculated > 0.85 ? 0.85 : calculated;
-        }
         return 0.50;
       case ReportStatus.completed:
         return 0.95;

@@ -15,10 +15,12 @@ class ReportRepository {
   final List<ReportModel> _submittedReports = [];
   final Map<String, ReportModel> _cachedReports = {};
   final Map<String, Map<String, dynamic>> _statusOverrides = {};
+  final Map<String, double> _progressOverrides = {};
   bool _isStorageLoaded = false;
 
   static const String _kPersistedOverridesKey = 'laporkita_status_overrides';
   static const String _kPersistedSubmittedKey = 'laporkita_submitted_reports';
+  static const String _kPersistedProgressKey = 'laporkita_progress_overrides_v1';
 
   ReportRepository({
     ReportRemoteDatasource? datasource,
@@ -28,6 +30,46 @@ class ReportRepository {
         _storage = storage ?? const FlutterSecureStorage(),
         _notificationRepository =
             notificationRepository ?? NotificationRepository();
+
+  Future<void> saveProgressPercentage(String reportId, double percentage) async {
+    await _ensureStorageLoaded();
+    _progressOverrides[reportId] = percentage;
+
+    final cached = _cachedReports[reportId];
+    if (cached != null) {
+      _progressOverrides[cached.reportCode] = percentage;
+      _progressOverrides[cached.formattedReportCode] = percentage;
+      _cachedReports[reportId] = cached.copyWith(progressPercentage: percentage);
+    }
+
+    final subIdx = _submittedReports.indexWhere(
+      (r) => r.id == reportId || r.reportCode == reportId,
+    );
+    if (subIdx != -1) {
+      _submittedReports[subIdx] = _submittedReports[subIdx].copyWith(
+        progressPercentage: percentage,
+      );
+    }
+
+    await _savePersistedState();
+    debugPrint('💾 [ReportRepository] Progress $percentage% saved for $reportId');
+  }
+
+  double? getProgressPercentage(String reportId) {
+    if (_progressOverrides.containsKey(reportId)) {
+      return _progressOverrides[reportId];
+    }
+    final cached = _cachedReports[reportId];
+    if (cached != null) {
+      if (_progressOverrides.containsKey(cached.reportCode)) {
+        return _progressOverrides[cached.reportCode];
+      }
+      if (_progressOverrides.containsKey(cached.formattedReportCode)) {
+        return _progressOverrides[cached.formattedReportCode];
+      }
+    }
+    return null;
+  }
 
   void cacheReport(ReportModel report) {
     _cachedReports[report.id] = report;
@@ -54,6 +96,20 @@ class ReportRepository {
             if (value is Map) {
               _statusOverrides[key.toString()] =
                   Map<String, dynamic>.from(value);
+            }
+          });
+        }
+      }
+
+      final progressJson = await _storage.read(key: _kPersistedProgressKey);
+      if (progressJson != null && progressJson.isNotEmpty) {
+        final dynamic decoded = jsonDecode(progressJson);
+        _progressOverrides.clear();
+        if (decoded is Map) {
+          decoded.forEach((key, value) {
+            final numVal = num.tryParse(value.toString());
+            if (numVal != null) {
+              _progressOverrides[key.toString()] = numVal.toDouble();
             }
           });
         }
@@ -91,6 +147,10 @@ class ReportRepository {
       await _storage.write(
         key: _kPersistedOverridesKey,
         value: jsonEncode(_statusOverrides),
+      );
+      await _storage.write(
+        key: _kPersistedProgressKey,
+        value: jsonEncode(_progressOverrides),
       );
       final submittedList = _submittedReports.map((r) => r.toJson()).toList();
       await _storage.write(
@@ -262,6 +322,16 @@ class ReportRepository {
             count: r.count,
           );
         }
+      }
+    }
+
+    for (int i = 0; i < merged.length; i++) {
+      final r = merged[i];
+      final savedPct = _progressOverrides[r.id] ??
+          _progressOverrides[r.reportCode] ??
+          _progressOverrides[r.formattedReportCode];
+      if (savedPct != null) {
+        merged[i] = merged[i].copyWith(progressPercentage: savedPct);
       }
     }
 
@@ -492,6 +562,71 @@ class ReportRepository {
           existingLocal!.description!.isNotEmpty) {
         result = result.copyWith(description: existingLocal.description);
       }
+    }
+
+    // Terapkan persentase progress jika tersimpan di _progressOverrides
+    double? progress = _progressOverrides[result.id] ??
+        _progressOverrides[result.reportCode] ??
+        _progressOverrides[result.formattedReportCode];
+
+    // Jika belum ada di override, cek dari statusHistory notes
+    if (progress == null) {
+      final regex = RegExp(
+        r'(?:\[PROGRESS:\s*|Progress\s*|progres\s*)(\d+)\s*%?\]?',
+        caseSensitive: false,
+      );
+      for (final h in result.statusHistory.reversed) {
+        if (h.note != null && h.note!.isNotEmpty) {
+          final match = regex.firstMatch(h.note!);
+          if (match != null) {
+            final parsed = double.tryParse(match.group(1)!);
+            if (parsed != null && parsed >= 0 && parsed <= 100) {
+              progress = parsed;
+              _progressOverrides[result.id] = parsed;
+              _progressOverrides[result.reportCode] = parsed;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    // Jika masih null dan status in_progress, ambil komentar backend untuk mengekstrak [PROGRESS: XX%]
+    if (progress == null && result.status == ReportStatus.inProgress) {
+      try {
+        final commentsRes = await _datasource.getComments(result.id, limit: 15);
+        if (commentsRes.data != null && commentsRes.data!.isNotEmpty) {
+          final regex = RegExp(
+            r'(?:\[PROGRESS:\s*|Progress\s*|progres\s*)(\d+)\s*%?\]?',
+            caseSensitive: false,
+          );
+          final comments = List<Map<String, dynamic>>.from(commentsRes.data!);
+          comments.sort((a, b) {
+            final dtA = DateTime.tryParse(a['created_at']?.toString() ?? '') ??
+                DateTime.fromMillisecondsSinceEpoch(0);
+            final dtB = DateTime.tryParse(b['created_at']?.toString() ?? '') ??
+                DateTime.fromMillisecondsSinceEpoch(0);
+            return dtB.compareTo(dtA);
+          });
+          for (final c in comments) {
+            final content = c['content']?.toString() ?? '';
+            final match = regex.firstMatch(content);
+            if (match != null) {
+              final parsed = double.tryParse(match.group(1)!);
+              if (parsed != null && parsed >= 0 && parsed <= 100) {
+                progress = parsed;
+                _progressOverrides[result.id] = parsed;
+                _progressOverrides[result.reportCode] = parsed;
+                break;
+              }
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    if (progress != null) {
+      result = result.copyWith(progressPercentage: progress);
     }
 
     return result;
@@ -741,6 +876,22 @@ class ReportRepository {
     }
 
     // API berhasil — bangun finalReport dari response server (source of truth)
+    if (newStatusEnum == ReportStatus.completed || newStatusEnum == ReportStatus.resolved) {
+      _progressOverrides[reportId] = 100.0;
+    } else if (notes != null && notes.isNotEmpty) {
+      final regex = RegExp(
+        r'(?:\[PROGRESS:\s*|Progress\s*|progres\s*)(\d+)\s*%?\]?',
+        caseSensitive: false,
+      );
+      final match = regex.firstMatch(notes);
+      if (match != null) {
+        final parsed = double.tryParse(match.group(1)!);
+        if (parsed != null && parsed >= 0 && parsed <= 100) {
+          _progressOverrides[reportId] = parsed;
+        }
+      }
+    }
+
     final hasRemotePhoto = (updatedRemote.directPhotoUrl != null &&
             updatedRemote.directPhotoUrl!.isNotEmpty) ||
         updatedRemote.media.isNotEmpty;
@@ -777,6 +928,8 @@ class ReportRepository {
       reporter: updatedRemote.reporter ?? old?.reporter,
       assignedAgency: updatedRemote.assignedAgency ?? old?.assignedAgency,
       statusHistory: existingHistory,
+      progressPercentage: _progressOverrides[reportId] ??
+          (newStatusEnum == ReportStatus.completed || newStatusEnum == ReportStatus.resolved ? 100.0 : null),
     );
 
     _cachedReports[reportId] = finalReport;
