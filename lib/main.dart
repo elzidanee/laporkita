@@ -53,8 +53,9 @@ import 'core/services/fcm_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await FcmService.instance.initialize();
   runApp(const MyApp());
+  // Inisialisasi FCM berjalan asinkron tanpa memblokir attachment root widget / rendering awal
+  FcmService.instance.initialize();
 }
 
 class MyApp extends StatelessWidget {

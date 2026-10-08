@@ -106,6 +106,7 @@ class _GetStartedScreenState extends State<GetStartedScreen> {
 
                         // Button 2: "Login" (Figma Node 399:15)
                         ElevatedButton(
+                          key: const Key('get_started_login_button'),
                           onPressed: () {
                             Navigator.pushNamed(context, '/login');
                           },
