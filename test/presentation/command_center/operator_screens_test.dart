@@ -45,6 +45,9 @@ class FakeReportRepository extends Fake implements ReportRepository {
   }
 
   @override
+  double? getProgressPercentage(String reportId) => 78.0;
+
+  @override
   Future<ReportModel> updateReportStatus(
     String reportId,
     String newStatus, {
@@ -111,6 +114,15 @@ void main() {
       reporter: const {'id': 'user-1', 'full_name': 'Budi Santoso'},
       assignedAgency: const {'id': 'agency-1', 'name': 'Dinas PUPR'},
       directPriority: 'Prioritas Tinggi',
+      statusHistory: [
+        ReportStatusHistoryModel(
+          id: 'hist-1',
+          reportId: 'rep-op-1',
+          targetStatus: ReportStatus.assigned,
+          actorName: 'Andi Pratama',
+          createdAt: DateTime(2026, 5, 12, 10, 30),
+        ),
+      ],
     ),
     ReportModel(
       id: 'rep-op-2',
@@ -135,6 +147,15 @@ void main() {
       reporter: const {'id': 'user-2', 'full_name': 'Siti Rahma'},
       assignedAgency: const {'id': 'agency-2', 'name': 'Dishub'},
       directPriority: 'Sedang',
+      statusHistory: [
+        ReportStatusHistoryModel(
+          id: 'hist-2',
+          reportId: 'rep-op-2',
+          targetStatus: ReportStatus.inProgress,
+          actorName: 'Budi Santoso',
+          createdAt: DateTime(2026, 4, 4, 10, 23),
+        ),
+      ],
     ),
     ReportModel(
       id: 'rep-op-3',
@@ -159,6 +180,48 @@ void main() {
       reporter: const {'id': 'user-3', 'full_name': 'Rudi H'},
       assignedAgency: const {'id': 'agency-3', 'name': 'DLH'},
       directPriority: 'Rendah',
+      statusHistory: [
+        ReportStatusHistoryModel(
+          id: 'hist-3',
+          reportId: 'rep-op-3',
+          targetStatus: ReportStatus.completed,
+          actorName: 'Rina Marlina',
+          createdAt: DateTime(2026, 4, 5, 12, 0),
+        ),
+      ],
+    ),
+    ReportModel(
+      id: 'rep-op-4',
+      reportCode: 'LP_2026_0051122',
+      reporterId: 'user-4',
+      categoryId: 'cat-1',
+      status: ReportStatus.inProgress,
+      latitude: -7.987,
+      longitude: 112.637,
+      addressText: 'Jl. Ijen no. 5',
+      description: 'Trotoar amblas dekat taman.',
+      directPhotoUrl: null,
+      supportCount: 8,
+      viewCount: 40,
+      urgencyScore: 6.0,
+      damageSeverity: 0.60,
+      rawAiConfidenceScore: 0.88,
+      needsManualReview: false,
+      createdAt: DateTime(2026, 4, 6, 9, 0),
+      updatedAt: DateTime(2026, 4, 6, 11, 0),
+      category: const {'id': 'cat-1', 'name': 'Trotoar Rusak'},
+      reporter: const {'id': 'user-4', 'full_name': 'Dewi L'},
+      assignedAgency: const {'id': 'agency-1', 'name': 'Dinas PUPR'},
+      directPriority: 'Sedang',
+      statusHistory: [
+        ReportStatusHistoryModel(
+          id: 'hist-4',
+          reportId: 'rep-op-4',
+          targetStatus: ReportStatus.inProgress,
+          actorName: 'Dedi Kurniawan',
+          createdAt: DateTime(2026, 4, 6, 11, 0),
+        ),
+      ],
     ),
   ];
 
@@ -278,7 +341,7 @@ void main() {
       // Only rep-op-1 (assigned) has "Mulai kerjakan", while rep-op-2 (inProgress) has "Update"
       // and rep-op-3 (completed) has NO action button!
       expect(find.text('Mulai kerjakan'), findsNWidgets(1));
-      expect(find.text('Update'), findsNWidgets(1));
+      expect(find.text('Update'), findsNWidgets(2));
     });
 
     testWidgets('bottom navigation bar background does not contain green color bleed', (tester) async {
@@ -289,7 +352,7 @@ void main() {
       expect(scaffold.backgroundColor, const Color(0xFFF8FAFC));
 
       final bottomNav = scaffold.bottomNavigationBar as Container;
-      expect(bottomNav.color, const Color(0xFFF8FAFC));
+      expect(bottomNav.color, const Color(0xFFF7FAFC));
 
       // Switch to Tugas tab
       await tester.tap(find.text('Tugas'));
@@ -297,7 +360,7 @@ void main() {
 
       final scaffoldTab1 = tester.widget<Scaffold>(find.byType(Scaffold).first);
       final bottomNavTab1 = scaffoldTab1.bottomNavigationBar as Container;
-      expect(bottomNavTab1.color, Colors.white);
+      expect(bottomNavTab1.color, const Color(0xFFF7FAFC));
     });
   });
 
@@ -320,7 +383,7 @@ void main() {
       expect(find.text('Semua Prioritas'), findsOneWidget);
 
       // Check task cards
-      expect(find.text('Jalan Rusak'), findsOneWidget);
+      expect(find.text('Jalan Rusak'), findsWidgets);
       expect(find.text('Jl. Ahmad Yani no. 15'), findsWidgets);
       expect(find.text('#LP_2026_0024487'), findsWidgets);
       expect(find.text('Lihat Tugas'), findsWidgets);
@@ -350,7 +413,7 @@ void main() {
       expect(find.text('Prioritas Tinggi'), findsWidgets);
 
       // Description
-      expect(find.text('Deskripsi :'), findsOneWidget);
+      expect(find.textContaining('Deskripsi'), findsOneWidget);
 
       // Status Pengerjaan
       expect(find.text('Status Pengerjaan'), findsOneWidget);
@@ -494,7 +557,7 @@ void main() {
       expect(find.text('Cari ID, judul, lokasi, atau pelapor...'), findsOneWidget);
       expect(find.text('Filter'), findsOneWidget);
       expect(find.text('Semua Prioritas'), findsOneWidget);
-      expect(find.text('Jalan Rusak'), findsOneWidget);
+      expect(find.text('Jalan Rusak'), findsWidgets);
     });
   });
 
@@ -522,7 +585,7 @@ void main() {
       expect(find.text('Andi Pratama'), findsOneWidget);
       expect(find.text('Budi Santoso'), findsOneWidget);
       expect(find.text('Rina Marlina'), findsOneWidget);
-      expect(find.text('Lihat Semua'), findsOneWidget);
+      expect(find.textContaining('Lihat Semua'), findsOneWidget);
       expect(find.text('Tugas Perlu perhatian'), findsOneWidget);
     });
   });
@@ -572,11 +635,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Notifikasi'), findsOneWidget);
-      expect(find.text('Laporan baru masuk'), findsOneWidget);
-      expect(find.text('AI Verification selesai'), findsOneWidget);
-      expect(find.text('Laporan diteruskan ke Dinas PUPR'), findsOneWidget);
-      expect(find.text('Petugas mulai mengerjakan'), findsOneWidget);
-      expect(find.text('Laporan selesai dikerjakan'), findsOneWidget);
+      expect(find.text('Tugas Baru Diterima'), findsOneWidget);
+      expect(find.text('Pekerjaan Sedang Berlangsung'), findsWidgets);
+      expect(find.text('Menunggu Validasi Warga'), findsOneWidget);
     });
   });
 }

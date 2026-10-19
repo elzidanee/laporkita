@@ -11,6 +11,7 @@ import 'operator_foto_sebelum_screen.dart';
 import 'operator_update_progress_screen.dart';
 import 'operator_foto_sesudah_screen.dart';
 import '../../shared_widgets/report_thumbnail_image.dart';
+import '../../citizen/navigation/route_picker_screen.dart';
 
 class OperatorReportDetailScreen extends StatefulWidget {
   final ReportModel report;
@@ -274,6 +275,19 @@ class _OperatorReportDetailScreenState
 
 
 
+  void _navigateToRoute() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RoutePickerScreen(
+          initialDestination: LatLng(_currentReport.latitude, _currentReport.longitude),
+          initialDestinationName:
+              _currentReport.addressText ?? _currentReport.categoryName,
+        ),
+      ),
+    );
+  }
+
   void _showNavigationSheet() {
     showModalBottomSheet(
       context: context,
@@ -354,9 +368,9 @@ class _OperatorReportDetailScreenState
                   backgroundColor: const Color(0xFF1D9C51),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
-                icon: const Icon(Icons.map_rounded, color: Colors.white, size: 20),
+                icon: const Icon(Icons.navigation_rounded, color: Colors.white, size: 20),
                 label: Text(
-                  'Salin & Navigasi ke Maps',
+                  'Buka Navigasi Rute Langsung',
                   style: GoogleFonts.poppins(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -364,20 +378,8 @@ class _OperatorReportDetailScreenState
                   ),
                 ),
                 onPressed: () {
-                  Clipboard.setData(ClipboardData(
-                    text: '${_currentReport.latitude},${_currentReport.longitude}',
-                  ));
                   Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      backgroundColor: const Color(0xFF1D9C51),
-                      behavior: SnackBarBehavior.floating,
-                      content: Text(
-                        'Koordinat berhasil disalin! Buka Google Maps untuk navigasi.',
-                        style: GoogleFonts.poppins(fontSize: 12),
-                      ),
-                    ),
-                  );
+                  _navigateToRoute();
                 },
               ),
             ),
@@ -867,12 +869,14 @@ class _OperatorReportDetailScreenState
       child: Column(
         children: [
           // FlutterMap
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: SizedBox(
-              height: 180,
-              width: double.infinity,
-              child: FlutterMap(
+          GestureDetector(
+            onTap: _navigateToRoute,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: SizedBox(
+                height: 180,
+                width: double.infinity,
+                child: FlutterMap(
                 options: MapOptions(
                   initialCenter: centerPoint,
                   initialZoom: 15.5,
@@ -900,6 +904,7 @@ class _OperatorReportDetailScreenState
               ),
             ),
           ),
+          ),
           const SizedBox(height: 12),
 
           // Green "Navigasi ke lokasi" button (Figma Frame 2695 / 663:7762)
@@ -923,7 +928,8 @@ class _OperatorReportDetailScreenState
                   color: Colors.white,
                 ),
               ),
-              onPressed: _showNavigationSheet,
+              onPressed: _navigateToRoute,
+              onLongPress: _showNavigationSheet,
             ),
           ),
         ],

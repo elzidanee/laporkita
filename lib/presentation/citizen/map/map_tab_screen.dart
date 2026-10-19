@@ -20,6 +20,13 @@ class _CitizenPetaTabState extends State<CitizenPetaTab> {
   final DraggableScrollableController _sheetController =
       DraggableScrollableController();
 
+  double _sheetExtent = 0.35;
+
+  @override
+  void dispose() {
+    _sheetController.dispose();
+    super.dispose();
+  }
   String _selectedFilter = 'Semua';
   final List<String> _filters = ['Semua', 'Jalan', 'Trotoar', 'Lampu', 'Fasilitas'];
   List<ReportModel> _lastKnownReports = [];
@@ -109,6 +116,11 @@ class _CitizenPetaTabState extends State<CitizenPetaTab> {
           }
 
           final displayReports = _filterReports(apiReports);
+          final screenHeight = MediaQuery.of(context).size.height;
+          final floatingBottom = (screenHeight * _sheetExtent) + 14.0;
+          final double controlsOpacity =
+              (1.0 - ((_sheetExtent - 0.52) / 0.15)).clamp(0.0, 1.0);
+
 
           return Stack(
             children: [
@@ -310,89 +322,105 @@ class _CitizenPetaTabState extends State<CitizenPetaTab> {
               ),
 
               // 2b. Status Legend Overlay (bottom-left)
-              Positioned(
-                left: 16,
-                bottom: MediaQuery.of(context).size.height * 0.38,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.92),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.12),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
+              if (controlsOpacity > 0.02)
+                Positioned(
+                  left: 16,
+                  bottom: floatingBottom,
+                  child: Opacity(
+                    opacity: controlsOpacity,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.92),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.12),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'Legenda',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF333333),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      _buildLegendItem(AppColors.statusInfo, 'Menunggu'),
-                      _buildLegendItem(const Color(0xFF26A69A), 'Terverifikasi'),
-                      _buildLegendItem(const Color(0xFF7B1FA2), 'Ditugaskan'),
-                      _buildLegendItem(AppColors.statusPending, 'Diproses'),
-                      _buildLegendItem(AppColors.greenPrimary, 'Selesai'),
-                      _buildLegendItem(AppColors.statusDanger, 'Ditolak'),
-                    ],
-                  ),
-                ),
-              ),
-
-              // 2c. Navigation / Route A->B Floating Action Button (bottom-right)
-              Positioned(
-                right: 16,
-                bottom: MediaQuery.of(context).size.height * 0.38,
-                child: Material(
-                  color: AppColors.greenPrimary,
-                  borderRadius: BorderRadius.circular(28),
-                  elevation: 4,
-                  shadowColor: Colors.black.withValues(alpha: 0.25),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(28),
-                    onTap: () {
-                      Navigator.of(context).pushNamed('/route-picker');
-                    },
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      child: Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            Icons.directions_rounded,
-                            color: AppColors.white,
-                            size: 20,
-                          ),
-                          SizedBox(width: 8),
-                          Text(
-                            'Rute A → B',
+                          const Text(
+                            'Legenda',
                             style: TextStyle(
-                              color: AppColors.white,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF333333),
                             ),
                           ),
+                          const SizedBox(height: 4),
+                          _buildLegendItem(AppColors.statusInfo, 'Menunggu'),
+                          _buildLegendItem(const Color(0xFF26A69A), 'Terverifikasi'),
+                          _buildLegendItem(const Color(0xFF7B1FA2), 'Ditugaskan'),
+                          _buildLegendItem(AppColors.statusPending, 'Diproses'),
+                          _buildLegendItem(AppColors.greenPrimary, 'Selesai'),
+                          _buildLegendItem(AppColors.statusDanger, 'Ditolak'),
                         ],
                       ),
                     ),
                   ),
                 ),
-              ),
 
+              // 2c. Navigation / Route A->B Floating Action Button (bottom-right)
+              if (controlsOpacity > 0.02)
+                Positioned(
+                  right: 16,
+                  bottom: floatingBottom,
+                  child: Opacity(
+                    opacity: controlsOpacity,
+                    child: Material(
+                      color: AppColors.greenPrimary,
+                      borderRadius: BorderRadius.circular(28),
+                      elevation: 4,
+                      shadowColor: Colors.black.withValues(alpha: 0.25),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(28),
+                        onTap: () {
+                          Navigator.of(context).pushNamed('/route-picker');
+                        },
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.directions_rounded,
+                                color: AppColors.white,
+                                size: 20,
+                              ),
+                              SizedBox(width: 8),
+                              Text(
+                                'Rute A → B',
+                                style: TextStyle(
+                                  color: AppColors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               // 3. DraggableScrollableSheet for Pull-Up Menu
-              DraggableScrollableSheet(
-                controller: _sheetController,
+              NotificationListener<DraggableScrollableNotification>(
+                onNotification: (notification) {
+                  if ((notification.extent - _sheetExtent).abs() > 0.002) {
+                    setState(() {
+                      _sheetExtent = notification.extent;
+                    });
+                  }
+                  return false;
+                },
+                child: DraggableScrollableSheet(
+                  controller: _sheetController,
                 initialChildSize: 0.35,
                 minChildSize: 0.18,
                 maxChildSize: 0.88,
@@ -495,6 +523,7 @@ class _CitizenPetaTabState extends State<CitizenPetaTab> {
                     ),
                   );
                 },
+              ),
               ),
             ],
           );

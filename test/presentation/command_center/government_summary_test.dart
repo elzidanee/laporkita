@@ -35,7 +35,7 @@ void main() {
       // 3. Section 1: Line Chart
       expect(find.text('Perkembangan Laporan'), findsWidgets);
       expect(find.textContaining('Grafik Laporan'), findsOneWidget);
-      expect(find.textContaining('7 hari terakhir'), findsOneWidget);
+      expect(find.textContaining('30 hari terakhir'), findsOneWidget);
 
       // 4. Section 2: Donut Chart
       expect(find.text('2.458'), findsOneWidget);

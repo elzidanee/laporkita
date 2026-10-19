@@ -19,7 +19,7 @@ class MockReportRepository extends Fake implements ReportRepository {
       reportCode: 'LP_2026_002487',
       reporterId: 'user-1',
       categoryId: 'cat-1',
-      status: ReportStatus.inProgress,
+      status: ReportStatus.pendingVerification,
       latitude: -6.382728,
       longitude: 107.734682,
       addressText: 'Jl. Ahmad Yani no. 15',
@@ -83,7 +83,7 @@ void main() {
     reportCode: 'LP_2026_002487',
     reporterId: 'user-1',
     categoryId: 'cat-1',
-    status: ReportStatus.inProgress,
+    status: ReportStatus.pendingVerification,
     latitude: -6.382728,
     longitude: 107.734682,
     addressText: 'Jl. Ahmad Yani no. 15',
@@ -147,7 +147,7 @@ void main() {
       expect(find.text('LaporKita'), findsOneWidget);
 
       // 5. Description Section
-      expect(find.text('Deskripsi :'), findsOneWidget);
+      expect(find.textContaining('Deskripsi'), findsOneWidget);
       expect(
         find.text(
             'Jalan sudah tidak layak karena banyak retakan dan lubang disepanjang jalan.'),

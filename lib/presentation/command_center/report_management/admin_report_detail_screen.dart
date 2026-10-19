@@ -1340,12 +1340,15 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
                               color: Color(0xFF16A34A),
                             ),
                             const SizedBox(width: 6),
-                            Text(
-                              'Catatan dari Citizen (Pelapor):',
-                              style: GoogleFonts.poppins(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: const Color(0xFF166534),
+                            Expanded(
+                              child: Text(
+                                'Catatan dari Citizen (Pelapor):',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: const Color(0xFF166534),
+                                ),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],

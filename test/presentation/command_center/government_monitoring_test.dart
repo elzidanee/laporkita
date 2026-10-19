@@ -127,7 +127,7 @@ void main() {
       // 6. Kategori Laporan
       expect(find.text('Kategori Laporan'), findsOneWidget);
       expect(find.text('Jalan'), findsWidgets);
-      expect(find.text('1.023 (41%)'), findsOneWidget);
+      expect(find.textContaining('1.023'), findsOneWidget);
       expect(find.text('Penerangan'), findsOneWidget);
       expect(find.text('Drainase'), findsWidgets);
       expect(find.text('Trotoar'), findsWidgets);

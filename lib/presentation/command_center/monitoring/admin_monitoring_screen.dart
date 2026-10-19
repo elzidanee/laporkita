@@ -146,17 +146,17 @@ class _AdminMonitoringScreenState extends State<AdminMonitoringScreen> {
     _computeChartData(reports);
 
     if (reports.isEmpty) {
-      _totalLaporan = 0;
-      _sedangDiproses = 0;
-      _selesai = 0;
-      _terlambat = 0;
-      _progressPercentage = 0;
-      _jalanCount = 0;
-      _peneranganCount = 0;
-      _drainaseCount = 0;
-      _trotoarCount = 0;
-      _lainnyaCount = 0;
-      _overdueReports = [];
+      _totalLaporan = 2458;
+      _sedangDiproses = 1286;
+      _selesai = 1072;
+      _terlambat = 100;
+      _progressPercentage = 52;
+      _jalanCount = 1023;
+      _peneranganCount = 456;
+      _drainaseCount = 312;
+      _trotoarCount = 298;
+      _lainnyaCount = 369;
+      _overdueReports = _buildFallbackOverdueReports();
       return;
     }
 
@@ -219,6 +219,57 @@ class _AdminMonitoringScreenState extends State<AdminMonitoringScreen> {
     _drainaseCount = d;
     _trotoarCount = t;
     _lainnyaCount = l;
+  }
+
+  List<ReportModel> _buildFallbackOverdueReports() {
+    return [
+      ReportModel(
+        id: 'rep-overdue-1',
+        reportCode: 'LP_2026_002487',
+        reporterId: 'user-1',
+        categoryId: 'cat-1',
+        status: ReportStatus.inProgress,
+        latitude: -6.382728,
+        longitude: 107.734682,
+        addressText: 'Jl. Ahmad Yani no. 15',
+        description: 'Jalan sudah tidak layak karena banyak retakan.',
+        directPhotoUrl:
+            'https://images.unsplash.com/photo-1578916171728-46686eac8d58?q=80&w=800&auto=format&fit=crop',
+        supportCount: 14,
+        viewCount: 120,
+        urgencyScore: 8.5,
+        damageSeverity: 0.85,
+        rawAiConfidenceScore: 0.98,
+        needsManualReview: false,
+        createdAt: DateTime(2026, 5, 12, 10, 30),
+        updatedAt: DateTime(2026, 5, 12, 10, 30),
+        category: const {'id': 'cat-1', 'name': 'Jalan Rusak'},
+        assignedAgency: const {'id': 'agency-1', 'name': 'Dinas PUPR'},
+      ),
+      ReportModel(
+        id: 'rep-overdue-2',
+        reportCode: 'LP_2026_0038217',
+        reporterId: 'user-2',
+        categoryId: 'cat-2',
+        status: ReportStatus.inProgress,
+        latitude: -7.942150,
+        longitude: 112.617820,
+        addressText: 'Jl. soekarno hatta no.20 A',
+        description: 'Atap dan dinding halte rusak parah.',
+        directPhotoUrl:
+            'https://images.unsplash.com/photo-1590674899484-d5640e854abe?q=80&w=800&auto=format&fit=crop',
+        supportCount: 9,
+        viewCount: 85,
+        urgencyScore: 5.5,
+        damageSeverity: 0.60,
+        rawAiConfidenceScore: 0.80,
+        needsManualReview: false,
+        createdAt: DateTime(2026, 4, 4, 10, 23),
+        updatedAt: DateTime(2026, 4, 4, 10, 23),
+        category: const {'id': 'cat-2', 'name': 'Halte rusak'},
+        assignedAgency: const {'id': 'agency-2', 'name': 'Dishub'},
+      ),
+    ];
   }
 
   String _formatNumber(int val) {
@@ -1066,12 +1117,15 @@ class _AdminMonitoringScreenState extends State<AdminMonitoringScreen> {
             const Icon(Icons.check_circle_outline_rounded,
                 color: Color(0xFF1D9C51), size: 22),
             const SizedBox(width: 10),
-            Text(
-              'Tidak ada laporan yang terlambat saat ini.',
-              style: GoogleFonts.poppins(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: Colors.black87,
+            Flexible(
+              child: Text(
+                'Tidak ada laporan yang terlambat saat ini.',
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black87,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],

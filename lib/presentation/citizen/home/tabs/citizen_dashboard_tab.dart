@@ -238,13 +238,12 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
               color: AppColors.white,
               borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
             ),
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(24),
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics(),
               ),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
-                child: Column(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+              child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Search Bar & Hamburger Menu Row
@@ -272,7 +271,6 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
                   ],
                 ),
               ),
-            ),
           ),
         ),
       ],
@@ -1273,6 +1271,22 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
                 } catch (_) {}
               }
 
+              // Filter out duplicate or legacy seed dummy reports tanpa foto
+              reports = reports.where((r) {
+                final isGenericSeed =
+                    r.reportCode.startsWith('#LP-2026-000001') ||
+                        r.reportCode.startsWith('#LP-2026-000002') ||
+                        r.reportCode.startsWith('#LP-2026-000003') ||
+                        r.reportCode.startsWith('#LP-2026-000004') ||
+                        r.reportCode.startsWith('#LP-2026-000005') ||
+                        r.reportCode.startsWith('#LP-2026-000006') ||
+                        r.addressText == 'None' ||
+                        (r.addressText ==
+                                'Jalan Merdeka Selatan, Kauman, Kota Malang' &&
+                            r.media.isEmpty) ||
+                        r.id.startsWith('mock-');
+                return !isGenericSeed;
+              }).toList();
               // 1. Filter berdasarkan Kategori yang diklik
               if (_selectedCategory != null) {
                 final catKey = _selectedCategory!.toLowerCase();
@@ -1326,16 +1340,13 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
 
               if (reports.isNotEmpty) {
                 final displayList = reports.take(20).toList();
-                return ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: displayList.length,
-                  itemBuilder: (context, index) {
+                return Column(
+                  children: displayList.map((r) {
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
-                      child: _buildReportListItemFromModel(displayList[index]),
+                      child: _buildReportListItemFromModel(r),
                     );
-                  },
+                  }).toList(),
                 );
               }
             } catch (_) {}
@@ -1449,19 +1460,24 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
         cardImageWidget = Image.file(
           File(localPath),
           fit: BoxFit.cover,
+          cacheWidth: 240,
+          cacheHeight: 220,
           errorBuilder: (context, error, stackTrace) => safePlaceholderWidget,
         );
       } else if (imgUrl != null && imgUrl.isNotEmpty) {
         cardImageWidget = Image.network(
           imgUrl,
           fit: BoxFit.cover,
+          cacheWidth: 240,
+          cacheHeight: 220,
           errorBuilder: (context, error, stackTrace) => safePlaceholderWidget,
         );
       } else {
         cardImageWidget = safePlaceholderWidget;
       }
 
-      return GestureDetector(
+      return RepaintBoundary(
+        child: GestureDetector(
         onTap: () {
           Navigator.push(
             context,
@@ -1579,6 +1595,7 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
               ),
             ],
           ),
+        ),
         ),
       );
     } catch (_) {

@@ -26,6 +26,12 @@ class AppConfig {
     defaultValue: 'laporkita_sec_e62232a17817b3676927b5fefda6bad1cbe4',
   );
 
+  /// Google Gemini API Key untuk Policy Simulator (Gemini 2.5 Flash)
+  static const String geminiApiKey = String.fromEnvironment(
+    'GEMINI_API_KEY',
+    defaultValue: '',
+  );
+
   /// URL OSRM Demo Server (Open Source Routing Machine)
   static const String osrmBaseUrl = String.fromEnvironment(
     'OSRM_BASE_URL',

@@ -127,9 +127,19 @@ class ReportRepository {
           for (final item in list) {
             if (item is Map) {
               try {
-                _submittedReports.add(
-                  ReportModel.fromJson(Map<String, dynamic>.from(item)),
-                );
+                final rep =
+                    ReportModel.fromJson(Map<String, dynamic>.from(item));
+                final isGenericSeed = rep.reportCode
+                        .startsWith('#LP-2026-000001') ||
+                    rep.reportCode.startsWith('#LP-2026-000002') ||
+                    rep.reportCode.startsWith('#LP-2026-000003') ||
+                    rep.reportCode.startsWith('#LP-2026-000004') ||
+                    rep.reportCode.startsWith('#LP-2026-000005') ||
+                    rep.reportCode.startsWith('#LP-2026-000006') ||
+                    rep.id.startsWith('mock-');
+                if (!isGenericSeed) {
+                  _submittedReports.add(rep);
+                }
               } catch (err) {
                 debugPrint('⚠️ [ReportRepository] item parse error: $err');
               }
@@ -292,6 +302,19 @@ class ReportRepository {
       }
       merged.addAll(mockReports);
     }
+
+    // Filter out dummy duplicate seed reports tanpa foto
+    merged.removeWhere((r) =>
+        r.id.startsWith('mock-') ||
+        r.reportCode == '#LP-2026-000001' ||
+        r.reportCode == '#LP-2026-000002' ||
+        r.reportCode == '#LP-2026-000003' ||
+        r.reportCode == '#LP-2026-000004' ||
+        r.reportCode == '#LP-2026-000005' ||
+        r.reportCode == '#LP-2026-000006' ||
+        r.addressText == 'None' ||
+        (r.addressText == 'Jalan Merdeka Selatan, Kauman, Kota Malang' &&
+            r.media.isEmpty));
 
     // _statusOverrides HANYA diterapkan ke laporan lokal yang belum dikonfirmasi server.
     // Laporan yang status-nya baru diterima dari API TIDAK boleh dioverride.
