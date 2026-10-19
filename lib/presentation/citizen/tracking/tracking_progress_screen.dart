@@ -22,10 +22,19 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
   List<ReportModel> _userReports = [];
   bool _isLoading = true;
   String? _errorMessage;
+  bool _isShowingListView = false;
 
   @override
   void initState() {
     super.initState();
+    final bool isFromMyReports = widget.reportData?['myReports'] == true &&
+        widget.reportData?['reportId'] == null &&
+        widget.reportData?['id'] == null &&
+        widget.reportData?['report_id'] == null &&
+        widget.reportData?['reportCode'] == null &&
+        widget.reportData?['report_code'] == null &&
+        widget.reportData?['reportModel'] == null;
+    _isShowingListView = isFromMyReports;
     _loadReport();
   }
 
@@ -73,6 +82,7 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
       if (mounted) {
         setState(() {
           _report = preloaded;
+          _isShowingListView = false;
           _isLoading = false;
         });
       }
@@ -87,12 +97,28 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
         widget.reportData?['report_code'] as String?;
 
     if (reportId != null && reportId.isNotEmpty) {
+      if (mounted) {
+        setState(() {
+          _isShowingListView = false;
+        });
+      }
       await _refreshFromApi(reportId);
       return;
     }
 
-    // 3. Jika tidak ada reportId spesifik (misal dari menu Riwayat Laporan di Profil),
-    // gunakan laporan terbaru milik warga tersebut
+    // 3. Jika membuka dari menu "Riwayat Laporan" di Profil tanpa ID spesifik,
+    // langsung tampilkan list semua laporan milik warga
+    if (widget.reportData?['myReports'] == true) {
+      if (mounted) {
+        setState(() {
+          _isShowingListView = true;
+          _isLoading = false;
+        });
+      }
+      return;
+    }
+
+    // 4. Jika ada laporan warga dan bukan mode list, tampilkan laporan terbaru
     if (myReports.isNotEmpty) {
       final latest = myReports.first;
       if (mounted) {
@@ -105,7 +131,7 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
       return;
     }
 
-    // 4. Benar-benar belum ada laporan (tampilkan empty state)
+    // 5. Benar-benar belum ada laporan (tampilkan empty state)
     if (mounted) {
       setState(() {
         _report = null;
@@ -413,6 +439,243 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
     );
   }
 
+  String _formatSimpleDate(DateTime dt) {
+    const months = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+    return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
+  }
+
+  Widget _buildStatusPill(ReportStatus status) {
+    Color bg;
+    Color text;
+    switch (status) {
+      case ReportStatus.completed:
+      case ReportStatus.resolved:
+        bg = const Color(0xFFE8F5E9);
+        text = const Color(0xFF1D9C51);
+        break;
+      case ReportStatus.inProgress:
+      case ReportStatus.assigned:
+      case ReportStatus.verified:
+        bg = const Color(0xFFFFF9E9);
+        text = const Color(0xFFF2AE01);
+        break;
+      case ReportStatus.rejected:
+      case ReportStatus.disputed:
+        bg = const Color(0xFFFFEBEE);
+        text = const Color(0xFFC60D05);
+        break;
+      default:
+        bg = const Color(0xFFF5F5F5);
+        text = const Color(0xFF757575);
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        status.displayName,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: text,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildListThumbnail(ReportModel report) {
+    final photo = report.formattedPhotoUrl ?? report.directPhotoUrl;
+    if (photo != null && photo.isNotEmpty) {
+      if (photo.startsWith('http')) {
+        return Image.network(
+          photo,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => const Icon(
+            Icons.image_not_supported_outlined,
+            color: AppColors.neutral400,
+          ),
+        );
+      }
+      final file = File(photo);
+      if (file.existsSync()) {
+        return Image.file(
+          file,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => const Icon(
+            Icons.image_not_supported_outlined,
+            color: AppColors.neutral400,
+          ),
+        );
+      }
+    }
+    return const Icon(
+      Icons.assignment_outlined,
+      color: AppColors.greenPrimary,
+      size: 28,
+    );
+  }
+
+  Widget _buildMyReportsListView() {
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      itemCount: _userReports.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 14),
+      itemBuilder: (context, index) {
+        final item = _userReports[index];
+        final progress = _calculateProgress(item);
+        final pctLabel = '${(progress * 100).toInt()}%';
+
+        return InkWell(
+          onTap: () {
+            setState(() {
+              _report = item;
+              _isShowingListView = false;
+              _isLoading = true;
+            });
+            _refreshFromApi(item.id);
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.neutral200),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.greenPrimary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        item.formattedReportCode,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.greenPrimary,
+                        ),
+                      ),
+                    ),
+                    _buildStatusPill(item.status),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        width: 64,
+                        height: 64,
+                        color: AppColors.neutral100,
+                        child: _buildListThumbnail(item),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.categoryName,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.neutral900,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            item.addressText ?? 'Malang, Jawa Timur',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.neutral500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _formatSimpleDate(item.createdAt),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.neutral400,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                // Progress bar
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Progress Penanganan',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.neutral500,
+                          ),
+                        ),
+                        Text(
+                          pctLabel,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.greenPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: progress,
+                        minHeight: 6,
+                        backgroundColor: AppColors.neutral200,
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                            AppColors.greenPrimary),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -426,11 +689,19 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
             color: AppColors.neutral900,
             size: 20,
           ),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            if (!_isShowingListView &&
+                widget.reportData?['myReports'] == true &&
+                _userReports.length > 1) {
+              setState(() => _isShowingListView = true);
+            } else {
+              Navigator.pop(context);
+            }
+          },
         ),
-        title: const Text(
-          'Tracking Progress',
-          style: TextStyle(
+        title: Text(
+          _isShowingListView ? 'Riwayat Laporan' : 'Tracking Progress',
+          style: const TextStyle(
             color: AppColors.neutral900,
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -438,12 +709,19 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
         ),
         centerTitle: true,
         actions: [
-          if (_userReports.length > 1)
+          if (!_isShowingListView && _userReports.length > 1)
             IconButton(
               icon: const Icon(Icons.swap_horiz_rounded,
                   color: AppColors.greenPrimary),
               tooltip: 'Ganti Laporan',
               onPressed: _showReportPickerSheet,
+            ),
+          if (!_isShowingListView && widget.reportData?['myReports'] == true)
+            IconButton(
+              icon: const Icon(Icons.list_alt_rounded,
+                  color: AppColors.greenPrimary),
+              tooltip: 'Daftar Laporan',
+              onPressed: () => setState(() => _isShowingListView = true),
             ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded,
@@ -463,6 +741,13 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
   }
 
   Widget _buildBody() {
+    if (_isShowingListView) {
+      if (_userReports.isEmpty) {
+        return _buildEmptyState();
+      }
+      return _buildMyReportsListView();
+    }
+
     final report = _report;
 
     // --- Fallback values from passed args if API not yet loaded ---

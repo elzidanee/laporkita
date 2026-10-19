@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/config/app_config.dart';
+import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/report_model.dart';
 import '../../../data/models/user_model.dart';
@@ -49,6 +50,21 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       _supportCount = widget.reportData?['supports'] as int? ?? 0;
     }
 
+    // Periksa apakah user sudah pernah mendukung laporan ini sebelumnya
+    final String? repId = _resolvedReportId;
+    if (repId != null && repId.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          try {
+            final repo = context.read<ReportRepository>();
+            if (repo.isReportSupported(repId)) {
+              setState(() => _isSupported = true);
+            }
+          } catch (_) {}
+        }
+      });
+    }
+
     _fetchLatestReportDetail();
     _fetchComments();
   }
@@ -74,6 +90,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
 
     try {
       final repository = context.read<ReportRepository>();
+      final isSupportedLocally = repository.isReportSupported(reportId);
       final detail = await repository.getReportById(reportId);
       if (mounted) {
         setState(() {
@@ -92,6 +109,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                 )
               : detail;
           _supportCount = detail.supportCount;
+          _isSupported = _isSupported || isSupportedLocally;
           _isLoading = false;
         });
       }
@@ -890,30 +908,58 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                     if (reportId != null && reportId.isNotEmpty) {
                       try {
                         final repo = context.read<ReportRepository>();
-                        await repo.supportReport(reportId);
+                        final res = await repo.supportReport(reportId);
                         if (mounted) {
                           context.read<ReportBloc>().add(
                                 ReportSupportRequested(reportId),
                               );
+                          final isAlready = res['status'] == 'already_supported';
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Dukungan berhasil dikirim!'),
+                            SnackBar(
+                              content: Text(isAlready
+                                  ? 'Anda sudah memberikan dukungan untuk laporan ini.'
+                                  : 'Dukungan berhasil dikirim!'),
                               backgroundColor: AppColors.greenPrimary,
                             ),
                           );
                         }
                       } catch (e) {
                         if (mounted) {
-                          setState(() {
-                            _isSupported = false;
-                            _supportCount -= 1;
-                          });
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Gagal mengirim dukungan: $e'),
-                              backgroundColor: AppColors.statusDanger,
-                            ),
-                          );
+                          final errorMsg = e.toString().toLowerCase();
+                          final bool isAlreadySupported = errorMsg.contains('conflict') ||
+                              errorMsg.contains('already') ||
+                              errorMsg.contains('sudah') ||
+                              (e is ApiException && (e.code == 'CONFLICT' || e.statusCode == 409));
+
+                          if (isAlreadySupported) {
+                            setState(() {
+                              _isSupported = true;
+                            });
+                            try {
+                              context.read<ReportRepository>().markReportSupported(reportId);
+                            } catch (_) {}
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                    'Anda sudah memberikan dukungan untuk laporan ini.'),
+                                backgroundColor: AppColors.greenPrimary,
+                              ),
+                            );
+                          } else {
+                            setState(() {
+                              _isSupported = false;
+                              _supportCount = (_supportCount > 0) ? _supportCount - 1 : 0;
+                            });
+                            final displayMsg = e is ApiException
+                                ? e.userMessage
+                                : 'Gagal mengirim dukungan. Silakan coba lagi.';
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(displayMsg),
+                                backgroundColor: AppColors.statusDanger,
+                              ),
+                            );
+                          }
                         }
                       }
                     }

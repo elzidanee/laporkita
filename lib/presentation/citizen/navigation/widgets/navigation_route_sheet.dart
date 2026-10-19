@@ -27,6 +27,8 @@ class NavigationRouteSheet extends StatelessWidget {
   final ValueChanged<int> onSelectRoute;
   final bool showRiskBadges;
   final List<RouteOptionItem>? customRoutes;
+  final VoidCallback? onStartNavigation;
+  final bool isLoading;
 
   const NavigationRouteSheet({
     super.key,
@@ -34,6 +36,8 @@ class NavigationRouteSheet extends StatelessWidget {
     required this.onSelectRoute,
     this.showRiskBadges = true,
     this.customRoutes,
+    this.onStartNavigation,
+    this.isLoading = false,
   });
 
   static const List<RouteOptionItem> defaultRoutes = [
@@ -80,7 +84,14 @@ class NavigationRouteSheet extends StatelessWidget {
           ),
         ],
       ),
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        12,
+        16,
+        MediaQuery.of(context).padding.bottom > 0
+            ? MediaQuery.of(context).padding.bottom + 8
+            : 20,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -194,6 +205,44 @@ class NavigationRouteSheet extends StatelessWidget {
               ),
             );
           }),
+
+          // Tombol Mulai Navigasi Terpadu mengikuti space bawah
+          if (onStartNavigation != null) ...[
+            const SizedBox(height: 4),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: isLoading ? null : onStartNavigation,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.greenPrimary,
+                  foregroundColor: AppColors.white,
+                  elevation: 2,
+                  shadowColor: Colors.black.withValues(alpha: 0.2),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                child: isLoading
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                              AppColors.white),
+                        ),
+                      )
+                    : const Text(
+                        'Mulai Navigasi',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+              ),
+            ),
+          ],
         ],
       ),
     );

@@ -84,13 +84,14 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
         baru++;
       }
 
-      // Terlambat criteria: urgency >= 7.0 or needs manual review or older than 7 days
-      final isUrgent = (r.urgencyScore != null && r.urgencyScore! >= 7.0) ||
-          r.needsManualReview ||
-          r.priorityLabel.toLowerCase().contains('tinggi');
-      if (isUrgent &&
+      // Terlambat criteria: estimated completion date has passed and not completed
+      final now = DateTime.now();
+      final isOverdue = r.estimatedCompletionAt != null &&
+          r.estimatedCompletionAt!.isBefore(now);
+      if (isOverdue &&
           r.status != ReportStatus.completed &&
-          r.status != ReportStatus.resolved) {
+          r.status != ReportStatus.resolved &&
+          r.status != ReportStatus.rejected) {
         terlambat++;
       }
     }
@@ -98,7 +99,7 @@ class _OperatorDashboardScreenState extends State<OperatorDashboardScreen> {
     _tugasBaruCount = baru;
     _sedangDikerjakanCount = dikerjakan;
     _selesaiCount = selesai;
-    _terlambatCount = terlambat > 0 ? terlambat : 1;
+    _terlambatCount = terlambat;
   }
 
   String _formatCodeWithHash(String code) {

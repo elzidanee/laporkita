@@ -81,37 +81,45 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
   Future<void> _fetchLiveDashboardData() async {
     setState(() => _isLoading = true);
+    final reportRepo = context.read<ReportRepository>();
+    final categoryRepo = context.read<CategoryRepository>();
     try {
-      final reportRepo = context.read<ReportRepository>();
-      final categoryRepo = context.read<CategoryRepository>();
-
       final reportResponse = await reportRepo.getReports(limit: 100);
       final categoriesList = await categoryRepo.getCategories();
 
       if (mounted) {
-        final reports = reportResponse.data ?? [];
-        _computeStats(reports);
-        _computeChartData(reports);
+        var reports = reportResponse.data ?? [];
+        if (reports.isEmpty && reportRepo.localSubmittedReports.isNotEmpty) {
+          reports = reportRepo.localSubmittedReports;
+        }
 
         setState(() {
           _reports = reports;
           _categories = categoriesList;
           _isLoading = false;
+          _computeStats(reports);
+          _computeChartData(reports);
         });
         _fadeController.forward(from: 0);
       }
     } catch (_) {
       if (mounted) {
-        setState(() => _isLoading = false);
+        final localReports = reportRepo.localSubmittedReports;
+        setState(() {
+          _reports = localReports;
+          _isLoading = false;
+          _computeStats(localReports);
+          _computeChartData(localReports);
+        });
       }
     }
   }
 
-  List<ReportModel> get _filteredReports {
+  List<ReportModel> _filterReports(List<ReportModel> list) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     if (_selectedFilter == 'Hari ini') {
-      return _reports.where((r) {
+      return list.where((r) {
         final c = r.createdAt;
         return c.year == today.year &&
             c.month == today.month &&
@@ -119,15 +127,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       }).toList();
     } else if (_selectedFilter == '7 Hari Terakhir') {
       final sevenDaysAgo = today.subtract(const Duration(days: 7));
-      return _reports.where((r) => r.createdAt.isAfter(sevenDaysAgo)).toList();
+      return list.where((r) => r.createdAt.isAfter(sevenDaysAgo)).toList();
     } else if (_selectedFilter == 'Bulan ini') {
-      return _reports
+      return list
           .where((r) =>
               r.createdAt.year == now.year && r.createdAt.month == now.month)
           .toList();
     }
-    return _reports;
+    return list;
   }
+
+  List<ReportModel> get _filteredReports => _filterReports(_reports);
 
   void _computeStats(List<ReportModel> reports) {
     final now = DateTime.now();
@@ -135,7 +145,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     final yesterday = today.subtract(const Duration(days: 1));
 
     // Filter reports according to _selectedFilter
-    final filtered = _filteredReports;
+    final filtered = _filterReports(reports);
 
     int inProgress = 0, selesai = 0, ditolak = 0;
     for (final r in filtered) {
@@ -416,32 +426,57 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           ),
           const SizedBox(height: 14),
           ..._categories.map((cat) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.only(bottom: 10),
                 child: Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   decoration: BoxDecoration(
                     color: AppColors.white,
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: AppColors.neutral200),
                   ),
                   child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      const Icon(Icons.category_rounded,
-                          color: Color(0xFFF2AE01)),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          cat.name,
-                          style: GoogleFonts.inter(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF9E9),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.category_rounded,
+                          color: Color(0xFFF2AE01),
+                          size: 20,
                         ),
                       ),
-                      Text(
-                        cat.agencyName,
-                        style: GoogleFonts.inter(
-                            fontSize: 11,
-                            color: AppColors.neutral700),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              cat.name,
+                              style: GoogleFonts.inter(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black,
+                              ),
+                            ),
+                            if (cat.agencyName.isNotEmpty) ...[
+                              const SizedBox(height: 3),
+                              Text(
+                                cat.agencyName,
+                                style: GoogleFonts.inter(
+                                  fontSize: 11.5,
+                                  color: AppColors.neutral700,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
                     ],
                   ),

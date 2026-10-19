@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:laporkita/core/theme/app_colors.dart';
 import 'package:laporkita/presentation/auth/bloc/auth_bloc.dart';
+import 'package:laporkita/presentation/citizen/profile/citizen_supported_reports_screen.dart';
 
 class CitizenProfileTab extends StatelessWidget {
   const CitizenProfileTab({super.key});
@@ -163,10 +164,10 @@ class CitizenProfileTab extends StatelessWidget {
                     icon: Icons.thumb_up_alt_outlined,
                     title: 'Dukungan Saya',
                     onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Membuka Dukungan Saya...'),
-                          backgroundColor: AppColors.greenPrimary,
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const CitizenSupportedReportsScreen(),
                         ),
                       );
                     },

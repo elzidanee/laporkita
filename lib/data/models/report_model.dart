@@ -117,8 +117,7 @@ class ReportMediaModel {
     }
     // URL dummy
     if (url.contains('storage.example.com') ||
-        url.contains('images.unsplash.com') ||
-        url.contains('storage.laporkita.malangkota.go.id')) {
+        url.contains('images.unsplash.com')) {
       return '';
     }
     if (url.startsWith('http://') || url.startsWith('https://')) {
@@ -303,14 +302,12 @@ class ReportModel {
     final String? serverPhotoUrl = (rawPhoto != null &&
             rawPhoto.isNotEmpty &&
             !rawPhoto.contains('storage.example.com') &&
-            !rawPhoto.contains('images.unsplash.com') &&
-            !rawPhoto.contains('storage.laporkita.malangkota.go.id'))
+            !rawPhoto.contains('images.unsplash.com'))
         ? rawPhoto
         : (initialMedia != null &&
                 initialMedia.url.isNotEmpty &&
                 !initialMedia.url.contains('storage.example.com') &&
-                !initialMedia.url.contains('images.unsplash.com') &&
-                !initialMedia.url.contains('storage.laporkita.malangkota.go.id')
+                !initialMedia.url.contains('images.unsplash.com')
             ? initialMedia.url
             : null);
 
@@ -553,8 +550,7 @@ class ReportModel {
       if ((directPhotoUrl!.startsWith('http://') ||
               directPhotoUrl!.startsWith('https://')) &&
           !directPhotoUrl!.contains('images.unsplash.com') &&
-          !directPhotoUrl!.contains('storage.example.com') &&
-          !directPhotoUrl!.contains('storage.laporkita.malangkota.go.id')) {
+          !directPhotoUrl!.contains('storage.example.com')) {
         return directPhotoUrl;
       }
       // 2. Jika merupakan file lokal, pastikan file fisik benar-benar ada di perangkat ini
@@ -574,8 +570,7 @@ class ReportModel {
             m.type == 'initial_photo' &&
             m.url.isNotEmpty &&
             !m.url.contains('storage.example.com') &&
-            !m.url.contains('images.unsplash.com') &&
-            !m.url.contains('storage.laporkita.malangkota.go.id'),
+            !m.url.contains('images.unsplash.com'),
       );
       if (initialMedia.isNotEmpty) {
         return initialMedia.first.url;
@@ -583,8 +578,7 @@ class ReportModel {
       for (final m in media) {
         if (m.url.isNotEmpty &&
             !m.url.contains('storage.example.com') &&
-            !m.url.contains('images.unsplash.com') &&
-            !m.url.contains('storage.laporkita.malangkota.go.id')) {
+            !m.url.contains('images.unsplash.com')) {
           return m.url;
         }
       }
@@ -594,8 +588,7 @@ class ReportModel {
     if (directPhotoUrl != null &&
         directPhotoUrl!.isNotEmpty &&
         !directPhotoUrl!.contains('images.unsplash.com') &&
-        !directPhotoUrl!.contains('storage.example.com') &&
-        !directPhotoUrl!.contains('storage.laporkita.malangkota.go.id')) {
+        !directPhotoUrl!.contains('storage.example.com')) {
       return directPhotoUrl;
     }
 
@@ -633,8 +626,7 @@ class ReportModel {
     }
     // Domain dummy test suite QA atau dummy Unsplash atau domain internal unreachable
     if (raw.contains('storage.example.com') ||
-        raw.contains('images.unsplash.com') ||
-        raw.contains('storage.laporkita.malangkota.go.id')) {
+        raw.contains('images.unsplash.com')) {
       return null;
     }
     // Sudah absolute URL

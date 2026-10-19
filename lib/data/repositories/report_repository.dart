@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../core/network/api_response.dart';
+import '../../core/network/api_exception.dart';
 import '../datasources/remote/report_remote_datasource.dart';
 import '../models/report_model.dart';
 import 'notification_repository.dart';
@@ -17,11 +18,13 @@ class ReportRepository {
   final Map<String, Map<String, dynamic>> _statusOverrides = {};
   final Map<String, double> _progressOverrides = {};
   final Map<String, List<Map<String, dynamic>>> _localComments = {};
+  final Set<String> _supportedReportIds = {};
   bool _isStorageLoaded = false;
 
   static const String _kPersistedOverridesKey = 'laporkita_status_overrides';
   static const String _kPersistedSubmittedKey = 'laporkita_submitted_reports';
   static const String _kPersistedProgressKey = 'laporkita_progress_overrides_v1';
+  static const String _kPersistedSupportedKey = 'laporkita_supported_reports_v1';
 
   ReportRepository({
     ReportRemoteDatasource? datasource,
@@ -134,8 +137,26 @@ class ReportRepository {
           }
         }
       }
+
+      final supportedJson = await _storage.read(key: _kPersistedSupportedKey);
+      if (supportedJson != null && supportedJson.isNotEmpty) {
+        try {
+          final dynamic list = jsonDecode(supportedJson);
+          _supportedReportIds.clear();
+          if (list is List) {
+            for (final item in list) {
+              if (item != null) {
+                _supportedReportIds.add(item.toString());
+              }
+            }
+          }
+        } catch (err) {
+          debugPrint('⚠️ [ReportRepository] supported reports parse error: $err');
+        }
+      }
+
       debugPrint(
-          '✅ [ReportRepository] Storage loaded: ${_statusOverrides.length} status overrides, ${_submittedReports.length} submitted reports');
+          '✅ [ReportRepository] Storage loaded: ${_statusOverrides.length} status overrides, ${_submittedReports.length} submitted reports, ${_supportedReportIds.length} supported reports');
     } catch (e) {
       debugPrint('⚠️ [ReportRepository] _ensureStorageLoaded error: $e');
     } finally {
@@ -158,11 +179,26 @@ class ReportRepository {
         key: _kPersistedSubmittedKey,
         value: jsonEncode(submittedList),
       );
+      await _storage.write(
+        key: _kPersistedSupportedKey,
+        value: jsonEncode(_supportedReportIds.toList()),
+      );
       debugPrint(
-          '💾 [ReportRepository] Persisted state saved: ${_statusOverrides.length} overrides');
+          '💾 [ReportRepository] Persisted state saved: ${_statusOverrides.length} overrides, ${_supportedReportIds.length} supported');
     } catch (e) {
       debugPrint('⚠️ [ReportRepository] _savePersistedState error: $e');
     }
+  }
+
+  Set<String> get supportedReportIds => Set.unmodifiable(_supportedReportIds);
+
+  bool isReportSupported(String reportId) {
+    return _supportedReportIds.contains(reportId);
+  }
+
+  Future<void> markReportSupported(String reportId) async {
+    _supportedReportIds.add(reportId);
+    await _savePersistedState();
   }
 
   Future<ApiResponse<List<ReportModel>>> getReports({
@@ -695,27 +731,56 @@ class ReportRepository {
 
   Future<Map<String, dynamic>> supportReport(String reportId) async {
     await _ensureStorageLoaded();
-    final res = await _datasource.supportReport(reportId);
-    final idx = _submittedReports.indexWhere((r) => r.id == reportId);
-    if (idx != -1) {
-      final old = _submittedReports[idx];
-      _submittedReports[idx] = old.copyWith(supportCount: old.supportCount + 1);
-      await _savePersistedState();
+
+    // Jika sudah pernah didukung secara lokal, jangan memicu error conflict
+    if (_supportedReportIds.contains(reportId)) {
+      return {'status': 'already_supported', 'message': 'Laporan sudah didukung'};
     }
-    return res;
+
+    try {
+      final res = await _datasource.supportReport(reportId);
+      _supportedReportIds.add(reportId);
+      await _savePersistedState();
+
+      final idx = _submittedReports.indexWhere((r) => r.id == reportId);
+      if (idx != -1) {
+        final old = _submittedReports[idx];
+        _submittedReports[idx] = old.copyWith(supportCount: old.supportCount + 1);
+        await _savePersistedState();
+      }
+      return res;
+    } on ApiException catch (e) {
+      if (e.code == 'CONFLICT' ||
+          e.statusCode == 409 ||
+          e.statusCode == 400 ||
+          e.message.toLowerCase().contains('already') ||
+          e.message.toLowerCase().contains('sudah')) {
+        _supportedReportIds.add(reportId);
+        await _savePersistedState();
+        return {'status': 'already_supported', 'message': 'Laporan sudah didukung'};
+      }
+      rethrow;
+    }
   }
 
   Future<Map<String, dynamic>> cancelSupport(String reportId) async {
     await _ensureStorageLoaded();
-    final res = await _datasource.cancelSupport(reportId);
-    final idx = _submittedReports.indexWhere((r) => r.id == reportId);
-    if (idx != -1) {
-      final old = _submittedReports[idx];
-      final newCount = old.supportCount > 0 ? old.supportCount - 1 : 0;
-      _submittedReports[idx] = old.copyWith(supportCount: newCount);
+    try {
+      final res = await _datasource.cancelSupport(reportId);
+      _supportedReportIds.remove(reportId);
+      final idx = _submittedReports.indexWhere((r) => r.id == reportId);
+      if (idx != -1) {
+        final old = _submittedReports[idx];
+        final newCount = old.supportCount > 0 ? old.supportCount - 1 : 0;
+        _submittedReports[idx] = old.copyWith(supportCount: newCount);
+      }
       await _savePersistedState();
+      return res;
+    } catch (_) {
+      _supportedReportIds.remove(reportId);
+      await _savePersistedState();
+      rethrow;
     }
-    return res;
   }
 
   Future<ApiResponse<List<Map<String, dynamic>>>> getComments(

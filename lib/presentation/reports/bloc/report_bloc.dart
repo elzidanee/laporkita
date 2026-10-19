@@ -42,11 +42,34 @@ class ReportBloc extends Bloc<ReportEvent, ReportState> {
         total: response.meta?.total ?? data.length,
       ));
     } on ApiException catch (e) {
-      emit(ReportError(code: e.code, message: e.userMessage));
-    } on NetworkException catch (e) {
-      emit(ReportError(code: 'NETWORK_ERROR', message: e.message));
-    } catch (e) {
-      emit(ReportError(code: 'UNKNOWN', message: e.toString()));
+      // Untuk list load: jangan crash UI dengan ReportError.
+      // Emit empty list agar dashboard tetap tampil (empty state).
+      // ReportError hanya untuk mutasi (submit, update status).
+      if (e.isTokenInvalid) {
+        emit(ReportError(code: e.code, message: e.userMessage));
+      } else {
+        emit(const ReportListLoaded(
+          reports: [],
+          nextCursor: null,
+          hasMore: false,
+          total: 0,
+        ));
+      }
+    } on NetworkException {
+      // Offline / timeout — tampilkan empty state, bukan crash
+      emit(const ReportListLoaded(
+        reports: [],
+        nextCursor: null,
+        hasMore: false,
+        total: 0,
+      ));
+    } catch (_) {
+      emit(const ReportListLoaded(
+        reports: [],
+        nextCursor: null,
+        hasMore: false,
+        total: 0,
+      ));
     }
   }
 
@@ -119,32 +142,42 @@ class ReportBloc extends Bloc<ReportEvent, ReportState> {
     ReportSupportRequested event,
     Emitter<ReportState> emit,
   ) async {
+    // 1. Optimistic update jika list sudah ter-load
+    if (state is ReportListLoaded) {
+      final current = state as ReportListLoaded;
+      final updatedReports = current.reports.map((r) {
+        if (r.id == event.reportId) {
+          return r.copyWith(supportCount: r.supportCount + 1);
+        }
+        return r;
+      }).toList();
+      emit(ReportListLoaded(
+        reports: updatedReports,
+        nextCursor: current.nextCursor,
+        hasMore: current.hasMore,
+        total: current.total,
+      ));
+    }
+
     try {
       await _reportRepository.supportReport(event.reportId);
       // Refresh detail jika sedang di detail screen
       if (state is ReportDetailLoaded) {
         add(ReportDetailRequested(event.reportId));
-      } else if (state is ReportListLoaded) {
-        final current = state as ReportListLoaded;
-        final updatedReports = current.reports.map((r) {
-          if (r.id == event.reportId) {
-            return r.copyWith(supportCount: r.supportCount + 1);
-          }
-          return r;
-        }).toList();
-        emit(ReportListLoaded(
-          reports: updatedReports,
-          nextCursor: current.nextCursor,
-          hasMore: current.hasMore,
-          total: current.total,
-        ));
       }
     } on ApiException catch (e) {
-      emit(ReportError(code: e.code, message: e.userMessage));
+      // PENTING: Jangan timpa state ReportListLoaded menjadi ReportError jika dukungan gagal/sudah pernah diberikan
+      if (state is! ReportListLoaded) {
+        emit(ReportError(code: e.code, message: e.userMessage));
+      }
     } on NetworkException catch (e) {
-      emit(ReportError(code: 'NETWORK_ERROR', message: e.message));
+      if (state is! ReportListLoaded) {
+        emit(ReportError(code: 'NETWORK_ERROR', message: e.message));
+      }
     } catch (e) {
-      emit(ReportError(code: 'UNKNOWN', message: e.toString()));
+      if (state is! ReportListLoaded) {
+        emit(ReportError(code: 'UNKNOWN', message: e.toString()));
+      }
     }
   }
 

@@ -11,6 +11,7 @@ import '../../../data/repositories/report_repository.dart';
 import 'admin_report_history_screen.dart';
 import 'admin_verification_action_screen.dart';
 import 'admin_assign_report_screen.dart';
+import '../../citizen/navigation/route_picker_screen.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Detail Laporan | Admin  (Figma: node 551-2)
@@ -1207,11 +1208,66 @@ class _AdminReportDetailScreenState extends State<AdminReportDetailScreen> {
                 children: [
                   const Icon(Icons.gps_fixed, size: 16, color: AppColors.greenPrimary),
                   const SizedBox(width: 6),
-                  Text(
-                    '${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)}',
-                    style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w500),
+                  Expanded(
+                    child: Text(
+                      '${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)}',
+                      style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.copy_rounded, size: 18, color: Colors.black54),
+                    tooltip: 'Salin Koordinat',
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: '$lat,$lng'));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          backgroundColor: const Color(0xFF1D9C51),
+                          behavior: SnackBarBehavior.floating,
+                          content: Text(
+                            'Koordinat disalin ke clipboard!',
+                            style: GoogleFonts.poppins(fontSize: 12),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ],
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => RoutePickerScreen(
+                          initialDestination: centerPoint,
+                          initialDestinationName:
+                              r.addressText ?? r.categoryName,
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.navigation_rounded, color: Colors.white, size: 20),
+                  label: Text(
+                    'Navigasi ke Lokasi Laporan',
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1D9C51),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    elevation: 0,
+                  ),
+                ),
               ),
             ],
           ),

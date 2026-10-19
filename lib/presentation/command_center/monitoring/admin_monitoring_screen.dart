@@ -36,18 +36,23 @@ class _AdminMonitoringScreenState extends State<AdminMonitoringScreen> {
   bool _isLoading = true;
 
   // Metrics
-  int _totalLaporan = 2458;
-  int _sedangDiproses = 1286;
-  int _selesai = 1072;
-  int _terlambat = 100;
-  int _progressPercentage = 52;
+  int _totalLaporan = 0;
+  int _sedangDiproses = 0;
+  int _selesai = 0;
+  int _terlambat = 0;
+  int _progressPercentage = 0;
 
   // Category counts
-  int _jalanCount = 1023;
-  int _peneranganCount = 456;
-  int _drainaseCount = 312;
-  int _trotoarCount = 298;
-  int _lainnyaCount = 369;
+  int _jalanCount = 0;
+  int _peneranganCount = 0;
+  int _drainaseCount = 0;
+  int _trotoarCount = 0;
+  int _lainnyaCount = 0;
+
+  // Chart data
+  List<String> _chartXLabels = [];
+  List<double> _chartGreenValues = [];
+  List<double> _chartBlueValues = [];
 
   // Overdue reports list
   List<ReportModel> _overdueReports = [];
@@ -68,39 +73,90 @@ class _AdminMonitoringScreenState extends State<AdminMonitoringScreen> {
     setState(() => _isLoading = true);
     try {
       final repo = context.read<ReportRepository>();
-      final res = await repo.getReports(limit: 100);
-      final reports = res.data ?? [];
+      List<ReportModel> reports = [];
+      try {
+        final res = await repo.getReports(limit: 100);
+        reports = res.data ?? [];
+      } catch (_) {
+        reports = repo.localSubmittedReports;
+      }
+      if (reports.isEmpty && repo.localSubmittedReports.isNotEmpty) {
+        reports = repo.localSubmittedReports;
+      }
 
       if (mounted) {
-        _computeMetrics(reports);
+        setState(() {
+          _computeMetrics(reports);
+          _isLoading = false;
+        });
       }
     } catch (_) {
       if (mounted) {
-        _computeMetrics([]);
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _computeMetrics([]);
+          _isLoading = false;
+        });
       }
     }
   }
 
+  String _shortMonth(int month) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+      'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'
+    ];
+    if (month >= 1 && month <= 12) return months[month - 1];
+    return '';
+  }
+
+  void _computeChartData(List<ReportModel> reports) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final List<DateTime> days = [];
+    for (int i = 4; i >= 0; i--) {
+      days.add(today.subtract(Duration(days: i)));
+    }
+
+    _chartXLabels =
+        days.map((d) => '${d.day} ${_shortMonth(d.month)}').toList();
+
+    _chartGreenValues = days.map((day) {
+      return reports.where((r) {
+        final c = r.createdAt;
+        return c.year == day.year &&
+            c.month == day.month &&
+            c.day == day.day;
+      }).length.toDouble();
+    }).toList();
+
+    _chartBlueValues = days.map((day) {
+      bool isMatch(DateTime c) =>
+          c.year == day.year && c.month == day.month && c.day == day.day;
+      return reports.where((r) {
+        return isMatch(r.createdAt) &&
+            (r.status == ReportStatus.inProgress ||
+                r.status == ReportStatus.assigned ||
+                r.status == ReportStatus.verified);
+      }).length.toDouble();
+    }).toList();
+  }
+
   void _computeMetrics(List<ReportModel> reports) {
     _allReports = reports;
+    _computeChartData(reports);
 
     if (reports.isEmpty) {
-      // Use Figma default baseline metrics
-      _totalLaporan = 2458;
-      _sedangDiproses = 1286;
-      _selesai = 1072;
-      _terlambat = 100;
-      _progressPercentage = 52;
-      _jalanCount = 1023;
-      _peneranganCount = 456;
-      _drainaseCount = 312;
-      _trotoarCount = 298;
-      _lainnyaCount = 369;
-      _overdueReports = _buildFallbackOverdueReports();
+      _totalLaporan = 0;
+      _sedangDiproses = 0;
+      _selesai = 0;
+      _terlambat = 0;
+      _progressPercentage = 0;
+      _jalanCount = 0;
+      _peneranganCount = 0;
+      _drainaseCount = 0;
+      _trotoarCount = 0;
+      _lainnyaCount = 0;
+      _overdueReports = [];
       return;
     }
 
@@ -116,21 +172,24 @@ class _AdminMonitoringScreenState extends State<AdminMonitoringScreen> {
             r.status == ReportStatus.completed ||
             r.status == ReportStatus.resolved)
         .length;
-    final overdue = reports
-        .where((r) =>
-            r.status != ReportStatus.completed &&
-            r.status != ReportStatus.resolved &&
-            ((r.urgencyScore != null &&
-                    (r.urgencyScore! <= 1.0
-                        ? r.urgencyScore! * 100 >= 70
-                        : r.urgencyScore! >= 70)) ||
-                r.needsManualReview))
-        .length;
+
+    final now = DateTime.now();
+    final overdueList = reports.where((r) {
+      if (r.status == ReportStatus.completed ||
+          r.status == ReportStatus.resolved ||
+          r.status == ReportStatus.rejected) {
+        return false;
+      }
+      final isOverdue = r.estimatedCompletionAt != null &&
+          r.estimatedCompletionAt!.isBefore(now);
+      return isOverdue;
+    }).toList();
 
     _totalLaporan = total;
     _sedangDiproses = inProgress;
     _selesai = resolved;
-    _terlambat = overdue;
+    _terlambat = overdueList.length;
+    _overdueReports = overdueList;
 
     _progressPercentage = (_totalLaporan > 0)
         ? ((_selesai / _totalLaporan) * 100).round().clamp(0, 100)
@@ -160,92 +219,6 @@ class _AdminMonitoringScreenState extends State<AdminMonitoringScreen> {
     _drainaseCount = d;
     _trotoarCount = t;
     _lainnyaCount = l;
-
-    // Overdue reports list
-    final candidateOverdue = reports.where((r) {
-      return r.status != ReportStatus.completed &&
-          r.status != ReportStatus.resolved;
-    }).toList();
-
-    if (candidateOverdue.isNotEmpty) {
-      _overdueReports = candidateOverdue.take(5).toList();
-    } else {
-      _overdueReports = _buildFallbackOverdueReports();
-    }
-  }
-
-  List<ReportModel> _buildFallbackOverdueReports() {
-    return [
-      ReportModel(
-        id: 'rep-overdue-1',
-        reportCode: 'LP_2026_002487',
-        reporterId: 'user-1',
-        categoryId: 'cat-1',
-        status: ReportStatus.inProgress,
-        latitude: -6.382728,
-        longitude: 107.734682,
-        addressText: 'Jl. Ahmad Yani no. 15',
-        description: 'Jalan sudah tidak layak karena banyak retakan.',
-        directPhotoUrl:
-            'https://images.unsplash.com/photo-1578916171728-46686eac8d58?q=80&w=800&auto=format&fit=crop',
-        supportCount: 14,
-        viewCount: 120,
-        urgencyScore: 8.5,
-        damageSeverity: 0.85,
-        rawAiConfidenceScore: 0.98,
-        needsManualReview: false,
-        createdAt: DateTime(2026, 5, 12, 10, 30),
-        updatedAt: DateTime(2026, 5, 12, 10, 30),
-        category: const {'id': 'cat-1', 'name': 'Jalan Rusak'},
-        assignedAgency: const {'id': 'agency-1', 'name': 'Dinas PUPR'},
-      ),
-      ReportModel(
-        id: 'rep-overdue-2',
-        reportCode: 'LP_2026_0038217',
-        reporterId: 'user-2',
-        categoryId: 'cat-2',
-        status: ReportStatus.inProgress,
-        latitude: -7.942150,
-        longitude: 112.617820,
-        addressText: 'Jl. soekarno hatta no.20 A',
-        description: 'Atap dan dinding halte rusak parah.',
-        directPhotoUrl:
-            'https://images.unsplash.com/photo-1590674899484-d5640e854abe?q=80&w=800&auto=format&fit=crop',
-        supportCount: 9,
-        viewCount: 85,
-        urgencyScore: 5.5,
-        damageSeverity: 0.60,
-        rawAiConfidenceScore: 0.92,
-        needsManualReview: false,
-        createdAt: DateTime(2026, 5, 10, 14, 20),
-        updatedAt: DateTime(2026, 5, 10, 14, 20),
-        category: const {'id': 'cat-2', 'name': 'Halte rusak'},
-        assignedAgency: const {'id': 'agency-2', 'name': 'Dinas Perhubungan'},
-      ),
-      ReportModel(
-        id: 'rep-overdue-3',
-        reportCode: 'LP_2026_0047630',
-        reporterId: 'user-3',
-        categoryId: 'cat-1',
-        status: ReportStatus.inProgress,
-        latitude: -7.954200,
-        longitude: 112.614500,
-        addressText: 'Jl. Veteran, Malang',
-        description: 'Aspal amblas sedalam 15cm membahayakan pengendara.',
-        directPhotoUrl:
-            'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?q=80&w=800&auto=format&fit=crop',
-        supportCount: 22,
-        viewCount: 160,
-        urgencyScore: 9.0,
-        damageSeverity: 0.88,
-        rawAiConfidenceScore: 0.96,
-        needsManualReview: false,
-        createdAt: DateTime(2026, 5, 8, 9, 15),
-        updatedAt: DateTime(2026, 5, 8, 9, 15),
-        category: const {'id': 'cat-1', 'name': 'Jalan Rusak'},
-        assignedAgency: const {'id': 'agency-1', 'name': 'Dinas PUPR'},
-      ),
-    ];
   }
 
   String _formatNumber(int val) {
@@ -865,7 +838,11 @@ class _AdminMonitoringScreenState extends State<AdminMonitoringScreen> {
             width: double.infinity,
             child: CustomPaint(
               size: const Size(double.infinity, 180),
-              painter: _MonitoringLineChartPainter(),
+              painter: _MonitoringLineChartPainter(
+                xLabels: _chartXLabels,
+                greenValues: _chartGreenValues,
+                blueValues: _chartBlueValues,
+              ),
             ),
           ),
         ],
@@ -876,12 +853,33 @@ class _AdminMonitoringScreenState extends State<AdminMonitoringScreen> {
   // ── KATEGORI LAPORAN LIST (Figma Node 636:1743) ───────────────────
 
   Widget _buildKategoriLaporanList() {
+    final total = _totalLaporan > 0 ? _totalLaporan : 1;
     final categories = [
-      {'name': 'Jalan', 'count': _jalanCount, 'pct': '41%'},
-      {'name': 'Penerangan', 'count': _peneranganCount, 'pct': '19%'},
-      {'name': 'Drainase', 'count': _drainaseCount, 'pct': '13%'},
-      {'name': 'Trotoar', 'count': _trotoarCount, 'pct': '12%'},
-      {'name': 'Lainnya', 'count': _lainnyaCount, 'pct': '15%'},
+      {
+        'name': 'Jalan',
+        'count': _jalanCount,
+        'pct': _totalLaporan > 0 ? '${((_jalanCount / total) * 100).round()}%' : '0%',
+      },
+      {
+        'name': 'Penerangan',
+        'count': _peneranganCount,
+        'pct': _totalLaporan > 0 ? '${((_peneranganCount / total) * 100).round()}%' : '0%',
+      },
+      {
+        'name': 'Drainase',
+        'count': _drainaseCount,
+        'pct': _totalLaporan > 0 ? '${((_drainaseCount / total) * 100).round()}%' : '0%',
+      },
+      {
+        'name': 'Trotoar',
+        'count': _trotoarCount,
+        'pct': _totalLaporan > 0 ? '${((_trotoarCount / total) * 100).round()}%' : '0%',
+      },
+      {
+        'name': 'Lainnya',
+        'count': _lainnyaCount,
+        'pct': _totalLaporan > 0 ? '${((_lainnyaCount / total) * 100).round()}%' : '0%',
+      },
     ];
 
     return Column(
@@ -1053,6 +1051,34 @@ class _AdminMonitoringScreenState extends State<AdminMonitoringScreen> {
   // ── LAPORAN TERLAMBAT LIST (Figma Node 646:3603) ───────────────────
 
   Widget _buildLaporanTerlambatList() {
+    if (_overdueReports.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFE0DFDF), width: 1.0),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.check_circle_outline_rounded,
+                color: Color(0xFF1D9C51), size: 22),
+            const SizedBox(width: 10),
+            Text(
+              'Tidak ada laporan yang terlambat saat ini.',
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: Colors.black87,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Column(
       children: _overdueReports.map((report) {
         return Padding(
@@ -1257,40 +1283,18 @@ class _AdminMonitoringScreenState extends State<AdminMonitoringScreen> {
   }
 
   Widget _buildPriorityTag(ReportModel r) {
-    final isTinggi = (r.urgencyScore != null &&
-            (r.urgencyScore! >= 70 || r.urgencyScore! >= 7.0)) ||
-        r.categoryName.toLowerCase().contains('jalan');
-
-    if (isTinggi) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFE9E9),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Text(
-          'Prioritas Tinggi',
-          style: GoogleFonts.poppins(
-            fontSize: 9.5,
-            fontWeight: FontWeight.w400,
-            color: const Color(0xFFC60D05),
-          ),
-        ),
-      );
-    }
-
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF8E6),
+        color: r.priorityBgColor,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Text(
-        'Sedang',
+        r.priorityLabel,
         style: GoogleFonts.poppins(
           fontSize: 9.5,
           fontWeight: FontWeight.w400,
-          color: const Color(0xFFF2AE01),
+          color: r.priorityColor,
         ),
       ),
     );
@@ -1982,6 +1986,16 @@ class _ProgressDonutPainter extends CustomPainter {
 }
 
 class _MonitoringLineChartPainter extends CustomPainter {
+  final List<String> xLabels;
+  final List<double> greenValues;
+  final List<double> blueValues;
+
+  _MonitoringLineChartPainter({
+    required this.xLabels,
+    required this.greenValues,
+    required this.blueValues,
+  });
+
   @override
   void paint(Canvas canvas, Size size) {
     const leftPadding = 32.0;
@@ -1993,7 +2007,23 @@ class _MonitoringLineChartPainter extends CustomPainter {
       ..color = const Color(0xFFE5E7EB)
       ..strokeWidth = 1.0;
 
-    final yLabels = ['100', '80', '60', '40', '20', '0'];
+    double maxVal = 0;
+    for (final v in [...greenValues, ...blueValues]) {
+      if (v > maxVal) maxVal = v;
+    }
+    if (maxVal == 0) maxVal = 5;
+    maxVal = (maxVal / 5).ceil() * 5.0;
+    if (maxVal < 5) maxVal = 5;
+
+    final yLabels = [
+      maxVal.toInt().toString(),
+      (maxVal * 0.8).round().toString(),
+      (maxVal * 0.6).round().toString(),
+      (maxVal * 0.4).round().toString(),
+      (maxVal * 0.2).round().toString(),
+      '0',
+    ];
+
     final textStyle = GoogleFonts.poppins(
       fontSize: 10.5,
       fontWeight: FontWeight.w400,
@@ -2017,9 +2047,9 @@ class _MonitoringLineChartPainter extends CustomPainter {
       tp.paint(canvas, Offset(leftPadding - tp.width - 8, y - tp.height / 2));
     }
 
-    // X labels: 6 Mei, 13 Mei, 20 Mei, 27 Mei, 3 Juni
-    final xLabels = ['6 Mei', '13 Mei', '20 Mei', '27 Mei', '3 Juni'];
-    final xStep = chartWidth / (xLabels.length - 1);
+    if (xLabels.isEmpty) return;
+
+    final xStep = chartWidth / (xLabels.length > 1 ? (xLabels.length - 1) : 1);
 
     for (int i = 0; i < xLabels.length; i++) {
       final x = leftPadding + (i * xStep);
@@ -2028,61 +2058,64 @@ class _MonitoringLineChartPainter extends CustomPainter {
         text: textSpan,
         textDirection: TextDirection.ltr,
       )..layout();
-      tp.paint(
-          canvas, Offset(x - tp.width / 2, chartHeight + 8));
+      tp.paint(canvas, Offset(x - tp.width / 2, chartHeight + 8));
     }
 
-    // Green line values (normalized 0..100)
-    // 6 Mei: 15, 13 Mei: 38, 20 Mei: 58, 27 Mei: 82, 3 Juni: 88
-    final greenPoints = [
-      Offset(leftPadding + (0 * xStep), chartHeight - (15 / 100) * chartHeight),
-      Offset(leftPadding + (1 * xStep), chartHeight - (38 / 100) * chartHeight),
-      Offset(leftPadding + (2 * xStep), chartHeight - (58 / 100) * chartHeight),
-      Offset(leftPadding + (3 * xStep), chartHeight - (82 / 100) * chartHeight),
-      Offset(leftPadding + (4 * xStep), chartHeight - (88 / 100) * chartHeight),
-    ];
+    // Build points
+    final List<Offset> greenPoints = [];
+    final List<Offset> bluePoints = [];
 
-    // Blue line values
-    // 6 Mei: 5, 13 Mei: 20, 20 Mei: 32, 27 Mei: 52, 3 Juni: 68
-    final bluePoints = [
-      Offset(leftPadding + (0 * xStep), chartHeight - (5 / 100) * chartHeight),
-      Offset(leftPadding + (1 * xStep), chartHeight - (20 / 100) * chartHeight),
-      Offset(leftPadding + (2 * xStep), chartHeight - (32 / 100) * chartHeight),
-      Offset(leftPadding + (3 * xStep), chartHeight - (52 / 100) * chartHeight),
-      Offset(leftPadding + (4 * xStep), chartHeight - (68 / 100) * chartHeight),
-    ];
+    for (int i = 0; i < xLabels.length; i++) {
+      final x = leftPadding + (i * xStep);
+      final gVal = i < greenValues.length ? greenValues[i] : 0.0;
+      final bVal = i < blueValues.length ? blueValues[i] : 0.0;
+
+      final gY = chartHeight - (gVal / maxVal) * chartHeight;
+      final bY = chartHeight - (bVal / maxVal) * chartHeight;
+
+      greenPoints.add(Offset(x, gY.clamp(0.0, chartHeight)));
+      bluePoints.add(Offset(x, bY.clamp(0.0, chartHeight)));
+    }
 
     // Draw Blue line
-    final bluePaint = Paint()
-      ..color = const Color(0xFF1976D2)
-      ..strokeWidth = 2.2
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
+    if (bluePoints.isNotEmpty) {
+      final bluePaint = Paint()
+        ..color = const Color(0xFF1976D2)
+        ..strokeWidth = 2.2
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round;
 
-    final bluePath = Path();
-    bluePath.moveTo(bluePoints[0].dx, bluePoints[0].dy);
-    for (int i = 1; i < bluePoints.length; i++) {
-      bluePath.lineTo(bluePoints[i].dx, bluePoints[i].dy);
+      final bluePath = Path();
+      bluePath.moveTo(bluePoints[0].dx, bluePoints[0].dy);
+      for (int i = 1; i < bluePoints.length; i++) {
+        bluePath.lineTo(bluePoints[i].dx, bluePoints[i].dy);
+      }
+      canvas.drawPath(bluePath, bluePaint);
     }
-    canvas.drawPath(bluePath, bluePaint);
 
     // Draw Green line
-    final greenPaint = Paint()
-      ..color = const Color(0xFF1D9C51)
-      ..strokeWidth = 2.2
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
+    if (greenPoints.isNotEmpty) {
+      final greenPaint = Paint()
+        ..color = const Color(0xFF1D9C51)
+        ..strokeWidth = 2.2
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round;
 
-    final greenPath = Path();
-    greenPath.moveTo(greenPoints[0].dx, greenPoints[0].dy);
-    for (int i = 1; i < greenPoints.length; i++) {
-      greenPath.lineTo(greenPoints[i].dx, greenPoints[i].dy);
+      final greenPath = Path();
+      greenPath.moveTo(greenPoints[0].dx, greenPoints[0].dy);
+      for (int i = 1; i < greenPoints.length; i++) {
+        greenPath.lineTo(greenPoints[i].dx, greenPoints[i].dy);
+      }
+      canvas.drawPath(greenPath, greenPaint);
     }
-    canvas.drawPath(greenPath, greenPaint);
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _MonitoringLineChartPainter oldDelegate) {
+    return oldDelegate.xLabels != xLabels ||
+        oldDelegate.greenValues != greenValues ||
+        oldDelegate.blueValues != blueValues;
+  }
 }
 
 class _TrianglePainter extends CustomPainter {

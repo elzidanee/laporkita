@@ -39,7 +39,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       try {
         user = await _authRepository.getMe();
       } on ApiException catch (e) {
-        if (e.isTokenInvalid) {
+        // UNAUTHORIZED atau 401 dari getMe() = token expired → logout aman
+        final isExpiredToken = e.isTokenInvalid ||
+            e.code == 'UNAUTHORIZED' ||
+            e.statusCode == 401 ||
+            e.statusCode == 403;
+        if (isExpiredToken) {
           // Token expired / invalid menurut konfirmasi backend — logout aman
           await _authRepository.logout();
           emit(const AuthUnauthenticated());

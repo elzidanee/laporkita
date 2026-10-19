@@ -751,9 +751,7 @@ class _OperatorReportDetailScreenState
   }
 
   Widget _buildMetadataTable(ReportModel r) {
-    final aiConfidence = (r.rawAiConfidenceScore ??
-            (r.damageSeverity != null ? r.damageSeverity! * 100 : 85))
-        .toInt();
+    final aiConfidence = r.priorityScoreOutOf100;
     final priorityText = r.priorityLabel;
 
     return Container(

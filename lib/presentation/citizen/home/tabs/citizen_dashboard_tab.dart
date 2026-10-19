@@ -26,6 +26,7 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
   RiskPredictionResult? _riskResult;
   bool _isLoadingRisk = false;
   bool _riskError = false;
+  String? _selectedCategory;
 
   @override
   void initState() {
@@ -931,6 +932,94 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
     );
   }
 
+  /// Menampilkan bottom sheet seluruh kategori laporan
+  void _showAllCategoriesSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        final categories = [
+          {'key': 'Routes', 'label': 'Routes (Kerusakan Jalan)', 'icon': Icons.alt_route_rounded},
+          {'key': 'Trotoar', 'label': 'Trotoar & Pedestrian', 'icon': Icons.directions_walk_rounded},
+          {'key': 'Lalu Lintas', 'label': 'Lalu Lintas & Lampu Jalan', 'icon': Icons.traffic_rounded},
+          {'key': 'Fasilitas Umum', 'label': 'Fasilitas Umum & Lainnya', 'icon': Icons.location_city_rounded},
+        ];
+
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 48,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.neutral300,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Pilih Kategori Laporan',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.neutral900,
+                      ),
+                    ),
+                    if (_selectedCategory != null)
+                      TextButton(
+                        onPressed: () {
+                          setState(() => _selectedCategory = null);
+                          Navigator.pop(ctx);
+                        },
+                        child: const Text('Reset', style: TextStyle(color: AppColors.statusDanger)),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                ListTile(
+                  leading: const Icon(Icons.grid_view_rounded, color: AppColors.greenPrimary),
+                  title: const Text('Semua Kategori', style: TextStyle(fontWeight: FontWeight.w600)),
+                  trailing: _selectedCategory == null
+                      ? const Icon(Icons.check_circle_rounded, color: AppColors.greenPrimary)
+                      : null,
+                  onTap: () {
+                    setState(() => _selectedCategory = null);
+                    Navigator.pop(ctx);
+                  },
+                ),
+                ...categories.map((cat) {
+                  final isSel = _selectedCategory == cat['key'];
+                  return ListTile(
+                    leading: Icon(cat['icon'] as IconData, color: AppColors.greenPrimary),
+                    title: Text(cat['label'] as String, style: const TextStyle(fontWeight: FontWeight.w600)),
+                    trailing: isSel
+                        ? const Icon(Icons.check_circle_rounded, color: AppColors.greenPrimary)
+                        : null,
+                    onTap: () {
+                      setState(() => _selectedCategory = cat['key'] as String);
+                      Navigator.pop(ctx);
+                    },
+                  );
+                }),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   /// Kategori Section Header + 4 Original Category Illustration Cards
   Widget _buildKategoriSection() {
     return Column(
@@ -948,7 +1037,7 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
               ),
             ),
             GestureDetector(
-              onTap: () {},
+              onTap: _showAllCategoriesSheet,
               child: const Text(
                 'Lihat semua',
                 style: TextStyle(
@@ -962,13 +1051,14 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
         ),
         const SizedBox(height: 12),
 
-        // 4 Category Cards Row with original illustrations
+        // 4 Category Cards Row with interactive tap & active state
         Row(
           children: [
             Expanded(
               child: _buildKategoriCard(
                 imagePath: 'assets/images/route.png',
                 label: 'Routes',
+                categoryKey: 'Routes',
               ),
             ),
             const SizedBox(width: 8),
@@ -976,6 +1066,7 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
               child: _buildKategoriCard(
                 imagePath: 'assets/images/trotoar.png',
                 label: 'Trotoar',
+                categoryKey: 'Trotoar',
               ),
             ),
             const SizedBox(width: 8),
@@ -983,6 +1074,7 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
               child: _buildKategoriCard(
                 imagePath: 'assets/images/laluLintas.png',
                 label: 'Lalu Lintas',
+                categoryKey: 'Lalu Lintas',
               ),
             ),
             const SizedBox(width: 8),
@@ -990,6 +1082,7 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
               child: _buildKategoriCard(
                 imagePath: 'assets/images/fasilitasUmum.png',
                 label: 'Fasilitas\nUmum',
+                categoryKey: 'Fasilitas Umum',
               ),
             ),
           ],
@@ -1001,39 +1094,70 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
   Widget _buildKategoriCard({
     required String imagePath,
     required String label,
+    required String categoryKey,
   }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-      decoration: BoxDecoration(
-        color: AppColors.white,
+    final isSelected = _selectedCategory == categoryKey;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        children: [
-          Image.asset(
-            imagePath,
-            height: 44,
-            fit: BoxFit.contain,
-            errorBuilder: (context, error, stackTrace) => const Icon(
-              Icons.grid_view_rounded,
-              size: 36,
-              color: AppColors.greenPrimary,
+        onTap: () {
+          setState(() {
+            if (_selectedCategory == categoryKey) {
+              _selectedCategory = null; // Toggle off jika ditekan kembali
+            } else {
+              _selectedCategory = categoryKey;
+            }
+          });
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFFE8F5E9) : AppColors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isSelected ? AppColors.greenPrimary : AppColors.border,
+              width: isSelected ? 2.0 : 1.0,
             ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: AppColors.greenPrimary.withValues(alpha: 0.18),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
           ),
-          const SizedBox(height: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: AppColors.neutral900,
-              height: 1.2,
-            ),
-            textAlign: TextAlign.center,
-            maxLines: 2,
+          child: Column(
+            children: [
+              Image.asset(
+                imagePath,
+                height: 44,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) => Icon(
+                  Icons.grid_view_rounded,
+                  size: 36,
+                  color: isSelected ? AppColors.greenPrimary : AppColors.neutral500,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                  color: isSelected ? AppColors.greenPrimary : AppColors.neutral900,
+                  height: 1.2,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -1043,15 +1167,85 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Laporan Terdekat',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: AppColors.neutral900,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Laporan Terdekat',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.neutral900,
+              ),
+            ),
+            if (_selectedCategory != null)
+              GestureDetector(
+                onTap: () => setState(() => _selectedCategory = null),
+                child: const Text(
+                  'Lihat semua',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.greenPrimary,
+                  ),
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: 12),
+
+        // Banner filter aktif jika ada kategori yang dipilih
+        if (_selectedCategory != null)
+          Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.greenLight,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: AppColors.greenPrimary.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.filter_list_rounded,
+                  size: 18,
+                  color: AppColors.greenPrimary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Kategori: $_selectedCategory',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.greenPrimary,
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedCategory = null;
+                    });
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: const BoxDecoration(
+                      color: AppColors.greenPrimary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.close_rounded,
+                      size: 14,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
 
         BlocBuilder<ReportBloc, ReportState>(
           builder: (context, state) {
@@ -1079,6 +1273,45 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
                 } catch (_) {}
               }
 
+              // 1. Filter berdasarkan Kategori yang diklik
+              if (_selectedCategory != null) {
+                final catKey = _selectedCategory!.toLowerCase();
+                reports = reports.where((r) {
+                  final cat = r.categoryName.toLowerCase();
+                  if (catKey == 'routes' || catKey == 'jalan') {
+                    return cat.contains('jalan') ||
+                        cat.contains('lubang') ||
+                        cat.contains('aspal') ||
+                        cat.contains('route');
+                  }
+                  if (catKey == 'trotoar') {
+                    return cat.contains('trotoar') ||
+                        cat.contains('pedestrian') ||
+                        cat.contains('kaki') ||
+                        cat.contains('pejalan');
+                  }
+                  if (catKey == 'lalu lintas') {
+                    return cat.contains('lalu') ||
+                        cat.contains('lintas') ||
+                        cat.contains('lampu') ||
+                        cat.contains('rambu') ||
+                        cat.contains('marka') ||
+                        cat.contains('traffic');
+                  }
+                  if (catKey.contains('fasilitas')) {
+                    return cat.contains('fasilitas') ||
+                        cat.contains('taman') ||
+                        cat.contains('halte') ||
+                        cat.contains('drainase') ||
+                        cat.contains('sampah') ||
+                        cat.contains('umum') ||
+                        cat.contains('jembatan');
+                  }
+                  return cat.contains(catKey);
+                }).toList();
+              }
+
+              // 2. Filter berdasarkan Search Box
               final searchQuery = _searchController.text.trim().toLowerCase();
               if (searchQuery.isNotEmpty) {
                 reports = reports.where((r) {
@@ -1108,33 +1341,52 @@ class _CitizenDashboardTabState extends State<CitizenDashboardTab> {
             } catch (_) {}
 
             // Empty State jika belum ada laporan publik
-            return const Padding(
-              padding: EdgeInsets.symmetric(vertical: 32),
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 32),
               child: Center(
                 child: Column(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.inbox_rounded,
                       size: 48,
                       color: AppColors.neutral500,
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Text(
-                      'Belum ada laporan di sekitarmu',
-                      style: TextStyle(
+                      _selectedCategory != null
+                          ? 'Belum ada laporan untuk kategori "$_selectedCategory"'
+                          : 'Belum ada laporan di sekitarmu',
+                      style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: AppColors.neutral500,
                       ),
+                      textAlign: TextAlign.center,
                     ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Ayo buat laporan fasilitas publik pertama!',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.neutral500,
+                    const SizedBox(height: 6),
+                    if (_selectedCategory != null)
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _selectedCategory = null;
+                          });
+                        },
+                        child: const Text(
+                          'Tampilkan Semua Kategori',
+                          style: TextStyle(
+                            color: AppColors.greenPrimary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      )
+                    else
+                      const Text(
+                        'Ayo buat laporan fasilitas publik pertama!',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.neutral500,
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),

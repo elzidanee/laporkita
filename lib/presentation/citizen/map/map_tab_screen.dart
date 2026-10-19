@@ -6,6 +6,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:laporkita/core/theme/app_colors.dart';
 import 'package:laporkita/presentation/reports/bloc/report_bloc.dart';
 import 'package:laporkita/data/models/report_model.dart';
+import 'package:laporkita/data/repositories/report_repository.dart';
 
 class CitizenPetaTab extends StatefulWidget {
   const CitizenPetaTab({super.key});
@@ -21,6 +22,7 @@ class _CitizenPetaTabState extends State<CitizenPetaTab> {
 
   String _selectedFilter = 'Semua';
   final List<String> _filters = ['Semua', 'Jalan', 'Trotoar', 'Lampu', 'Fasilitas'];
+  List<ReportModel> _lastKnownReports = [];
 
   @override
   void initState() {
@@ -97,6 +99,13 @@ class _CitizenPetaTabState extends State<CitizenPetaTab> {
           List<ReportModel> apiReports = [];
           if (state is ReportListLoaded) {
             apiReports = state.reports;
+            _lastKnownReports = state.reports;
+          } else if (_lastKnownReports.isNotEmpty) {
+            apiReports = _lastKnownReports;
+          } else {
+            try {
+              apiReports = context.read<ReportRepository>().localSubmittedReports;
+            } catch (_) {}
           }
 
           final displayReports = _filterReports(apiReports);

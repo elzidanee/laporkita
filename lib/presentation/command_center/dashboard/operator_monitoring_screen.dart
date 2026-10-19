@@ -115,12 +115,8 @@ class _OperatorMonitoringScreenState extends State<OperatorMonitoringScreen> {
           r.status == ReportStatus.rejected) {
         return false;
       }
-      final isOverdue = r.estimatedCompletionAt != null &&
+      return r.estimatedCompletionAt != null &&
           r.estimatedCompletionAt!.isBefore(now);
-      final isHighPriority =
-          r.priorityLabel.toLowerCase().contains('tinggi') ||
-          r.needsManualReview;
-      return isOverdue || isHighPriority;
     }).length;
 
     // 2. Daftar tugas perlu perhatian dinamis

@@ -996,47 +996,7 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
                 ),
               ),
 
-              // 4. Tombol "Mulai Navigasi" Mengapung di atas Bottom Sheet (Figma 454:2)
-              if (_currentMode == NavigationScreenMode.routePlanning)
-                Positioned(
-                  left: 24,
-                  right: 24,
-                  bottom: 290,
-                  child: SizedBox(
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed: _isLoadingRoute ? null : _startNavigation,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.greenPrimary,
-                        foregroundColor: AppColors.white,
-                        elevation: 4,
-                        shadowColor: Colors.black.withValues(alpha: 0.25),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      child: _isLoadingRoute
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                    AppColors.white),
-                              ),
-                            )
-                          : const Text(
-                              'Mulai Navigasi',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                    ),
-                  ),
-                ),
-
-              // 5. Panel Bagian Bawah Sesuai Mode
+              // 4. Panel Bagian Bawah Sesuai Mode (Mulai Navigasi terpadu di dalam sheet)
               if (_currentMode == NavigationScreenMode.routePlanning)
                 Positioned(
                   left: 0,
@@ -1047,6 +1007,8 @@ class _RoutePickerScreenState extends State<RoutePickerScreen> {
                     customRoutes: _getRouteOptions(roadHazards),
                     showRiskBadges: true,
                     onSelectRoute: _selectRoute,
+                    onStartNavigation: _startNavigation,
+                    isLoading: _isLoadingRoute,
                   ),
                 )
               else if (_currentMode == NavigationScreenMode.activeNavigation)

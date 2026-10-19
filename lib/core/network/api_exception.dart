@@ -27,9 +27,13 @@ class ApiException implements Exception {
   /// Apakah error ini adalah PHONE_NOT_VERIFIED (perlu redirect ke OTP)
   bool get isPhoneNotVerified => code == 'PHONE_NOT_VERIFIED';
 
-  /// Apakah error ini adalah token invalid (perlu logout)
+  /// Apakah error ini adalah token invalid/expired (perlu logout/redirect ke login)
+  /// CATATAN: UNAUTHORIZED umum (salah password saat login) TIDAK termasuk di sini.
+  /// Gunakan kode REFRESH_TOKEN_INVALID atau FORBIDDEN untuk sesi berakhir.
   bool get isTokenInvalid =>
-      code == 'UNAUTHORIZED' || code == 'REFRESH_TOKEN_INVALID';
+      code == 'REFRESH_TOKEN_INVALID' ||
+      code == 'TOKEN_EXPIRED' ||
+      code == 'FORBIDDEN';
 
   /// Apakah error ini adalah OTP sudah kadaluarsa
   bool get isOtpExpired => code == 'OTP_EXPIRED';
@@ -65,7 +69,11 @@ class ApiException implements Exception {
       case 'NOT_FOUND':
         return 'Data tidak ditemukan.';
       case 'UNAUTHORIZED':
-        return 'Sesi telah berakhir. Silakan login ulang.';
+        // Backend sudah membedakan konteks: salah password saat login
+        // vs token expired saat request lain — gunakan message dari backend.
+        return message.isNotEmpty
+            ? message
+            : 'Sesi telah berakhir. Silakan login ulang.';
       case 'INTERNAL_ERROR':
       case 'SERVER_ERROR':
       case 'BAD_GATEWAY':
