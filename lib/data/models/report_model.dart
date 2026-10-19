@@ -377,9 +377,14 @@ class ReportModel {
           ? double.tryParse(json['damage_severity'].toString())
           : null,
       estimatedCompletionAt: json['estimated_completion_at'] != null
-          ? DateTime.tryParse(json['estimated_completion_at'].toString())
-              ?.toLocal()
-          : null,
+          ? DateTime.tryParse(json['estimated_completion_at'].toString())?.toLocal()
+          : (json['estimated_completion_date'] != null
+              ? DateTime.tryParse(json['estimated_completion_date'].toString())?.toLocal()
+              : (json['estimated_at'] != null
+                  ? DateTime.tryParse(json['estimated_at'].toString())?.toLocal()
+                  : (json['target_date'] != null
+                      ? DateTime.tryParse(json['target_date'].toString())?.toLocal()
+                      : null))),
       directPriority: json['priority']?.toString() ??
           json['priority_level']?.toString() ??
           json['urgency_level']?.toString(),
@@ -849,5 +854,28 @@ class ReportModel {
       }
     }
     return null;
+  }
+
+  /// Estimasi tanggal penyelesaian (berdasarkan data server atau SLA estimasi realtime)
+  DateTime get effectiveEstimatedCompletionDate {
+    if (estimatedCompletionAt != null) {
+      return estimatedCompletionAt!;
+    }
+    // Periksa apakah ada tanggal dalam catatan status history
+    for (final h in statusHistory.reversed) {
+      final note = h.note?.toLowerCase() ?? '';
+      if (note.contains('estimasi')) {
+        final match = RegExp(r'(\d{4}-\d{2}-\d{2})').firstMatch(note);
+        if (match != null) {
+          final parsed = DateTime.tryParse(match.group(1)!);
+          if (parsed != null) return parsed.toLocal();
+        }
+      }
+    }
+    final p = priorityLabel.toLowerCase();
+    final days = p.contains('tinggi')
+        ? 3
+        : (p.contains('rendah') ? 14 : 7);
+    return createdAt.add(Duration(days: days));
   }
 }

@@ -1178,20 +1178,34 @@ class _TrackingProgressScreenState extends State<TrackingProgressScreen> {
     String estimasiDate;
 
     if (report != null) {
-      // Check if there's an "estimasi" note in status history
-      final historyNote = report.statusHistory
-          .where((h) => h.note != null && h.note!.isNotEmpty)
-          .map((h) => h.note!)
-          .firstOrNull;
-
-      if (historyNote != null && historyNote.contains('estimasi')) {
-        estimasiDate = historyNote;
-        estimasiLabel = 'Sesuai catatan petugas';
-      } else {
-        final est = report.createdAt.add(const Duration(days: 7));
+      if (report.status == ReportStatus.completed ||
+          report.status == ReportStatus.resolved) {
+        estimasiDate = 'Selesai';
+        estimasiLabel = 'Telah Selesai';
+      } else if (report.status == ReportStatus.rejected) {
+        estimasiDate = 'Ditolak';
+        estimasiLabel = 'Laporan Ditolak';
+      } else if (report.estimatedCompletionAt != null) {
+        final est = report.estimatedCompletionAt!.toLocal();
         estimasiDate = _formatDate(est);
         final diff = est.difference(DateTime.now()).inDays;
         estimasiLabel = diff > 0 ? '$diff Hari Lagi' : 'Segera';
+      } else {
+        // Check if there's an "estimasi" note in status history
+        final historyNote = report.statusHistory
+            .where((h) => h.note != null && h.note!.isNotEmpty)
+            .map((h) => h.note!)
+            .firstOrNull;
+
+        if (historyNote != null && historyNote.toLowerCase().contains('estimasi')) {
+          estimasiDate = historyNote;
+          estimasiLabel = 'Sesuai catatan petugas';
+        } else {
+          final est = report.effectiveEstimatedCompletionDate;
+          estimasiDate = _formatDate(est);
+          final diff = est.difference(DateTime.now()).inDays;
+          estimasiLabel = diff > 0 ? '$diff Hari Lagi' : 'Segera';
+        }
       }
     } else {
       estimasiDate = 'Belum ditentukan';

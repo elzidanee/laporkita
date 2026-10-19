@@ -16,6 +16,7 @@ class ReportRepository {
   final Map<String, ReportModel> _cachedReports = {};
   final Map<String, Map<String, dynamic>> _statusOverrides = {};
   final Map<String, double> _progressOverrides = {};
+  final Map<String, List<Map<String, dynamic>>> _localComments = {};
   bool _isStorageLoaded = false;
 
   static const String _kPersistedOverridesKey = 'laporkita_status_overrides';
@@ -721,15 +722,85 @@ class ReportRepository {
     String reportId, {
     int limit = 20,
     String? cursor,
-  }) {
-    return _datasource.getComments(reportId, limit: limit, cursor: cursor);
+  }) async {
+    // Jika reportId adalah mock report, kembalikan komentar lokal
+    if (reportId.startsWith('mock-')) {
+      final list = _localComments[reportId] ?? [];
+      return ApiResponse<List<Map<String, dynamic>>>(
+        success: true,
+        data: list,
+      );
+    }
+
+    try {
+      final res = await _datasource.getComments(reportId, limit: limit, cursor: cursor);
+      if (res.data != null) {
+        final serverList = List<Map<String, dynamic>>.from(res.data!);
+        final localList = _localComments[reportId] ?? [];
+        for (final local in localList) {
+          final id = local['id'];
+          if (id != null && !serverList.any((s) => s['id'] == id)) {
+            serverList.add(local);
+          }
+        }
+        _localComments[reportId] = serverList;
+        return ApiResponse<List<Map<String, dynamic>>>(
+          success: true,
+          data: serverList,
+          meta: res.meta,
+        );
+      }
+      return res;
+    } catch (e) {
+      debugPrint('⚠️ [ReportRepository] getComments error: $e');
+      if (_localComments.containsKey(reportId)) {
+        return ApiResponse<List<Map<String, dynamic>>>(
+          success: true,
+          data: _localComments[reportId]!,
+        );
+      }
+      rethrow;
+    }
   }
 
   Future<Map<String, dynamic>> addComment(
     String reportId,
     String content,
-  ) {
-    return _datasource.addComment(reportId, content);
+  ) async {
+    if (reportId.startsWith('mock-')) {
+      final local = {
+        'id': 'comment-${DateTime.now().millisecondsSinceEpoch}',
+        'report_id': reportId,
+        'content': content,
+        'created_at': DateTime.now().toIso8601String(),
+        'user': {
+          'full_name': 'Warga',
+          'role': 'CITIZEN',
+        },
+      };
+      _localComments.putIfAbsent(reportId, () => []).add(local);
+      return local;
+    }
+
+    try {
+      final res = await _datasource.addComment(reportId, content);
+      _localComments.putIfAbsent(reportId, () => []).add(res);
+      return res;
+    } catch (e) {
+      debugPrint('⚠️ [ReportRepository] addComment error: $e');
+      final local = {
+        'id': 'comment-${DateTime.now().millisecondsSinceEpoch}',
+        'report_id': reportId,
+        'content': content,
+        'created_at': DateTime.now().toIso8601String(),
+        'user': {
+          'full_name': 'Warga',
+          'role': 'CITIZEN',
+        },
+      };
+      _localComments.putIfAbsent(reportId, () => []).add(local);
+      return local;
+    }
   }
 
   // ── Validate Report (Citizen Confirmation) ─────────────────────────────────

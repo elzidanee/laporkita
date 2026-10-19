@@ -226,10 +226,24 @@ class _FotoProgressScreenState extends State<FotoProgressScreen> {
     String estimasiLabel = '-';
     String estimasiDate = 'Belum ditentukan';
     if (report != null) {
-      final est = report.createdAt.add(const Duration(days: 7));
-      estimasiDate = _formatDate(est);
-      final diff = est.difference(DateTime.now()).inDays;
-      estimasiLabel = diff > 0 ? '$diff Hari Lagi' : 'Segera';
+      if (report.status == ReportStatus.completed ||
+          report.status == ReportStatus.resolved) {
+        estimasiDate = 'Selesai';
+        estimasiLabel = 'Telah Selesai';
+      } else if (report.status == ReportStatus.rejected) {
+        estimasiDate = 'Ditolak';
+        estimasiLabel = 'Laporan Ditolak';
+      } else if (report.estimatedCompletionAt != null) {
+        final est = report.estimatedCompletionAt!.toLocal();
+        estimasiDate = _formatDate(est);
+        final diff = est.difference(DateTime.now()).inDays;
+        estimasiLabel = diff > 0 ? '$diff Hari Lagi' : 'Segera';
+      } else {
+        final est = report.effectiveEstimatedCompletionDate;
+        estimasiDate = _formatDate(est);
+        final diff = est.difference(DateTime.now()).inDays;
+        estimasiLabel = diff > 0 ? '$diff Hari Lagi' : 'Segera';
+      }
     }
 
     // Kumpulkan semua media foto dari backend

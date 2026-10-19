@@ -28,10 +28,11 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
   ReportModel? _report;
   bool _isLoading = false;
   bool _isSupported = false;
-  int _supportCount = 360;
+  int _supportCount = 0;
   bool _isUpdatingStatus = false;
 
   List<Map<String, dynamic>> _comments = [];
+  final Map<String, bool> _likedComments = {};
   bool _isLoadingComments = false;
   bool _isSendingComment = false;
 
@@ -45,7 +46,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       _report = initialModel;
       _supportCount = initialModel.supportCount;
     } else {
-      _supportCount = widget.reportData?['supports'] as int? ?? 360;
+      _supportCount = widget.reportData?['supports'] as int? ?? 0;
     }
 
     _fetchLatestReportDetail();
@@ -142,10 +143,38 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
 
     try {
       final repository = context.read<ReportRepository>();
-      await repository.addComment(reportId, text);
+      final authState = context.read<AuthBloc>().state;
+      final currentUser = authState is AuthAuthenticated ? authState.user : null;
+
+      final res = await repository.addComment(reportId, text);
       _commentController.clear();
       if (!mounted) return;
       FocusScope.of(context).unfocus();
+
+      final newComment = (res.isNotEmpty && res['id'] != null)
+          ? res
+          : {
+              'id': 'comment-${DateTime.now().millisecondsSinceEpoch}',
+              'report_id': reportId,
+              'content': text,
+              'created_at': DateTime.now().toIso8601String(),
+              'user': {
+                'full_name': currentUser?.fullName ?? 'Saya',
+                'avatar_url': currentUser?.avatarUrl,
+                'role': currentUser?.role.toApiString() ?? 'citizen',
+              },
+            };
+
+      if (mounted) {
+        setState(() {
+          final exists = _comments.any((c) =>
+              (c['id'] != null && c['id'] == newComment['id']));
+          if (!exists) {
+            _comments.add(newComment);
+          }
+        });
+      }
+
       await _fetchComments();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -222,8 +251,10 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
         '${report?.latitude ?? -6.382728}, ${report?.longitude ?? 107.734682}';
 
     final supportCount = report?.supportCount ?? _supportCount;
-    final viewCount = report?.viewCount ?? 512;
-    final commentCount = _comments.isNotEmpty ? _comments.length : 5;
+    final viewCount = report?.viewCount ?? (widget.reportData?['views'] as int? ?? 0);
+    final commentCount = _comments.isNotEmpty
+        ? _comments.length
+        : (report?.count?['comments'] ?? (widget.reportData?['comments'] as int? ?? 0));
 
     final authState = context.watch<AuthBloc>().state;
     final user = authState is AuthAuthenticated ? authState.user : null;
@@ -1848,11 +1879,50 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     required String description,
     required String dateStr,
   }) {
-    final categoryName = report?.categoryName ?? 'Jalan';
+    final categoryName = report?.categoryName ?? 'Fasilitas Umum';
     final agencyName =
         report?.assignedAgency?['name'] as String? ?? 'Dinas PUPR Kota Malang';
     final supportsCount = report?.supportCount ?? _supportCount;
-    final viewCount = report?.viewCount ?? 200;
+    final viewCount = report?.viewCount ?? (widget.reportData?['views'] as int? ?? 0);
+
+    final priorityText = report?.priorityLabel.replaceAll('Prioritas ', '') ?? 'Sedang';
+    final priorityColor = report?.priorityColor ?? AppColors.statusWarning;
+
+    String estimasiValue;
+    if (report?.status == ReportStatus.completed ||
+        report?.status == ReportStatus.resolved) {
+      final completionHistory = report?.statusHistory.where(
+        (h) =>
+            h.targetStatus == ReportStatus.completed ||
+            h.targetStatus == ReportStatus.resolved,
+      ).firstOrNull;
+      if (completionHistory != null) {
+        final cDate = completionHistory.createdAt.toLocal();
+        estimasiValue = '${cDate.day} ${_monthName(cDate.month)} ${cDate.year} (Selesai)';
+      } else {
+        estimasiValue = 'Selesai';
+      }
+    } else if (report?.status == ReportStatus.rejected) {
+      estimasiValue = 'Ditolak';
+    } else if (report?.estimatedCompletionAt != null) {
+      final est = report!.estimatedCompletionAt!.toLocal();
+      estimasiValue = '${est.day} ${_monthName(est.month)} ${est.year}';
+    } else {
+      final noteWithEstimate = report?.statusHistory
+          .where((h) =>
+              h.note != null &&
+              h.note!.toLowerCase().contains('estimasi'))
+          .map((h) => h.note!)
+          .firstOrNull;
+
+      if (noteWithEstimate != null && noteWithEstimate.isNotEmpty) {
+        estimasiValue = noteWithEstimate;
+      } else {
+        final est = report?.effectiveEstimatedCompletionDate ??
+            (report?.createdAt ?? DateTime.now()).add(const Duration(days: 7));
+        estimasiValue = '${est.day} ${_monthName(est.month)} ${est.year}';
+      }
+    }
 
     return ListView(
       physics: const NeverScrollableScrollPhysics(),
@@ -1871,8 +1941,8 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
         _buildDetailCard(
           icon: Icons.flag_outlined,
           label: 'Prioritas',
-          value: 'Tinggi',
-          valueColor: AppColors.statusDanger,
+          value: priorityText,
+          valueColor: priorityColor,
         ),
         _buildDetailCard(
           icon: Icons.warning_amber_rounded,
@@ -1897,7 +1967,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
         _buildDetailCard(
           icon: Icons.calendar_today_outlined,
           label: 'Estimasi Selesai',
-          value: '18 Mei 2026',
+          value: estimasiValue,
         ),
         _buildDetailCard(
           icon: Icons.access_alarm_rounded,
@@ -1978,15 +2048,18 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
   }
 
   // ===========================================================================
-  // TAB 3 CONTENT: KOMENTAR TAB (Exact Figma node 70:1066)
+  // TAB 3 CONTENT: KOMENTAR TAB (Realtime & Dynamic)
   // ===========================================================================
   Widget _buildKomentarTab() {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (_isLoadingComments)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 20),
-            child: CircularProgressIndicator(color: AppColors.greenPrimary),
+        if (_isLoadingComments && _comments.isEmpty)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 30),
+              child: CircularProgressIndicator(color: AppColors.greenPrimary),
+            ),
           )
         else if (_comments.isNotEmpty)
           ListView.builder(
@@ -1996,40 +2069,98 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
             itemBuilder: (context, index) {
               final c = _comments[index];
               final user = c['user'] as Map<String, dynamic>?;
-              final name = user?['full_name'] as String? ?? 'Kalandra Garendra';
+              final name = user?['full_name'] as String? ??
+                  user?['name'] as String? ??
+                  c['author_name'] as String? ??
+                  c['user_name'] as String? ??
+                  c['name'] as String? ??
+                  'Warga';
+              final role = user?['role'] as String? ?? c['role'] as String? ?? '';
+              final isOfficial = role.toUpperCase() == 'GOVERNMENT' ||
+                  role.toUpperCase() == 'ADMIN' ||
+                  role.toUpperCase() == 'OPERATOR' ||
+                  name.toLowerCase().contains('dinas') ||
+                  name.toLowerCase().contains('petugas');
+
               final content = c['content'] as String? ??
-                  'Semoga cepat diperbaiki, karena sangat membahayakan';
-              final time = _formatCommentTime(c['created_at']);
+                  c['message'] as String? ??
+                  c['note'] as String? ??
+                  '';
+              final time = _formatCommentTime(c['created_at'] ?? c['createdAt']);
+              final commentId = c['id']?.toString() ?? '$index';
+              final isLiked = _likedComments[commentId] == true;
+              final baseLikes = (c['likes_count'] as int?) ?? (c['likes'] as int?) ?? 0;
+              final likes = baseLikes + (isLiked ? 1 : 0);
 
               return _buildCommentCard(
+                commentId: commentId,
                 name: name,
                 time: time,
                 comment: content,
-                likes: 12,
+                isOfficial: isOfficial,
+                likes: likes,
+                isLiked: isLiked,
+                onLike: () {
+                  setState(() {
+                    _likedComments[commentId] = !isLiked;
+                  });
+                },
+                onReply: () {
+                  _commentController.text = '@$name ';
+                  _commentController.selection = TextSelection.fromPosition(
+                    TextPosition(offset: _commentController.text.length),
+                  );
+                },
               );
             },
           )
-        else ...[
-          _buildCommentCard(
-            name: 'Kalandra Garendra',
-            time: '2 jam yang lalu',
-            comment: 'Semoga cepat diperbaiki, karena sangat membahayakan',
-            likes: 12,
+        else
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.neutral200),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: AppColors.greenPrimary.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.chat_bubble_outline_rounded,
+                    color: AppColors.greenPrimary,
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Belum ada komentar',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.neutral900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Sampaikan tanggapan atau informasi tambahan untuk laporan ini.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.neutral500,
+                  ),
+                ),
+              ],
+            ),
           ),
-          _buildCommentCard(
-            name: 'Kalandra Garendra',
-            time: '2 jam yang lalu',
-            comment: 'Semoga cepat diperbaiki, karena sangat membahayakan',
-            likes: 12,
-          ),
-          _buildCommentCard(
-            name: 'Kalandra Garendra',
-            time: '2 jam yang lalu',
-            comment: 'Semoga cepat diperbaiki, karena sangat membahayakan',
-            likes: 12,
-          ),
-        ],
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
 
         // Input Komentar Bar
         Container(
@@ -2100,10 +2231,15 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
   }
 
   Widget _buildCommentCard({
+    required String commentId,
     required String name,
     required String time,
     required String comment,
-    int likes = 12,
+    bool isOfficial = false,
+    int likes = 0,
+    bool isLiked = false,
+    VoidCallback? onLike,
+    VoidCallback? onReply,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -2111,7 +2247,11 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.neutral200),
+        border: Border.all(
+          color: isOfficial
+              ? AppColors.greenPrimary.withValues(alpha: 0.3)
+              : AppColors.neutral200,
+        ),
         boxShadow: const [
           BoxShadow(
             color: Color.fromRGBO(0, 0, 0, 0.05),
@@ -2125,14 +2265,16 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
           Container(
             width: 38,
             height: 38,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: AppColors.greenLight,
+              color: isOfficial ? AppColors.greenPrimary : AppColors.greenLight,
             ),
-            child: const Icon(
-              Icons.person_rounded,
-              color: AppColors.greenPrimary,
-              size: 24,
+            child: Icon(
+              isOfficial
+                  ? Icons.admin_panel_settings_rounded
+                  : Icons.person_rounded,
+              color: isOfficial ? AppColors.white : AppColors.greenPrimary,
+              size: 22,
             ),
           ),
           const SizedBox(width: 10),
@@ -2140,13 +2282,40 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  name,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.neutral900,
-                  ),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        name,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.neutral900,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (isOfficial) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.greenPrimary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'Petugas',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.greenPrimary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 Text(
                   time,
@@ -2155,11 +2324,11 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                     color: AppColors.neutral500,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Text(
                   comment,
                   style: const TextStyle(
-                    fontSize: 11,
+                    fontSize: 12,
                     color: AppColors.neutral900,
                     height: 1.4,
                   ),
@@ -2167,27 +2336,53 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    const Icon(
-                      Icons.thumb_up_alt_rounded,
-                      size: 16,
-                      color: AppColors.statusInfo,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '$likes',
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.statusInfo,
+                    InkWell(
+                      onTap: onLike,
+                      borderRadius: BorderRadius.circular(4),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 2, horizontal: 4),
+                        child: Row(
+                          children: [
+                            Icon(
+                              isLiked
+                                  ? Icons.thumb_up_alt_rounded
+                                  : Icons.thumb_up_alt_outlined,
+                              size: 16,
+                              color: isLiked
+                                  ? AppColors.statusInfo
+                                  : AppColors.neutral500,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '$likes',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: isLiked
+                                    ? AppColors.statusInfo
+                                    : AppColors.neutral500,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 26),
-                    const Text(
-                      'Balas',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.neutral400,
-                        fontWeight: FontWeight.w500,
+                    const SizedBox(width: 20),
+                    InkWell(
+                      onTap: onReply,
+                      borderRadius: BorderRadius.circular(4),
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(
+                            vertical: 2, horizontal: 4),
+                        child: Text(
+                          'Balas',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.neutral500,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ),
                     ),
                   ],
