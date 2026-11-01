@@ -147,34 +147,12 @@ class ReportRemoteDatasource {
     }
 
     if (isLocalFileValid) {
-      return ReportModel(
-        id: result.id,
-        reportCode: result.reportCode,
-        reporterId: result.reporterId,
-        categoryId: result.categoryId,
-        status: result.status,
-        latitude: result.latitude,
-        longitude: result.longitude,
-        addressText: result.addressText,
-        description: (result.description != null && result.description!.isNotEmpty)
-            ? result.description
-            : description,
-        directPhotoUrl: photoPath,
-        supportCount: result.supportCount,
-        viewCount: result.viewCount,
-        urgencyScore: result.urgencyScore,
-        needsManualReview: result.needsManualReview,
-        createdAt: result.createdAt,
-        updatedAt: result.updatedAt,
-        category: result.category,
-        reporter: result.reporter,
-        assignedAgency: result.assignedAgency,
-        media: result.media,
-        statusHistory: result.statusHistory,
-        count: result.count,
+      return mergeSubmittedReportWithLocalPhoto(
+        result,
+        localPhotoPath: photoPath,
+        fallbackDescription: description,
       );
     }
-
     if ((result.description == null || result.description!.isEmpty) &&
         description != null &&
         description.isNotEmpty) {
@@ -182,6 +160,19 @@ class ReportRemoteDatasource {
     }
 
     return result;
+  }
+
+  static ReportModel mergeSubmittedReportWithLocalPhoto(
+    ReportModel result, {
+    String? localPhotoPath,
+    String? fallbackDescription,
+  }) {
+    return result.copyWith(
+      directPhotoUrl: localPhotoPath ?? result.directPhotoUrl,
+      description: (result.description != null && result.description!.isNotEmpty)
+          ? result.description
+          : fallbackDescription,
+    );
   }
 
   Future<Map<String, dynamic>> supportReport(String reportId) async {

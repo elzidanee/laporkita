@@ -185,5 +185,42 @@ void main() {
       });
       expect(extractedDirect, equals('rep-direct-002'));
     });
+
+    test('MM-16 (DART-MODEL-06): ReportRemoteDatasource.mergeSubmittedReportWithLocalPhoto preserves AI confidence, damage severity, and SLA fields', () {
+      final serverResult = ReportModel(
+        id: 'rep-sub-01',
+        reportCode: '#LP-2026-000012',
+        reporterId: 'u-1',
+        categoryId: 'c1000000-0000-4000-8000-000000000001',
+        status: ReportStatus.verified,
+        latitude: -7.9826,
+        longitude: 112.6308,
+        supportCount: 0,
+        viewCount: 0,
+        urgencyScore: 4.1,
+        rawAiConfidenceScore: 0.9998,
+        damageSeverity: 0.9599,
+        estimatedCompletionAt: DateTime(2026, 11, 5),
+        directPriority: 'Prioritas Tinggi',
+        progressPercentage: 10.0,
+        needsManualReview: false,
+        createdAt: DateTime(2026, 11, 1),
+        updatedAt: DateTime(2026, 11, 1),
+      );
+
+      final merged = ReportRemoteDatasource.mergeSubmittedReportWithLocalPhoto(
+        serverResult,
+        localPhotoPath: '/tmp/report_photo.jpg',
+        fallbackDescription: 'Lubang jalan di Alun-Alun',
+      );
+
+      expect(merged.directPhotoUrl, equals('/tmp/report_photo.jpg'));
+      expect(merged.description, equals('Lubang jalan di Alun-Alun'));
+      expect(merged.rawAiConfidenceScore, equals(0.9998));
+      expect(merged.damageSeverity, equals(0.9599));
+      expect(merged.estimatedCompletionAt, equals(DateTime(2026, 11, 5)));
+      expect(merged.directPriority, equals('Prioritas Tinggi'));
+      expect(merged.progressPercentage, equals(10.0));
+    });
   });
 }
