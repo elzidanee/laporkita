@@ -143,5 +143,41 @@ void main() {
       expect(routes[0].steps[0].instructionText, 'Belok kiri ke Jl. Ahmad Habibi');
       expect(routes[1].distanceKm, '4.1 km');
     });
+
+    test('MM-14 (DART-MODEL-03): RouteModel.fromBackendMapsJson parses steps and summary from Backend POST /maps/route', () {
+      final backendMapsJson = {
+        'success': true,
+        'data': {
+          'coordinates': [
+            [112.6308, -7.9826],
+            [112.6137, -7.9454],
+          ],
+          'distance_meters': 6162.0,
+          'duration_seconds': 435.7,
+          'summary': 'Jl. Merdeka Selatan, Jl. Veteran',
+          'steps': [
+            {
+              'name': 'Jl. Merdeka Selatan',
+              'distance': 450.0,
+              'duration': 45.0,
+              'maneuver': {'type': 'depart'},
+            },
+            {
+              'name': 'Jl. Veteran',
+              'distance': 1200.0,
+              'duration': 120.0,
+              'maneuver': {'type': 'turn', 'modifier': 'left'},
+            },
+          ],
+        },
+      };
+
+      final routes = RouteModel.fromBackendMapsJson(backendMapsJson);
+      expect(routes, hasLength(1));
+      expect(routes.first.summary, equals('Jl. Merdeka Selatan, Jl. Veteran'));
+      expect(routes.first.steps, hasLength(2));
+      expect(routes.first.steps[0].instructionText, equals('Mulai perjalanan ke arah Jl. Merdeka Selatan'));
+      expect(routes.first.steps[1].instructionText, equals('Belok kiri ke Jl. Veteran'));
+    });
   });
 }

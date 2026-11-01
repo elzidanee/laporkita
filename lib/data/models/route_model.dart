@@ -226,12 +226,25 @@ class RouteModel {
 
     final distance = (data['distance_meters'] as num?)?.toDouble() ?? 0.0;
     final duration = (data['duration_seconds'] as num?)?.toDouble() ?? 0.0;
+    final summary = (data['summary'] as String?) ?? '';
+    final rawSteps = (data['steps'] as List<dynamic>?) ??
+        (data['legs'] is List && (data['legs'] as List).isNotEmpty
+            ? ((data['legs'] as List).first as Map<String, dynamic>)['steps']
+                as List<dynamic>?
+            : null) ??
+        const <dynamic>[];
+    final steps = rawSteps
+        .whereType<Map<String, dynamic>>()
+        .map(RouteStep.fromJson)
+        .toList();
 
     return [
       RouteModel(
         points: points,
         distanceMeters: distance,
         durationSeconds: duration,
+        steps: steps,
+        summary: summary,
       ),
     ];
   }
