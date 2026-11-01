@@ -64,8 +64,8 @@ class AiVerificationResult {
         true;
 
     final String? reason = (data['reason'] as String?) ??
-        (data['rejection_reason'] as String?);
-
+        (data['rejection_reason'] as String?) ??
+        ((!isVal || needsReview) && desc.isNotEmpty ? desc : null);
     Map<String, double>? probs;
     if (data['class_probabilities'] is Map) {
       probs = (data['class_probabilities'] as Map).map(
