@@ -9,9 +9,10 @@ import 'package:laporkita/presentation/command_center/report_management/admin_ve
 class MockReportRepository extends Fake implements ReportRepository {
   bool getReportsCalled = false;
   bool updateReportStatusCalled = false;
+  bool addCommentCalled = false;
+  String? addedCommentContent;
   String? updatedStatus;
   String? updatedNotes;
-
   @override
   Future<ApiResponse<List<ReportModel>>> getReports({
     int limit = 20,
@@ -44,6 +45,13 @@ class MockReportRepository extends Fake implements ReportRepository {
       id: reportId,
       status: ReportStatus.rejected,
     );
+  }
+
+  @override
+  Future<Map<String, dynamic>> addComment(String reportId, String content) async {
+    addCommentCalled = true;
+    addedCommentContent = content;
+    return {'id': 'c-1', 'content': content};
   }
 }
 
@@ -266,7 +274,7 @@ void main() {
       );
     });
 
-    testWidgets('Tapping Meminta Revisi opens revision dialog', (tester) async {
+    testWidgets('Tapping Meminta Revisi opens revision dialog and posts [REVISI ADMIN] comment (MM-06)', (tester) async {
       tester.view.physicalSize = const Size(412, 1400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -287,6 +295,17 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Kirim Revisi'), findsOneWidget);
+
+      await tester.enterText(
+        find.byType(TextField),
+        'Mohon unggah ulang foto kerusakan dengan jarak lebih dekat.',
+      );
+      await tester.tap(find.text('Kirim Revisi'));
+      await tester.pumpAndSettle();
+
+      expect(mockRepo.addCommentCalled, isTrue);
+      expect(mockRepo.addedCommentContent, contains('[REVISI ADMIN]'));
+      expect(mockRepo.updateReportStatusCalled, isFalse);
     });
 
     testWidgets('Tapping Lihat detail Analisis opens AI detail bottom sheet',

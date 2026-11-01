@@ -1954,14 +1954,14 @@ class _AdminVerificationActionScreenState
                 setState(() => _isProcessing = true);
                 try {
                   final repo = context.read<ReportRepository>();
-                  final updated = await repo.updateReportStatus(
+                  final revisionNote = revisionController.text.trim().isNotEmpty
+                      ? revisionController.text.trim()
+                      : 'Meminta perbaikan data kepada pelapor.';
+                  await repo.addComment(
                     widget.report.id,
-                    'pending_verification',
-                    notes: revisionController.text.trim().isNotEmpty
-                        ? revisionController.text.trim()
-                        : 'Meminta perbaikan data kepada pelapor.',
-                    existingReport: widget.report,
+                    '[REVISI ADMIN] $revisionNote',
                   );
+                  final updated = widget.report;
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
