@@ -1,8 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../data/models/report_model.dart';
+import '../../../data/repositories/report_repository.dart';
+import '../../reports/bloc/report_bloc.dart';
 
 class ReportConfirmationScreen extends StatefulWidget {
   const ReportConfirmationScreen({super.key});
+
+  static String? extractTargetSupportReportId(Map<String, dynamic>? args) {
+    if (args == null) return null;
+    final explicitId = args['existingReportId']?.toString() ??
+        args['reportId']?.toString();
+    if (explicitId != null && explicitId.isNotEmpty) return explicitId;
+    final simList = args['similarReports'];
+    if (simList is List && simList.isNotEmpty) {
+      final first = simList.first;
+      if (first is ReportModel && first.id.isNotEmpty) return first.id;
+      if (first is Map && first['id'] != null) return first['id'].toString();
+    }
+    return null;
+  }
 
   @override
   State<ReportConfirmationScreen> createState() =>
@@ -21,12 +39,26 @@ class _ReportConfirmationScreenState extends State<ReportConfirmationScreen> {
     super.dispose();
   }
 
-  void _onLanjutTap() {
+  Future<void> _onLanjutTap() async {
     final args =
         ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
 
     if (_selectedOption == 0) {
-      // User selected Option 1: Mendukung laporan yang sudah ada -> Navigate to Success Page (Support mode)
+      final targetId = ReportConfirmationScreen.extractTargetSupportReportId(args);
+      if (targetId != null && targetId.isNotEmpty) {
+        try {
+          final repo = context.read<ReportRepository>();
+          await repo.supportReport(targetId);
+          final note = _notesController.text.trim();
+          if (note.isNotEmpty) {
+            await repo.addComment(targetId, note);
+          }
+          if (mounted) {
+            context.read<ReportBloc>().add(const ReportLoadRequested());
+          }
+        } catch (_) {}
+      }
+      if (!mounted) return;
       Navigator.pushNamed(
         context,
         '/report-success',
@@ -37,7 +69,6 @@ class _ReportConfirmationScreenState extends State<ReportConfirmationScreen> {
         },
       );
     } else {
-      // User selected Option 2: Tetap membuat laporan baru -> Navigate to Form Laporan Baru
       Navigator.pushNamed(
         context,
         '/new-report-form',

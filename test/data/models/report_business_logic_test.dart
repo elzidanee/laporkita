@@ -5,6 +5,7 @@ import 'package:laporkita/data/datasources/remote/report_remote_datasource.dart'
 import 'package:laporkita/data/models/agency_model.dart';
 import 'package:laporkita/presentation/command_center/report_management/admin_assign_report_screen.dart';
 import 'package:laporkita/presentation/citizen/camera/new_report_form_screen.dart';
+import 'package:laporkita/presentation/citizen/camera/report_confirmation_screen.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   group('Report Business Logic & State Consistency Tests', () {
@@ -156,6 +157,33 @@ void main() {
           'Drainase',
         ]),
       );
+    });
+
+    test('MM-11: ReportConfirmationScreen extracts target report ID from similarReports or existingReportId for support dispatch', () {
+      final simReport = ReportModel(
+        id: 'rep-sim-001',
+        reportCode: '#LP-2026-000099',
+        reporterId: 'u-1',
+        categoryId: 'c1000000-0000-4000-8000-000000000001',
+        status: ReportStatus.verified,
+        latitude: -7.9826,
+        longitude: 112.6308,
+        supportCount: 2,
+        viewCount: 10,
+        needsManualReview: false,
+        createdAt: DateTime(2026, 10, 1),
+        updatedAt: DateTime(2026, 10, 1),
+      );
+
+      final extracted = ReportConfirmationScreen.extractTargetSupportReportId({
+        'similarReports': [simReport],
+      });
+      expect(extracted, equals('rep-sim-001'));
+
+      final extractedDirect = ReportConfirmationScreen.extractTargetSupportReportId({
+        'existingReportId': 'rep-direct-002',
+      });
+      expect(extractedDirect, equals('rep-direct-002'));
     });
   });
 }

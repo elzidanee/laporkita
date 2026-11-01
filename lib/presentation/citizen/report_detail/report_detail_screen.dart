@@ -911,7 +911,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                         final res = await repo.supportReport(reportId);
                         if (mounted) {
                           context.read<ReportBloc>().add(
-                                ReportSupportRequested(reportId),
+                                const ReportLoadRequested(),
                               );
                           final isAlready = res['status'] == 'already_supported';
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -1283,11 +1283,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
         _isUpdatingStatus = false;
       });
 
-      reportBloc.add(ReportUpdateStatusRequested(
-        reportId: reportId,
-        newStatus: newStatus.apiValue,
-        notes: note,
-      ));
+      reportBloc.add(const ReportLoadRequested());
 
       messenger.showSnackBar(
         SnackBar(
