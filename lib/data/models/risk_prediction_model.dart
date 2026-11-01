@@ -118,7 +118,9 @@ class ZoneMetricsModel {
   factory ZoneMetricsModel.fromJson(Map<String, dynamic> json) {
     final metric = json['latest_metric'] as Map<String, dynamic>? ?? json;
     final weather = metric['weather_context'] as Map<String, dynamic>? ??
+        metric['weather_context_snapshot'] as Map<String, dynamic>? ??
         json['weather_context'] as Map<String, dynamic>? ??
+        json['weather_context_snapshot'] as Map<String, dynamic>? ??
         {};
     return ZoneMetricsModel(
       id: json['id'] as String? ?? '',
@@ -138,6 +140,8 @@ class ZoneMetricsModel {
               0.0,
       stressLevel: json['stress_level'] as String? ??
           metric['stress_level'] as String? ??
+          metric['predicted_stress_level'] as String? ??
+          json['predicted_stress_level'] as String? ??
           'low',
       weatherCondition: weather['condition'] as String? ?? 'Berawan',
       rainfallMm: (weather['rainfall_mm'] as num?)?.toDouble() ?? 0.0,

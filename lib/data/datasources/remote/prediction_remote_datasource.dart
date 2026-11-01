@@ -33,6 +33,32 @@ class PredictionRemoteDatasource {
     );
   }
 
+  static List<ZoneMetricsModel> parseZoneMetricsList(dynamic json) {
+    if (json is List) {
+      return json
+          .whereType<Map<String, dynamic>>()
+          .map((e) => ZoneMetricsModel.fromJson(e))
+          .toList();
+    } else if (json is Map<String, dynamic>) {
+      final zone = json['zone'] as Map<String, dynamic>?;
+      final rawList = json['metrics'] ?? json['items'] ?? json['data'];
+      if (rawList is List) {
+        return rawList.whereType<Map<String, dynamic>>().map((e) {
+          final merged = <String, dynamic>{
+            if (zone != null) ...{
+              'zone_name': zone['name'],
+              'stress_level': zone['stress_level'],
+              'code': zone['code'],
+            },
+            ...e,
+          };
+          return ZoneMetricsModel.fromJson(merged);
+        }).toList();
+      }
+    }
+    return <ZoneMetricsModel>[];
+  }
+
   /// Histori metrik zona — GET /predictions/zones/:zoneId/metrics
   Future<ApiResponse<List<ZoneMetricsModel>>> getZoneMetrics(
     String zoneId, {
@@ -40,15 +66,7 @@ class PredictionRemoteDatasource {
   }) async {
     return _dioClient.get<List<ZoneMetricsModel>>(
       '/predictions/zones/$zoneId/metrics',
-      fromJson: (json) {
-        if (json is List) {
-          return json
-              .whereType<Map<String, dynamic>>()
-              .map((e) => ZoneMetricsModel.fromJson(e))
-              .toList();
-        }
-        return <ZoneMetricsModel>[];
-      },
+      fromJson: parseZoneMetricsList,
       queryParameters: {'limit': limit},
     );
   }
