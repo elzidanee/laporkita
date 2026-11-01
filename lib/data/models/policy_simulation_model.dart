@@ -36,8 +36,13 @@ class PolicySimulationModel {
 
     List<String> recs = [];
     final rawRecs = data['recommended_actions'] ??
+        data['recommendedActions'] ??
+        data['key_recommendations'] ??
         resultData?['recommended_actions'] ??
-        resultData?['recommendedActions'];
+        resultData?['recommendedActions'] ??
+        resultData?['key_recommendations'] ??
+        resultData?['risk_mitigations'] ??
+        resultData?['risk_factors'];
     if (rawRecs is List) {
       recs = rawRecs.map((e) => e.toString()).toList();
     }
@@ -47,50 +52,83 @@ class PolicySimulationModel {
       zName = (data['zone'] as Map<String, dynamic>)['name'] as String?;
     } else {
       zName = data['zone_name'] as String? ??
-          resultData?['target_zone'] as String?;
+          data['zoneName'] as String? ??
+          resultData?['target_zone'] as String? ??
+          resultData?['target_department'] as String?;
     }
+
+    final num? rawReduction = (data['risk_reduction_pct'] as num?) ??
+        (data['riskReductionPct'] as num?) ??
+        (data['estimated_complaint_reduction_percent'] as num?) ??
+        (data['estimated_incident_reduction_pct'] as num?) ??
+        (resultData?['estimated_complaint_reduction_percent'] as num?) ??
+        (resultData?['estimated_incident_reduction_pct'] as num?) ??
+        (resultData?['risk_reduction_pct'] as num?) ??
+        (resultData?['riskReductionPct'] as num?);
+
+    final double reductionPct = rawReduction?.toDouble() ?? 35.0;
 
     final double riskScore =
         (data['simulated_risk_score'] as num?)?.toDouble() ??
+            (data['simulatedRiskScore'] as num?)?.toDouble() ??
             (resultData?['simulated_risk_score'] as num?)?.toDouble() ??
             (resultData?['simulatedRiskScore'] as num?)?.toDouble() ??
-            3.2;
-
-    final double reductionPct =
-        (data['risk_reduction_pct'] as num?)?.toDouble() ??
-            (data['estimated_complaint_reduction_percent'] as num?)?.toDouble() ??
-            (resultData?['estimated_complaint_reduction_percent'] as num?)?.toDouble() ??
-            (resultData?['risk_reduction_pct'] as num?)?.toDouble() ??
-            (resultData?['riskReductionPct'] as num?)?.toDouble() ??
-            35.0;
+            (rawReduction != null
+                ? double.parse(
+                    (5.0 * (1.0 - (reductionPct.clamp(0.0, 100.0) / 100.0)))
+                        .toStringAsFixed(2),
+                  )
+                : 3.2);
 
     final double budget =
         (data['estimated_budget_idr'] as num?)?.toDouble() ??
+            (data['estimatedBudgetIdr'] as num?)?.toDouble() ??
+            (data['budget_estimate_idr'] as num?)?.toDouble() ??
             (resultData?['estimated_budget_idr'] as num?)?.toDouble() ??
             (resultData?['estimatedBudgetIdr'] as num?)?.toDouble() ??
+            (resultData?['budget_estimate_idr'] as num?)?.toDouble() ??
             1500000000.0;
 
     final String impact = (data['impact_analysis'] as String?) ??
+        (data['impactAnalysis'] as String?) ??
         (data['result_narrative'] as String?) ??
+        (data['resultNarrative'] as String?) ??
         (resultData?['impact_analysis'] as String?) ??
+        (resultData?['impactAnalysis'] as String?) ??
         (resultData?['result_narrative'] as String?) ??
+        (resultData?['narrative'] as String?) ??
         '';
 
+    final int? weeksToMonths = resultData?['time_to_impact_weeks'] is num
+        ? (((resultData!['time_to_impact_weeks'] as num).toDouble() / 4.0)
+            .round()
+            .clamp(1, 120))
+        : null;
+
     final int horizon = (data['time_horizon_months'] as num?)?.toInt() ??
+        (data['timeHorizonMonths'] as num?)?.toInt() ??
         (resultData?['implementation_months'] as num?)?.toInt() ??
         (resultData?['time_horizon_months'] as num?)?.toInt() ??
+        (resultData?['timeHorizonMonths'] as num?)?.toInt() ??
+        weeksToMonths ??
         6;
 
     final double confidence =
         (data['confidence_level'] as num?)?.toDouble() ??
+            (data['confidenceLevel'] as num?)?.toDouble() ??
             (resultData?['confidence_index'] as num?)?.toDouble() ??
             (resultData?['confidence_level'] as num?)?.toDouble() ??
+            (resultData?['confidenceLevel'] as num?)?.toDouble() ??
             0.88;
 
+    final rawCreatedAt = data['created_at'] ?? data['createdAt'];
+
     return PolicySimulationModel(
-      id: data['id'] as String? ?? '',
-      promptText: data['prompt_text'] as String? ?? '',
-      zoneId: data['zone_id'] as String?,
+      id: data['id']?.toString() ?? '',
+      promptText: (data['prompt_text'] as String?) ??
+          (data['promptText'] as String?) ??
+          '',
+      zoneId: (data['zone_id'] as String?) ?? (data['zoneId'] as String?),
       zoneName: zName,
       simulatedRiskScore: riskScore,
       riskReductionPct: reductionPct,
@@ -99,8 +137,8 @@ class PolicySimulationModel {
       recommendedActions: recs,
       timeHorizonMonths: horizon,
       confidenceLevel: confidence,
-      createdAt: data['created_at'] != null
-          ? DateTime.tryParse(data['created_at'].toString())
+      createdAt: rawCreatedAt != null
+          ? DateTime.tryParse(rawCreatedAt.toString())
           : null,
     );
   }
