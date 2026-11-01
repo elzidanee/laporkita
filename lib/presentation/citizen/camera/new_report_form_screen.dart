@@ -10,6 +10,9 @@ import '../../../data/models/ai_verification_model.dart';
 class NewReportFormScreen extends StatefulWidget {
   const NewReportFormScreen({super.key});
 
+  static List<CategoryModel> get defaultCategories =>
+      _NewReportFormScreenState._defaultCategories;
+
   @override
   State<NewReportFormScreen> createState() => _NewReportFormScreenState();
 }
@@ -47,24 +50,6 @@ class _NewReportFormScreenState extends State<NewReportFormScreen> {
     CategoryModel(
       id: 'c5000000-0000-4000-8000-000000000005',
       name: 'Drainase',
-      isActive: true,
-      createdAt: DateTime.now(),
-    ),
-    CategoryModel(
-      id: 'cat-sampah',
-      name: 'Sampah & Kebersihan',
-      isActive: true,
-      createdAt: DateTime.now(),
-    ),
-    CategoryModel(
-      id: 'cat-fasilitas',
-      name: 'Fasilitas Umum',
-      isActive: true,
-      createdAt: DateTime.now(),
-    ),
-    CategoryModel(
-      id: 'cat-lain',
-      name: 'Lainnya',
       isActive: true,
       createdAt: DateTime.now(),
     ),

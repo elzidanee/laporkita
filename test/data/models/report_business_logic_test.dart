@@ -4,6 +4,7 @@ import 'package:laporkita/data/repositories/report_repository.dart';
 import 'package:laporkita/data/datasources/remote/report_remote_datasource.dart';
 import 'package:laporkita/data/models/agency_model.dart';
 import 'package:laporkita/presentation/command_center/report_management/admin_assign_report_screen.dart';
+import 'package:laporkita/presentation/citizen/camera/new_report_form_screen.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   group('Report Business Logic & State Consistency Tests', () {
@@ -134,6 +135,27 @@ void main() {
       expect(payload['status'], equals('assigned'));
       expect(payload['note'], equals('Penugasan ke Dishub'));
       expect(payload['assigned_agency_id'], equals('a2000000-0000-4000-8000-000000000002'));
+    });
+
+    test('MM-07: NewReportFormScreen.defaultCategories contains only the 5 canonical seed category UUIDs', () {
+      final cats = NewReportFormScreen.defaultCategories;
+      expect(cats, hasLength(5));
+      final uuidRegex = RegExp(
+        r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+      );
+      for (final c in cats) {
+        expect(uuidRegex.hasMatch(c.id), isTrue, reason: 'Invalid category UUID: ${c.id}');
+      }
+      expect(
+        cats.map((c) => c.name).toList(),
+        equals(const [
+          'Jalan Berlubang',
+          'Lampu Jalan',
+          'Rambu Lalu Lintas',
+          'Trotoar',
+          'Drainase',
+        ]),
+      );
     });
   });
 }
