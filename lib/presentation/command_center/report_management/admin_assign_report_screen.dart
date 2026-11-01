@@ -14,6 +14,37 @@ class AdminAssignReportScreen extends StatefulWidget {
     required this.report,
   });
 
+  static const Map<String, String> fallbackAgencyIdsByName = {
+    'Dinas PUPR (DPUPR)': 'a1000000-0000-4000-8000-000000000001',
+    'Dinas Perhubungan (Dishub)': 'a2000000-0000-4000-8000-000000000002',
+    'Dinas Komunikasi & Informatika (Diskominfo)': 'a3000000-0000-4000-8000-000000000003',
+  };
+
+  static String? resolveAgencyId(
+    String? selectedOpdName,
+    List<AgencyModel> agencies,
+  ) {
+    if (selectedOpdName == null || selectedOpdName.trim().isEmpty) return null;
+    final trimmed = selectedOpdName.trim();
+    for (final a in agencies) {
+      if (a.name == trimmed || a.id == trimmed) {
+        return a.id;
+      }
+    }
+    if (fallbackAgencyIdsByName.containsKey(trimmed)) {
+      return fallbackAgencyIdsByName[trimmed];
+    }
+    final lower = trimmed.toLowerCase();
+    if (lower.contains('pupr')) return 'a1000000-0000-4000-8000-000000000001';
+    if (lower.contains('dishub') || lower.contains('perhubungan')) {
+      return 'a2000000-0000-4000-8000-000000000002';
+    }
+    if (lower.contains('diskominfo') || lower.contains('komunikasi')) {
+      return 'a3000000-0000-4000-8000-000000000003';
+    }
+    return null;
+  }
+
   @override
   State<AdminAssignReportScreen> createState() =>
       _AdminAssignReportScreenState();
@@ -123,11 +154,13 @@ class _AdminAssignReportScreenState extends State<AdminAssignReportScreen> {
           ? '$noteText (OPD: $opdName | Prioritas: $_selectedPriority$petugasInfo)'
           : 'Penugasan laporan ke $opdName (Prioritas: $_selectedPriority$petugasInfo)';
 
+      final resolvedAgencyUuid =
+          AdminAssignReportScreen.resolveAgencyId(opdName, _agencies);
       final updatedReport = await repo.updateReportStatus(
         widget.report.id,
         'assigned',
         notes: combinedNote,
-        assignedAgencyId: opdName,
+        assignedAgencyId: resolvedAgencyUuid,
         existingReport: widget.report.copyWith(
           directPriority: _selectedPriority,
         ),

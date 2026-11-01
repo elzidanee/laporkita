@@ -251,17 +251,33 @@ class ReportRemoteDatasource {
     return response.data!;
   }
 
+  static Map<String, dynamic> buildStatusTransitionPayload(
+    String newStatus, {
+    String? notes,
+    String? assignedAgencyId,
+  }) {
+    final isValidUuid = assignedAgencyId != null &&
+        RegExp(
+          r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+        ).hasMatch(assignedAgencyId);
+    return <String, dynamic>{
+      'status': newStatus,
+      if (notes != null && notes.isNotEmpty) 'note': notes,
+      if (isValidUuid) 'assigned_agency_id': assignedAgencyId,
+    };
+  }
+
   Future<ReportModel> updateReportStatus(
     String reportId,
     String newStatus, {
     String? notes,
     String? assignedAgencyId,
   }) async {
-    // Backend NestJS DTO strictly requires only status and optional note
-    final payload = <String, dynamic>{
-      'status': newStatus,
-      if (notes != null && notes.isNotEmpty) 'note': notes,
-    };
+    final payload = buildStatusTransitionPayload(
+      newStatus,
+      notes: notes,
+      assignedAgencyId: assignedAgencyId,
+    );
 
     final response = await _dioClient.patch<ReportModel>(
       '/reports/$reportId/status',

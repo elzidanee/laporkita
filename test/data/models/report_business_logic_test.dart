@@ -1,7 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:laporkita/data/models/report_model.dart';
 import 'package:laporkita/data/repositories/report_repository.dart';
-
+import 'package:laporkita/data/datasources/remote/report_remote_datasource.dart';
+import 'package:laporkita/data/models/agency_model.dart';
+import 'package:laporkita/presentation/command_center/report_management/admin_assign_report_screen.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   group('Report Business Logic & State Consistency Tests', () {
@@ -102,6 +104,36 @@ void main() {
       expect(history.note, equals('Foto & GPS valid'));
       expect(history.actorId, equals('admin-uuid-1'));
       expect(history.actorName, equals('Admin LaporKita Kota Malang'));
+    });
+
+    test('MM-05: AdminAssignReportScreen resolves OPD name to UUID and ReportRemoteDatasource includes assigned_agency_id in payload', () {
+      final agencies = [
+        const AgencyModel(
+          id: 'a2000000-0000-4000-8000-000000000002',
+          name: 'Dinas Perhubungan (Dishub) Kota Malang',
+          type: 'dishub',
+        ),
+      ];
+      final resolvedUuid = AdminAssignReportScreen.resolveAgencyId(
+        'Dinas Perhubungan (Dishub) Kota Malang',
+        agencies,
+      );
+      expect(resolvedUuid, equals('a2000000-0000-4000-8000-000000000002'));
+
+      final fallbackUuid = AdminAssignReportScreen.resolveAgencyId(
+        'Dinas PUPR (DPUPR)',
+        const [],
+      );
+      expect(fallbackUuid, equals('a1000000-0000-4000-8000-000000000001'));
+
+      final payload = ReportRemoteDatasource.buildStatusTransitionPayload(
+        'assigned',
+        notes: 'Penugasan ke Dishub',
+        assignedAgencyId: resolvedUuid,
+      );
+      expect(payload['status'], equals('assigned'));
+      expect(payload['note'], equals('Penugasan ke Dishub'));
+      expect(payload['assigned_agency_id'], equals('a2000000-0000-4000-8000-000000000002'));
     });
   });
 }
