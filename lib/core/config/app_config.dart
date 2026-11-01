@@ -11,19 +11,19 @@ class AppConfig {
 
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://api.canadev.my.id/api/v1',
+    defaultValue: 'https://api-server.canadev.my.id/api/v1',
   );
 
   /// URL AI Microservice (FastAPI) — production
   static const String aiServiceUrl = String.fromEnvironment(
     'AI_SERVICE_URL',
-    defaultValue: 'https://ai.canadev.my.id',
+    defaultValue: 'https://ai-server.canadev.my.id',
   );
 
-  /// Internal API Key untuk autentikasi service-to-service ke FastAPI AI.
+  /// Internal API Key untuk autentikasi ke FastAPI AI (inject via --dart-define=AI_API_KEY=...).
   static const String aiApiKey = String.fromEnvironment(
     'AI_API_KEY',
-    defaultValue: 'laporkita_sec_e62232a17817b3676927b5fefda6bad1cbe4',
+    defaultValue: '',
   );
 
   /// Google Gemini API Key untuk Policy Simulator (Gemini 2.5 Flash)
