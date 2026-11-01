@@ -3,6 +3,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../config/app_config.dart';
 import '../../data/repositories/notification_repository.dart';
 
 @pragma('vm:entry-point')
@@ -24,6 +26,9 @@ class FcmService {
 
   String? get fcmToken => _fcmToken;
 
+  static bool shouldSyncTokenWithBackend(String? accessToken) {
+    return accessToken != null && accessToken.trim().isNotEmpty;
+  }
   /// Inisialisasi Firebase & FCM Service dengan fallback aman & log terang
   Future<void> initialize({
     FirebaseOptions? options,
@@ -73,11 +78,16 @@ class FcmService {
       debugPrint(_fcmToken);
       debugPrint('==================================================');
 
-      // 6. Send token to NestJS Backend if available
+      // 6. Send token to NestJS Backend ONLY if user has an active access_token (MM-12)
       final repo = notificationRepo ?? NotificationRepository();
       try {
-        await repo.subscribeRouteAlert(deviceToken: _fcmToken!);
-        debugPrint('✅ FCM Token terdaftar ke Backend NestJS (/notifications/subscribe-route-alert)');
+        final accessToken = await const FlutterSecureStorage().read(
+          key: AppConfig.accessTokenKey,
+        );
+        if (shouldSyncTokenWithBackend(accessToken)) {
+          await repo.subscribeRouteAlert(deviceToken: _fcmToken!);
+          debugPrint('✅ FCM Token terdaftar ke Backend NestJS (/route-alerts/subscribe)');
+        }
       } catch (e) {
         debugPrint('⚠️ Notifikasi backend subscription info: $e');
       }
@@ -87,7 +97,12 @@ class FcmService {
         _fcmToken = newToken;
         debugPrint('🔄 FCM Token Diperbarui: $newToken');
         try {
-          await repo.subscribeRouteAlert(deviceToken: newToken);
+          final accessToken = await const FlutterSecureStorage().read(
+            key: AppConfig.accessTokenKey,
+          );
+          if (shouldSyncTokenWithBackend(accessToken)) {
+            await repo.subscribeRouteAlert(deviceToken: newToken);
+          }
         } catch (_) {}
       });
 
