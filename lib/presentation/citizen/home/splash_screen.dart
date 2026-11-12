@@ -15,18 +15,16 @@ class _SplashScreenState extends State<SplashScreen>
   late AnimationController _controller;
   bool _animationCompleted = false;
 
-  // Phase 1: logoLK.png Zoom Out & Fade In (0.0 -> 0.35)
-  late Animation<double> _lkScale;
-  late Animation<double> _lkOpacity;
+  // Phase 1: Logo LK Entrance (Fade in & gentle scale settle)
+  late Animation<double> _logoOpacity;
+  late Animation<double> _logoScale;
 
-  // Phase 2: logoLK.png Slide Left (0.35 -> 0.60)
-  late Animation<Offset> _lkSlideLeft;
+  // Phase 2: Smooth Expand & Reveal of Brand Text (No layout jump)
+  late Animation<double> _expandWidth;
+  late Animation<double> _textOpacity;
+  late Animation<double> _textSlide;
 
-  // Phase 3: LaporKita.png Fade In & Slide In (0.55 -> 0.80)
-  late Animation<double> _laporKitaOpacity;
-  late Animation<Offset> _laporKitaSlide;
-
-  // Phase 4: Tagline Fade In & Slide Up (0.70 -> 0.95)
+  // Phase 3: Tagline Entrance (Fade in & subtle upward glide)
   late Animation<double> _taglineOpacity;
   late Animation<double> _taglineSlide;
 
@@ -35,61 +33,58 @@ class _SplashScreenState extends State<SplashScreen>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 3000),
+      duration: const Duration(milliseconds: 2800),
     );
 
-    // 1. logoLK.png Zoom Out (scales down from 2.2 to 1.0) & Fades In
-    _lkOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+    // 1. Logo LK Fade In & Gentle Scale Settle (0.00 -> 0.35)
+    _logoOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.0, 0.25, curve: Curves.easeIn),
+        curve: const Interval(0.00, 0.28, curve: Curves.easeOut),
       ),
     );
-    _lkScale = Tween<double>(begin: 2.2, end: 1.0).animate(
+    _logoScale = Tween<double>(begin: 1.25, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.0, 0.38, curve: Curves.easeOutBack),
-      ),
-    );
-
-    // 2. logoLK.png Slides to the Left
-    _lkSlideLeft =
-        Tween<Offset>(begin: Offset.zero, end: const Offset(-0.25, 0.0)).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.38, 0.60, curve: Curves.easeInOutCubic),
+        curve: const Interval(0.00, 0.35, curve: Curves.easeOutCubic),
       ),
     );
 
-    // 3. LaporKita.png Appears (Fades in & Slides right beside logoLK)
-    _laporKitaOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+    // 2. Expand Width Factor (Smoothly slides Logo to the left and unrolls Text area) (0.35 -> 0.68)
+    _expandWidth = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.55, 0.80, curve: Curves.easeIn),
-      ),
-    );
-    _laporKitaSlide =
-        Tween<Offset>(begin: const Offset(0.2, 0.0), end: Offset.zero).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.55, 0.80, curve: Curves.easeOutCubic),
+        curve: const Interval(0.35, 0.68, curve: Curves.easeInOutCubic),
       ),
     );
 
-    // 4. Tagline Fades In & Slides Up
+    // 3. Text Fade In & Slide out from behind the logo (0.38 -> 0.68)
+    _textOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.40, 0.65, curve: Curves.easeOut),
+      ),
+    );
+    _textSlide = Tween<double>(begin: -24.0, end: 0.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.35, 0.68, curve: Curves.easeOutCubic),
+      ),
+    );
+
+    // 4. Tagline Fade In & Upward Slide (0.68 -> 0.88)
     _taglineOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.70, 0.92, curve: Curves.easeIn),
+        curve: const Interval(0.68, 0.86, curve: Curves.easeOut),
       ),
     );
-    _taglineSlide = Tween<double>(begin: 20.0, end: 0.0).animate(
+    _taglineSlide = Tween<double>(begin: 16.0, end: 0.0).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.70, 0.92, curve: Curves.easeOutCubic),
+        curve: const Interval(0.68, 0.88, curve: Curves.easeOutCubic),
       ),
     );
-
     // Start animation sequence and navigate based on auth state when complete
     _controller.forward().then((_) {
       if (mounted) {
@@ -126,111 +121,129 @@ class _SplashScreenState extends State<SplashScreen>
         _performNavigation(state);
       },
       child: Scaffold(
-        backgroundColor: AppColors.greenPrimary,
-        body: Stack(
-        children: [
-          // Center Animation Area
-          Center(
-            child: AnimatedBuilder(
-              animation: _controller,
-              builder: (context, child) {
-                return Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // 1. logoLK.png (Zoom out then slide left)
-                    FractionalTranslation(
-                      translation: _lkSlideLeft.value,
-                      child: Opacity(
-                        opacity: _lkOpacity.value,
-                        child: Transform.scale(
-                          scale: _lkScale.value,
-                          child: Image.asset(
-                            'assets/images/logoLK.png',
-                            width: 80,
-                            height: 80,
-                            fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) => Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: AppColors.white,
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: const Text(
-                                'LK',
-                                style: TextStyle(
-                                  color: AppColors.greenPrimary,
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: RadialGradient(
+              center: Alignment(0.0, -0.05),
+              radius: 1.15,
+              colors: [
+                Color(0xFF23A859), // subtle luminous center highlight
+                AppColors.greenPrimary, // pure brand green
+                Color(0xFF168041), // elegant vignette at edges
+              ],
+              stops: [0.0, 0.65, 1.0],
+            ),
+          ),
+          child: Stack(
+            children: [
+              // Center Brand Lockup Animation
+              Center(
+                child: AnimatedBuilder(
+                  animation: _controller,
+                  builder: (context, child) {
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // 1. logoLK.png (Enters centered, then naturally glides left as row expands)
+                        Opacity(
+                          opacity: _logoOpacity.value.clamp(0.0, 1.0),
+                          child: Transform.scale(
+                            scale: _logoScale.value,
+                            child: Image.asset(
+                              'assets/images/logoLK.png',
+                              width: 76,
+                              height: 76,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) => Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: AppColors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: const Text(
+                                  'LK',
+                                  style: TextStyle(
+                                    color: AppColors.greenPrimary,
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                    ),
 
-                    // 2. LaporKita.png (Appears next to logoLK)
-                    if (_laporKitaOpacity.value > 0.0) ...[
-                      const SizedBox(width: 8),
-                      FractionalTranslation(
-                        translation: _laporKitaSlide.value,
-                        child: Opacity(
-                          opacity: _laporKitaOpacity.value,
-                          child: Image.asset(
-                            'assets/images/LaporKita.png',
-                            height: 40,
-                            fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) =>
-                                const Text(
-                              'LaporKita',
-                              style: TextStyle(
-                                color: AppColors.white,
-                                fontSize: 32,
-                                fontWeight: FontWeight.bold,
+                        // 2. LaporKita text (Smoothly unrolls/reveals from the logo with zero layout jump)
+                        ClipRect(
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            widthFactor: _expandWidth.value.clamp(0.0, 1.0),
+                            child: Padding(
+                              padding: const EdgeInsets.only(left: 12.0),
+                              child: Opacity(
+                                opacity: _textOpacity.value.clamp(0.0, 1.0),
+                                child: Transform.translate(
+                                  offset: Offset(_textSlide.value, 0.0),
+                                  child: Image.asset(
+                                    'assets/images/LaporKita.png',
+                                    height: 38,
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (context, error, stackTrace) =>
+                                        const Text(
+                                      'LaporKita',
+                                      style: TextStyle(
+                                        color: AppColors.white,
+                                        fontSize: 32,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: -0.5,
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
-                  ],
-                );
-              },
-            ),
-          ),
-
-          // Bottom Tagline Animation
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 48.0),
-              child: AnimatedBuilder(
-                animation: _controller,
-                builder: (context, child) {
-                  return Opacity(
-                    opacity: _taglineOpacity.value,
-                    child: Transform.translate(
-                      offset: Offset(0.0, _taglineSlide.value),
-                      child: const Text(
-                        'Suaramu untuk kota yang lebih baik.',
-                        style: TextStyle(
-                          color: AppColors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w400,
-                          letterSpacing: 0.5,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  );
-                },
+                      ],
+                    );
+                  },
+                ),
               ),
-            ),
+
+              // Bottom Tagline Animation
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 48.0),
+                  child: AnimatedBuilder(
+                    animation: _controller,
+                    builder: (context, child) {
+                      return Opacity(
+                        opacity: _taglineOpacity.value.clamp(0.0, 1.0),
+                        child: Transform.translate(
+                          offset: Offset(0.0, _taglineSlide.value),
+                          child: const Text(
+                            'Suaramu untuk kota yang lebih baik.',
+                            style: TextStyle(
+                              color: AppColors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w400,
+                              letterSpacing: 0.6,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
