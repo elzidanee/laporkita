@@ -503,8 +503,8 @@ def build_progress_pdf():
     story.append(Paragraph("2.2 Spesifikasi Endpoint & Layanan Cloud Aktif", styles["SectionTitle"]))
     story.append(create_callout(
         "Seluruh service backend dan AI microservice telah ter-deploy dan aktif di lingkungan produksi: "
-        "<b>https://api.canadev.my.id/api/v1</b> (Backend Gateway) dan "
-        "<b>https://ai.canadev.my.id</b> (AI Service). Routing kalkulasi jalan menggunakan public demo server "
+        "<b>https://api-server.canadev.my.id/api/v1</b> (Backend Gateway) dan "
+        "<b>https://ai-server.canadev.my.id</b> (AI Service). Routing kalkulasi jalan menggunakan public demo server "
         "<b>https://router.project-osrm.org</b>.",
         styles
     ))

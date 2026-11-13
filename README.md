@@ -48,8 +48,8 @@
 graph LR
     Warga["👤 Warga Kota Malang"]
     Flutter["📱 App Mobile Flutter\n(Citizen & Command Center)"]
-    NestJS["🖥️ Backend Gateway\n(NestJS :3000)\napi.canadev.my.id"]
-    FastAPI["🤖 AI Microservice\n(FastAPI :8000)\nai.canadev.my.id"]
+    NestJS["🖥️ Backend Gateway\n(NestJS :3000)\napi-server.canadev.my.id"]
+    FastAPI["🤖 AI Microservice\n(FastAPI :8000)\nai-server.canadev.my.id"]
     DB[("🗄️ PostgreSQL\n+ PostGIS (Supabase)")]
     Gov["🏛️ Operator Dinas & Admin"]
 
@@ -81,13 +81,13 @@ graph TB
         Data["Data Layer\n(Repositories & Datasources)"]
     end
 
-    subgraph Backend["🖥️ NestJS Gateway (https://api.canadev.my.id)"]
+    subgraph Backend["🖥️ NestJS Gateway (https://api-server.canadev.my.id)"]
         AuthModule["Auth & RBAC JWT"]
         ReportModule["Report Management"]
         AgencyModule["Agencies & Categories"]
     end
 
-    subgraph AIService["🤖 AI Microservice (https://ai.canadev.my.id)"]
+    subgraph AIService["🤖 AI Microservice (https://ai-server.canadev.my.id)"]
         YOLO["YOLOv11-cls\n(Computer Vision 99.49% Acc)"]
         XGBoost["XGBoost Regressor\n(Risk Prediction R²=0.9635)"]
         Gemini["Google Gemini 2.5 Flash\n(Policy Impact Simulator)"]
@@ -205,20 +205,20 @@ class AppConfig {
   /// Backend REST API Gateway (NestJS)
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://api.canadev.my.id/api/v1',
+    defaultValue: 'https://api-server.canadev.my.id/api/v1',
   );
 
   /// AI Microservice (FastAPI Python)
   static const String aiServiceUrl = String.fromEnvironment(
     'AI_SERVICE_URL',
-    defaultValue: 'https://ai.canadev.my.id',
+    defaultValue: 'https://ai-server.canadev.my.id',
   );
 }
 ```
 
 ### Opsi Dynamic Environment Override (opsional):
 ```bash
-flutter run --dart-define=API_BASE_URL=https://api.canadev.my.id/api/v1 --dart-define=AI_SERVICE_URL=https://ai.canadev.my.id
+flutter run --dart-define=API_BASE_URL=https://api-server.canadev.my.id/api/v1 --dart-define=AI_SERVICE_URL=https://ai-server.canadev.my.id
 ```
 
 ---

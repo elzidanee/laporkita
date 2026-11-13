@@ -76,8 +76,8 @@ async function runRegressionSuite() {
   });
 
   // TEST 3: Production Backend Gateway API Availability
-  await test('TC-03: Production Backend Gateway (canadev.my.id)', async () => {
-    const res = await request.get('https://api.canadev.my.id/api/v1/categories', {
+  await test('TC-03: Production Backend Gateway (api-server.canadev.my.id)', async () => {
+    const res = await request.get('https://api-server.canadev.my.id/api/v1/categories', {
       timeout: 10000,
       ignoreHTTPSErrors: true
     });
@@ -88,8 +88,8 @@ async function runRegressionSuite() {
   });
 
   // TEST 4: Production AI Microservice Health Endpoint
-  await test('TC-04: Production AI Microservice (ai.canadev.my.id)', async () => {
-    const res = await request.get('https://ai.canadev.my.id/health', {
+  await test('TC-04: Production AI Microservice (ai-server.canadev.my.id)', async () => {
+    const res = await request.get('https://ai-server.canadev.my.id/health', {
       timeout: 10000,
       ignoreHTTPSErrors: true
     });

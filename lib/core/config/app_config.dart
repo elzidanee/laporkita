@@ -1,10 +1,10 @@
 // STATUS: VERIFIED — Production URLs
-// Backend  : https://api.canadev.my.id  (NestJS, port 3000)
-// AI Service: https://ai.canadev.my.id  (FastAPI, port 8000)
+// Backend  : https://api-server.canadev.my.id  (NestJS, port 3000)
+// AI Service: https://ai-server.canadev.my.id  (FastAPI, port 8000)
 //
 // Override via dart-define jika perlu:
-//   flutter run --dart-define=API_BASE_URL=https://api.canadev.my.id/api/v1
-//   flutter run --dart-define=AI_SERVICE_URL=https://ai.canadev.my.id
+//   flutter run --dart-define=API_BASE_URL=https://api-server.canadev.my.id/api/v1
+//   flutter run --dart-define=AI_SERVICE_URL=https://ai-server.canadev.my.id
 //   flutter run --dart-define=AI_API_KEY=your_internal_key
 class AppConfig {
   AppConfig._();
